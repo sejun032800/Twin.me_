@@ -17,7 +17,7 @@ export default function Login() {
     if (error) {
       Alert.alert('로그인 실패', error.message);
     } else {
-      router.replace('/(tabs)');
+      router.replace('/(auth)/profile');
     }
   }
 

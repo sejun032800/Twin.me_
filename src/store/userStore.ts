@@ -14,6 +14,7 @@ import type { SubscriptionStatus } from '../services/iapService';
 
 export interface UserState {
   userId: string | null;
+  name: string | null;
   mbti: string | null;
   enneagramType: EnneagramType | null;
   personaMatrix: UserPersonaMatrix | null;
@@ -26,6 +27,7 @@ export interface UserState {
 
 export interface UserActions {
   setUserId: (userId: string | null) => void;
+  setName: (name: string | null) => void;
   setMbti: (mbti: string | null) => void;
   setEnneagramType: (enneagramType: EnneagramType | null) => void;
   setPersonaMatrix: (personaMatrix: UserPersonaMatrix | null) => void;
@@ -40,6 +42,7 @@ export interface UserActions {
 
 const initialState: UserState = {
   userId: null,
+  name: null,
   mbti: null,
   enneagramType: null,
   personaMatrix: null,
@@ -55,6 +58,7 @@ export const useUserStore = create<UserState & UserActions>()(
     (set) => ({
       ...initialState,
       setUserId: (userId) => set({ userId }),
+      setName: (name) => set({ name }),
       setMbti: (mbti) => set({ mbti }),
       setEnneagramType: (enneagramType) => set({ enneagramType }),
       setPersonaMatrix: (personaMatrix) => set({ personaMatrix }),

@@ -18,7 +18,7 @@ export default function Signup() {
       Alert.alert('가입 실패', error.message);
     } else {
       Alert.alert('확인 이메일 발송', '이메일을 확인해주세요.', [
-        { text: '확인', onPress: () => router.replace('/(auth)/login') }
+        { text: '확인', onPress: () => router.replace('/(auth)/profile') }
       ]);
     }
   }
