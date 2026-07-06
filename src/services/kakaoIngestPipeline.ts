@@ -18,11 +18,26 @@ import {
   type MemoryQuote,
   type MemoryNode,
 } from '../lib/kakaoParser';
-import { generateFullReport, type WeeklyReportData } from './weeklyReportService';
 import { runKakaoBatchDetection } from './kakaoBatchDetectionService';
 import type { KakaoBatchDetectionResult } from '../engine/twinResponseEngine';
-import type { UserProfile, PartnerProfile, DateCourse } from '../context/AppContext';
-import type { EventHistoryEntry } from './matchEngineStore';
+import type { DateCourse } from '../lib/kakaoParser';
+import type { EventHistoryEntry } from '../store/scoreStore';
+
+// weeklyReportService는 Edge Function 프록시로 재작성 예정 (MASTER §14.4)
+// 임시 스텁으로 타입 에러 제거
+type WeeklyReportData = unknown;
+const generateFullReport = async (..._args: unknown[]): Promise<unknown> => {
+  throw new Error('weeklyReportService: Edge Function 미구현');
+};
+
+interface UserProfile {
+  name: string;
+  mbti?: string;
+}
+
+interface PartnerProfile {
+  name: string;
+}
 
 const MEMORY_QUOTES_KEY = 'twin_me_memory_quotes_v1';
 const MEMORY_WALL_NODES_KEY = 'twin_me_memory_wall_nodes_v1';

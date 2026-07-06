@@ -14,7 +14,7 @@
 // 항상 "재미·성찰 도구" 포지셔닝을 유지해야 한다. δ/κ/γ/A_cap/빈도캡은 출시 후
 // 실사용 로그 기반 A/B 보정 대상이다.
 
-import type { OverflowStatus } from '../utils/scoreCalculator';
+import type { OverflowStatus } from './scoreCalculator';
 
 // ── 이벤트 그룹 & 코드 타입 ────────────────────────────────────────────────────
 

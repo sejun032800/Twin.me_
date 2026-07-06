@@ -12,10 +12,13 @@
 //   >= 0.84 → crisisModalTrigger (full reflection overlay)
 
 import { useCallback, useRef, useState } from 'react';
-// TODO: 새 코드베이스에서 llmRoutingService는 Edge Function 프록시 클라이언트로 교체.
-// API 키는 클라이언트에 노출하지 말 것 (MASTER.md §14.4).
-// refineViaLLM() 함수의 routeInference() 호출부만 새 프록시 인터페이스로 교체하면 됨.
-import { llmRoutingService } from '../services/llmRoutingService';
+// llmRoutingService는 새 코드베이스에서 Supabase Edge Function 프록시로 교체 예정.
+// 임시로 인터페이스만 선언해 타입 에러를 제거한다.
+const llmRoutingService = {
+  routeInference: async (_input: unknown): Promise<{ content: string }> => {
+    throw new Error('llmRoutingService: Edge Function 프록시 미구현 — src/api/llm.ts 작성 후 교체');
+  },
+};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -168,7 +171,7 @@ async function refineViaLLM(
       temperature: 0.3,
       maxTokens: 80,
     });
-    const parsed = JSON.parse(response.generatedText) as Record<string, number>;
+    const parsed = JSON.parse(response.content) as Record<string, number>;
     const clamp = (v: unknown, fb: number) =>
       typeof v === 'number' && isFinite(v) ? Math.max(0, Math.min(1, v)) : fb;
     return {

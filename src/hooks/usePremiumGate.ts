@@ -12,10 +12,7 @@
  */
 
 import { useEffect } from 'react';
-// TODO: 새 코드베이스에서 AppContext → Zustand coupleStore / userStore로 교체.
-// subscriptionStatus, setSubscriptionStatus를 해당 store의 selector로 연결할 것.
-// import { useAppContext } from '../context/AppContext'; // 구 코드베이스 — 사용 금지
-import { useAppContext } from '../context/AppContext'; // ← 교체 대상
+import { useUserStore } from '../store/userStore';
 import { DEFAULT_SUBSCRIPTION_STATUS, type PlanId } from '../services/iapService';
 
 export type PlanTier = 'free' | 'coffee' | 'deep';
@@ -45,8 +42,8 @@ function deriveTier(planId: PlanId | null, effectivelyPremium: boolean): PlanTie
 }
 
 export function usePremiumGate(): PremiumGateResult {
-  const { subscriptionStatus, setSubscriptionStatus } = useAppContext();
-  const { isPremium, planId, expiresAt } = subscriptionStatus;
+  const { subscriptionStatus, setSubscriptionStatus } = useUserStore();
+  const { isPremium, planId, expiresAt } = subscriptionStatus ?? DEFAULT_SUBSCRIPTION_STATUS;
 
   // Hard-gate: runtime expiry enforcement
   // - On mount / when subscriptionStatus changes: check if already expired.

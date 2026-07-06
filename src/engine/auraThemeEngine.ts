@@ -8,7 +8,7 @@
 // 앰비언트 렌더링(메시 합성/모션/화면별 가중치/뮤트 파스텔 게이트)만 담당한다.
 
 import type { AuraChannel, AuraVector } from '../types/genesis';
-import type { OverflowStatus } from '../utils/scoreCalculator';
+import type { OverflowStatus } from './scoreCalculator';
 
 // ── 1. 뮤트 파스텔 게이트 (§2.2 — 원색/형광 노출 차단) ───────────────────────────
 // auraEngine.scoreToChannel이 이미 saturation ≤90 / lightness 47~71 범위로 산출하지만,
