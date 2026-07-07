@@ -3,7 +3,7 @@
 // 베이지안 추론으로 갱신되므로 이 화면에서는 다루지 않는다.
 
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserStore } from '@/store/userStore';
@@ -61,7 +61,11 @@ export default function Profile() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.title}>프로필 입력</Text>
 
       <TextInput
@@ -106,12 +110,13 @@ export default function Profile() {
       >
         <Text style={styles.nextBtnText}>{submitting ? '처리 중...' : '다음'}</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT, padding: 32, justifyContent: 'center', gap: 16 },
+  container: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT },
+  scrollContent: { padding: 32, justifyContent: 'center', flexGrow: 1, gap: 16 },
   title: { fontSize: 28, fontWeight: 'bold', color: BRAND.CORAL, marginBottom: 8 },
   input: { backgroundColor: SYS.CARD_DARK, borderRadius: 12, padding: 16, color: SYS.TEXT_LIGHT, fontSize: 16 },
   label: { fontSize: 14, color: SYS.TEXT_LIGHT, marginTop: 8 },

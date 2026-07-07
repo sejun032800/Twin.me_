@@ -31,7 +31,11 @@ export default function History() {
 
   function renderArchive() {
     return (
-      <ScrollView contentContainerStyle={styles.tabContent}>
+      <ScrollView
+        contentContainerStyle={styles.tabContent}
+        bounces={true}
+        alwaysBounceVertical={true}
+      >
         {/* TODO: kakaoParser의 MemoryNode 데이터 연결 예정 — 폴라로이드 추억 카드로 교체 */}
         <View style={styles.card}>
           <Text style={styles.emptyText}>
@@ -45,7 +49,11 @@ export default function History() {
   function renderHelix() {
     if (sortedHistory.length === 0) {
       return (
-        <ScrollView contentContainerStyle={styles.tabContent}>
+        <ScrollView
+          contentContainerStyle={styles.tabContent}
+          bounces={true}
+          alwaysBounceVertical={true}
+        >
           <View style={styles.card}>
             <Text style={styles.emptyText}>아직 기록이 없어요</Text>
           </View>
@@ -53,7 +61,11 @@ export default function History() {
       );
     }
     return (
-      <ScrollView contentContainerStyle={styles.tabContent}>
+      <ScrollView
+        contentContainerStyle={styles.tabContent}
+        bounces={true}
+        alwaysBounceVertical={true}
+      >
         {sortedHistory.map((entry) => (
           <View key={entry.date} style={styles.historyRow}>
             <Text style={styles.historyDate}>{entry.date}</Text>
@@ -74,7 +86,11 @@ export default function History() {
 
   function renderFeed() {
     return (
-      <ScrollView contentContainerStyle={styles.tabContent}>
+      <ScrollView
+        contentContainerStyle={styles.tabContent}
+        bounces={true}
+        alwaysBounceVertical={true}
+      >
         <View style={styles.card}>
           <Text style={styles.emptyText}>
             주간 리포트가 여기 쌓여요{'\n'}매주 월요일에 업데이트돼요 📊

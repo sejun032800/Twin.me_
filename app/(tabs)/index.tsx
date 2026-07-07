@@ -3,13 +3,14 @@
 // 한 번도 없어 S_Current=0인 첫 실행 구간에서는 S_Base(MBTI 기준 점수)로 대체 노출한다.
 // 티어는 scoreCalculator.getRelationshipTier()(§5.8, FUN-HOM-003 10단계 매퍼)로 산출.
 
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { getRelationshipTier, formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS } from '@/constants/colors';
+import { TYPOGRAPHY } from '@/constants/typography';
 
 function computeDDay(relationshipStartDate: string | null): number | null {
   if (!relationshipStartDate) return null;
@@ -39,7 +40,12 @@ export default function Home() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+        alwaysBounceVertical={true}
+      >
         <View style={styles.header}>
           <Text style={styles.name}>{name ?? '트윈'}</Text>
           <Text style={styles.dday}>
@@ -58,21 +64,18 @@ export default function Home() {
         </View>
 
         <Text style={styles.statusMessage}>{statusMessage}</Text>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT },
-  container: {
-    flex: 1,
-    backgroundColor: SYS.BG_DARK_MIDNIGHT,
+  scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    gap: 20,
+    padding: 24,
   },
   header: {
     position: 'absolute',
@@ -94,8 +97,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   score: {
-    fontSize: 64,
-    fontWeight: 'bold',
+    ...TYPOGRAPHY.display,
     color: BRAND.CORAL,
     fontVariant: ['tabular-nums'],
   },
@@ -110,12 +112,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   tierText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...TYPOGRAPHY.label,
     color: BRAND.CORAL,
   },
   statusMessage: {
-    fontSize: 14,
+    ...TYPOGRAPHY.body,
     color: '#888',
     marginTop: 12,
   },

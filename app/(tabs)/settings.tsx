@@ -4,7 +4,7 @@
 // reduceAuraMotion 필드가 없어 로컬 AsyncStorage('twin_aura_motion_v1')로 직접 관리한다.
 
 import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Switch, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -49,7 +49,7 @@ export default function Settings() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* 프로필 섹션 */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>프로필</Text>
@@ -117,14 +117,17 @@ export default function Settings() {
             <Text style={styles.rowValue}>v2.6</Text>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT },
-  container: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT, padding: 16 },
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 48,
+  },
 
   section: { marginBottom: 24 },
   sectionHeader: {

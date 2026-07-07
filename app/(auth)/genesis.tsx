@@ -3,7 +3,7 @@
 // phase: idle → asking/act-transition → confirming → ceremony → done.
 
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGenesisInterview } from '@/hooks/useGenesisInterview';
 import { useUserStore } from '@/store/userStore';
@@ -70,18 +70,26 @@ export default function Genesis() {
 
   if (phase === 'idle') {
     return (
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.idleDesc}>나를 닮은 AI를 만들기 위해{'\n'}10분 정도 대화해요</Text>
         <TouchableOpacity style={styles.primaryBtn} onPress={start}>
           <Text style={styles.primaryBtnText}>트윈 인터뷰 시작</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     );
   }
 
   if (phase === 'asking' || phase === 'act-transition') {
     return (
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
@@ -107,13 +115,17 @@ export default function Genesis() {
             {inputMode === 'voice' ? '⌨️ 타이핑으로 답할게요' : '🎙️ 음성으로 답할게요'}
           </Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     );
   }
 
   if (phase === 'confirming') {
     return (
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.confirmTitle}>아, 이런 말이지?</Text>
         <Text style={styles.confirmLabel}>{pendingConfirm?.archetype.label}</Text>
 
@@ -126,19 +138,23 @@ export default function Genesis() {
         <TouchableOpacity style={styles.secondaryBtn} onPress={switchToTyping}>
           <Text style={styles.secondaryBtnText}>다시 답하기</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     );
   }
 
   if (phase === 'ceremony') {
     return (
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.ceremonyTitle}>트윈이 완성됐어요 ✨</Text>
         <Text style={styles.ceremonyType}>{ENNEAGRAM_TYPE_NAME[bayesianState.topType]}</Text>
         <TouchableOpacity style={styles.primaryBtn} onPress={handleStart}>
           <Text style={styles.primaryBtnText}>시작하기</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -150,8 +166,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: SYS.BG_DARK_MIDNIGHT,
+  },
+  scrollContent: {
     padding: 32,
     justifyContent: 'center',
+    flexGrow: 1,
     gap: 20,
   },
   idleDesc: {

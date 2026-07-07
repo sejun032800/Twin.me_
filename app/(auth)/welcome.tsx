@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BRAND, SYS } from '@/constants/colors';
+import { TYPOGRAPHY } from '@/constants/typography';
 
 export default function Welcome() {
   const router = useRouter();
@@ -42,11 +43,11 @@ export default function Welcome() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 20 },
-  logo: { fontSize: 40, fontWeight: 'bold', color: BRAND.CORAL },
-  sub: { fontSize: 18, color: SYS.TEXT_LIGHT, textAlign: 'center', lineHeight: 28 },
+  logo: { ...TYPOGRAPHY.display, color: BRAND.CORAL },
+  sub: { ...TYPOGRAPHY.body, color: SYS.TEXT_LIGHT, textAlign: 'center' },
   btn: { width: '100%', backgroundColor: BRAND.CORAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
-  btnText: { fontSize: 16, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
-  link: { fontSize: 14, color: BRAND.MINT, marginTop: 8 },
+  btnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
+  link: { ...TYPOGRAPHY.caption, color: BRAND.MINT, marginTop: 8 },
   guest: { fontSize: 13, color: '#555', marginTop: 8 },
   devBtn: { marginTop: 24, padding: 12, borderWidth: 1, borderColor: '#333', borderRadius: 8 },
   devBtnText: { fontSize: 12, color: '#555', textAlign: 'center' },

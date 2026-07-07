@@ -6,8 +6,9 @@
 // 실제 AI 연동(§4.3 이하)은 TODO — 지금은 전송 시 고정 스텁 메시지만 추가한다.
 
 import { useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useSessionStore } from '@/store/sessionStore';
 import { useUserStore } from '@/store/userStore';
@@ -15,6 +16,7 @@ import { useMatchEngine } from '@/hooks/useMatchEngine';
 import { callLLM } from '@/api/llm';
 import type { ClassifierMessage } from '@/engine/eventClassifier';
 import { BRAND, SYS } from '@/constants/colors';
+import { TYPOGRAPHY } from '@/constants/typography';
 
 type RoomKey = 'lover' | 'twin' | 'analyst';
 
@@ -40,6 +42,7 @@ export default function Chat() {
   const name = useUserStore((s) => s.name);
   const { processMessage } = useMatchEngine();
   const [chatHistory, setChatHistory] = useState<ClassifierMessage[]>([]);
+  const headerHeight = useHeaderHeight();
 
   const [messagesByRoom, setMessagesByRoom] = useState<Record<RoomKey, ChatMessage[]>>({
     lover: [],
@@ -84,10 +87,14 @@ export default function Chat() {
     let replyText = '...';
     try {
       const { name, personaMatrix } = useUserStore.getState();
-      const systemPrompt = `당신은 ${name ?? '사용자'}의 트윈 AI입니다.
-사용자의 말투와 성격을 그대로 반영해서 대화하세요.
-에니어그램 유형: ${personaMatrix?.enneagramType ?? '미확정'}
-짧고 자연스럽게 1~2문장으로 답하세요.`;
+      const systemPrompt = `너는 ${name ?? '사용자'}의 트윈 AI야.
+${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
+규칙:
+- 반말로 짧게 1문장으로만 답해
+- 이모티콘 가끔 써
+- 질문엔 질문으로 받아쳐
+- 너무 친절하거나 AI스럽게 말하지 마
+에니어그램 유형: ${personaMatrix?.enneagramType ?? '미확정'}`;
 
       const response = await callLLM({
         systemPrompt,
@@ -197,7 +204,7 @@ export default function Chat() {
 
   function renderRoomList() {
     return (
-      <ScrollView>
+      <ScrollView bounces={true} alwaysBounceVertical={true}>
         {ROOM_ORDER.map((key) => (
           <TouchableOpacity key={key} style={styles.listItem} onPress={() => setActiveChatRoom(key)}>
             {renderAvatar(key)}
@@ -214,7 +221,11 @@ export default function Chat() {
 
   function renderChatScreen() {
     return (
-      <>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+      >
         {messages.length === 0 ? (
           renderPlaceholder()
         ) : (
@@ -223,6 +234,7 @@ export default function Chat() {
             style={styles.messageList}
             contentContainerStyle={styles.messageListContent}
             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+            keyboardShouldPersistTaps="handled"
           >
             {messages.map((msg) => {
               const fromMe = msg.role === 'me';
@@ -257,7 +269,7 @@ export default function Chat() {
             <Text style={styles.sendBtnText}>전송</Text>
           </TouchableOpacity>
         </View>
-      </>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -287,7 +299,7 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerBackBtn: { paddingRight: 4 },
-  headerTitle: { fontSize: 17, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
+  headerTitle: { ...TYPOGRAPHY.heading, color: SYS.TEXT_LIGHT },
   headerRight: { flexDirection: 'row', gap: 16 },
   headerIconBtn: { paddingHorizontal: 4 },
   headerIcon: { fontSize: 20, color: SYS.TEXT_LIGHT },
@@ -330,23 +342,24 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '75%', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 14, marginVertical: 4 },
   bubbleMe: { backgroundColor: BRAND.CORAL },
   bubbleOther: { backgroundColor: SYS.CARD_DARK },
-  bubbleText: { fontSize: 15, color: SYS.TEXT_LIGHT },
+  bubbleText: { ...TYPOGRAPHY.body, color: SYS.TEXT_LIGHT },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     padding: 12,
+    paddingBottom: Platform.OS === 'ios' ? 0 : 8,
     borderTopWidth: 1,
     borderTopColor: SYS.CARD_DARK,
   },
   input: {
+    ...TYPOGRAPHY.body,
     flex: 1,
     backgroundColor: SYS.CARD_DARK,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     color: SYS.TEXT_LIGHT,
-    fontSize: 15,
   },
   inputDisabled: { opacity: 0.5 },
   sendBtn: {
