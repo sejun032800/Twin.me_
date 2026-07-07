@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabaseClient';
-import { BRAND, SYS } from '@/constants/colors';
+import { BRAND, SYS, GRADIENT } from '@/constants/colors';
 
 export default function Login() {
   const router = useRouter();
@@ -41,8 +42,15 @@ export default function Login() {
         onChangeText={setPassword}
         secureTextEntry
       />
-      <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading}>
-        <Text style={styles.btnText}>{loading ? '로그인 중...' : '로그인'}</Text>
+      <TouchableOpacity onPress={handleLogin} disabled={loading}>
+        <LinearGradient
+          colors={[...GRADIENT.BRAND_STOPS]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.btn}
+        >
+          <Text style={styles.btnText}>{loading ? '로그인 중...' : '로그인'}</Text>
+        </LinearGradient>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => router.back()}>
         <Text style={styles.link}>돌아가기</Text>
@@ -55,7 +63,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT, padding: 32, justifyContent: 'center', gap: 16 },
   title: { fontSize: 28, fontWeight: 'bold', color: BRAND.CORAL, marginBottom: 8 },
   input: { backgroundColor: SYS.CARD_DARK, borderRadius: 12, padding: 16, color: SYS.TEXT_LIGHT, fontSize: 16 },
-  btn: { backgroundColor: BRAND.CORAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  btn: { borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   btnText: { fontSize: 16, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
   link: { fontSize: 14, color: BRAND.MINT, textAlign: 'center', marginTop: 8 },
 });

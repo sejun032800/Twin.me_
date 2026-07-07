@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BRAND, SYS } from '@/constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BRAND, SYS, GRADIENT } from '@/constants/colors';
 import { TYPOGRAPHY } from '@/constants/typography';
 
 export default function Welcome() {
@@ -23,8 +24,15 @@ export default function Welcome() {
     <View style={styles.container}>
       <Text style={styles.logo}>Twin.me</Text>
       <Text style={styles.sub}>나를 닮은 AI와 함께{'\n'}연애를 돌아보세요</Text>
-      <TouchableOpacity style={styles.btn} onPress={() => router.push('/(auth)/signup')}>
-        <Text style={styles.btnText}>시작하기</Text>
+      <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
+        <LinearGradient
+          colors={[...GRADIENT.BRAND_STOPS]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.btn}
+        >
+          <Text style={styles.btnText}>시작하기</Text>
+        </LinearGradient>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
         <Text style={styles.link}>이미 계정이 있어요</Text>
@@ -45,7 +53,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 20 },
   logo: { ...TYPOGRAPHY.display, color: BRAND.CORAL },
   sub: { ...TYPOGRAPHY.body, color: SYS.TEXT_LIGHT, textAlign: 'center' },
-  btn: { width: '100%', backgroundColor: BRAND.CORAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
+  btn: { width: '100%', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
   btnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
   link: { ...TYPOGRAPHY.caption, color: BRAND.MINT, marginTop: 8 },
   guest: { fontSize: 13, color: '#555', marginTop: 8 },
