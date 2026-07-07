@@ -18,9 +18,8 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { useCoupleStore } from '@/store/coupleStore';
-import { useUserStore } from '@/store/userStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
-import AuraMeshBackground from '@/components/AuraMeshBackground';
 import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
@@ -229,6 +228,7 @@ const MOCK_COURSES = [
 function FeedTab() {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const themeMode = useSessionStore((s) => s.themeMode);
   const [ootdOnly, setOotdOnly] = useState(false);
   const [filter, setFilter] = useState<FeedFilterKey>('rating');
 
@@ -241,7 +241,7 @@ function FeedTab() {
     >
       <Text style={styles.feedTitle}>💑 인기 데이트코스</Text>
 
-      <View style={styles.ootdBar}>
+      <View style={[styles.ootdBar, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : '#1E293B' }]}>
         <Text style={styles.ootdText}>✨ 내 현재 OOTD & 무드 코스만 보기</Text>
         <Switch
           value={ootdOnly}
@@ -257,31 +257,56 @@ function FeedTab() {
           return (
             <TouchableOpacity
               key={f.key}
-              style={[styles.filterChip, selected && styles.filterChipActive]}
+              style={[
+                styles.filterChip,
+                { backgroundColor: themeMode === 'light' ? '#F5E8EC' : '#1E293B' },
+                selected && styles.filterChipActive,
+              ]}
               onPress={() => setFilter(f.key)}
             >
-              <Text style={[styles.filterChipText, selected && styles.filterChipTextActive]}>{f.label}</Text>
+              <Text
+                style={[
+                  styles.filterChipText,
+                  { color: theme.textMuted },
+                  selected && styles.filterChipTextActive,
+                ]}
+              >
+                {f.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
       {MOCK_COURSES.map((course) => (
-        <View key={course.id} style={styles.courseCard}>
+        <View
+          key={course.id}
+          style={[styles.courseCard, { backgroundColor: themeMode === 'light' ? '#FFFFFF' : '#1E293B' }]}
+        >
           <View style={styles.courseHeader}>
             <Text style={styles.courseCoupleLabel}>
               익명의 [{course.tierEmoji} {course.tierTitle}] 커플
             </Text>
-            <View style={styles.courseRegionBadge}>
-              <Text style={styles.courseRegionText}>📍 {course.region}</Text>
+            <View
+              style={[
+                styles.courseRegionBadge,
+                { backgroundColor: themeMode === 'light' ? '#FFE8E8' : '#0F1626' },
+              ]}
+            >
+              <Text style={[styles.courseRegionText, { color: BRAND.CORAL }]}>📍 {course.region}</Text>
             </View>
           </View>
 
           <View style={styles.coursePlaces}>
             {course.places.map((place, i) => (
               <View key={place.name} style={styles.coursePlaceRow}>
-                <View style={styles.coursePlaceChip}>
-                  <Text style={styles.coursePlaceText}>{place.name}{place.emoji}</Text>
+                <View
+                  style={[
+                    styles.coursePlaceChip,
+                    { backgroundColor: themeMode === 'light' ? '#FFF0F0' : '#0F1626' },
+                  ]}
+                >
+                  <Text style={[styles.coursePlaceText, { color: theme.textMuted }]}>{place.name}{place.emoji}</Text>
                 </View>
                 {i < course.places.length - 1 && <Text style={styles.courseArrow}>→</Text>}
               </View>
@@ -290,19 +315,27 @@ function FeedTab() {
 
           <View style={styles.courseTags}>
             {course.tags.map((tag) => (
-              <View key={tag} style={styles.courseTag}>
-                <Text style={styles.courseTagText}>{tag}</Text>
+              <View
+                key={tag}
+                style={[styles.courseTag, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : '#0F1626' }]}
+              >
+                <Text style={[styles.courseTagText, { color: theme.textMuted }]}>{tag}</Text>
               </View>
             ))}
           </View>
 
           <View style={styles.courseRatingRow}>
             <Text style={styles.courseRatingText}>나의 별점 ⭐{course.myRating.toFixed(1)}</Text>
-            <View style={styles.courseRatingDivider} />
+            <View
+              style={[
+                styles.courseRatingDivider,
+                { backgroundColor: themeMode === 'light' ? '#E8D0D5' : '#2D3F55' },
+              ]}
+            />
             <Text style={styles.courseRatingText}>연인의 별점 ⭐{course.partnerRating.toFixed(1)}</Text>
           </View>
 
-          <Text style={styles.courseReview}>"{course.review}"</Text>
+          <Text style={[styles.courseReview, { color: theme.textMuted }]}>"{course.review}"</Text>
 
           <TouchableOpacity style={styles.courseMapBtn}>
             <LinearGradient
@@ -323,7 +356,7 @@ function FeedTab() {
 export default function History() {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const auraVector = useUserStore((s) => s.personaMatrix?.auraVector ?? null);
+  const themeMode = useSessionStore((s) => s.themeMode);
   const [subTab, setSubTab] = useState<SubTab>('archive');
 
   function renderMap() {
@@ -332,14 +365,16 @@ export default function History() {
         <View style={styles.mapPlaceholder}>
           <Text style={styles.mapPlaceholderEmoji}>🗺️</Text>
           <Text style={styles.mapPlaceholderTitle}>지도 기능 준비 중</Text>
-          <Text style={styles.mapPlaceholderDesc}>
+          <Text style={[styles.mapPlaceholderDesc, { color: theme.textMuted }]}>
             .env 파일에 EXPO_PUBLIC_KAKAO_MAP_API_KEY를{'\n'}
             입력하면 바로 활성화돼요
           </Text>
 
-          <View style={styles.mapPinList}>
+          <View
+            style={[styles.mapPinList, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : '#1E293B' }]}
+          >
             <Text style={styles.mapPinListTitle}>📍 등록된 장소</Text>
-            <Text style={styles.mapPinEmpty}>아직 기록된 장소가 없어요</Text>
+            <Text style={[styles.mapPinEmpty, { color: theme.textMuted }]}>아직 기록된 장소가 없어요</Text>
           </View>
 
           <TouchableOpacity style={styles.aiRecommendBtn}>
@@ -360,37 +395,33 @@ export default function History() {
     return null;
   }
 
-  const screenKey = subTab === 'archive' ? 'helix' : 'historyMap';
-
   return (
-    <AuraMeshBackground auraVector={auraVector} screenKey={screenKey}>
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.container}>
-          <View style={styles.tabBar}>
-            {SUB_TABS.map(({ key, label }) => {
-              const selected = subTab === key;
-              return (
-                <TouchableOpacity key={key} style={styles.tabItem} onPress={() => setSubTab(key)}>
-                  <Text style={[styles.tabLabel, selected && styles.tabLabelActive]}>{label}</Text>
-                  {selected && <View style={styles.tabUnderline} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {subTab === 'archive' && <ArchiveTab />}
-          {subTab === 'map' && renderMap()}
-          {subTab === 'feed' && <FeedTab />}
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.tabBar}>
+          {SUB_TABS.map(({ key, label }) => {
+            const selected = subTab === key;
+            return (
+              <TouchableOpacity key={key} style={styles.tabItem} onPress={() => setSubTab(key)}>
+                <Text style={[styles.tabLabel, selected && styles.tabLabelActive]}>{label}</Text>
+                {selected && <View style={styles.tabUnderline} />}
+              </TouchableOpacity>
+            );
+          })}
         </View>
-      </SafeAreaView>
-    </AuraMeshBackground>
+
+        {subTab === 'archive' && <ArchiveTab />}
+        {subTab === 'map' && renderMap()}
+        {subTab === 'feed' && <FeedTab />}
+      </View>
+    </SafeAreaView>
   );
 }
 
 function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
+  safeArea: { flex: 1, backgroundColor: theme.bg },
+  container: { flex: 1, backgroundColor: theme.bg },
 
   tabBar: {
     flexDirection: 'row',
@@ -419,7 +450,7 @@ function makeStyles(theme: SigmaTheme) {
     paddingBottom: 12,
     alignItems: 'center',
   },
-  helixTitle: { ...TYPOGRAPHY.heading, color: SYS.TEXT_LIGHT },
+  helixTitle: { ...TYPOGRAPHY.heading, color: theme.text },
   helixSub: { ...TYPOGRAPHY.caption, color: '#888', marginTop: 4 },
   helixContent: { paddingVertical: 20 },
   helixItem: {
@@ -435,7 +466,7 @@ function makeStyles(theme: SigmaTheme) {
     gap: 8,
   },
   helixEmoji: { fontSize: 48 },
-  helixLabel: { ...TYPOGRAPHY.label, color: SYS.TEXT_LIGHT },
+  helixLabel: { ...TYPOGRAPHY.label, color: theme.text },
   helixDate: { ...TYPOGRAPHY.caption, color: '#666' },
   helixTags: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 4 },
   helixTag: { backgroundColor: '#0F1626', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
@@ -447,45 +478,43 @@ function makeStyles(theme: SigmaTheme) {
     borderTopWidth: 1,
     borderTopColor: '#1E293B',
   },
-  helixStatItem: { ...TYPOGRAPHY.label, color: SYS.TEXT_LIGHT },
+  helixStatItem: { ...TYPOGRAPHY.label, color: theme.text },
 
   // 지도 — 카카오맵 연동 전 플레이스홀더 (수정 금지)
   mapPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
   mapPlaceholderEmoji: { fontSize: 64 },
-  mapPlaceholderTitle: { ...TYPOGRAPHY.heading, color: SYS.TEXT_LIGHT },
-  mapPlaceholderDesc: { ...TYPOGRAPHY.body, color: '#666', textAlign: 'center', lineHeight: 24 },
-  mapPinList: { width: '100%', backgroundColor: '#1E293B', borderRadius: 16, padding: 20, gap: 8, marginTop: 8 },
+  mapPlaceholderTitle: { ...TYPOGRAPHY.heading, color: theme.text },
+  mapPlaceholderDesc: { ...TYPOGRAPHY.body, textAlign: 'center', lineHeight: 24 },
+  mapPinList: { width: '100%', borderRadius: 16, padding: 20, gap: 8, marginTop: 8 },
   mapPinListTitle: { ...TYPOGRAPHY.label, color: '#888' },
-  mapPinEmpty: { ...TYPOGRAPHY.caption, color: '#555' },
+  mapPinEmpty: { ...TYPOGRAPHY.caption },
   aiRecommendBtn: { width: '100%', marginTop: 8 },
   aiRecommendGradient: { borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   aiRecommendText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
 
   // 피드 — 인기 데이트코스
   feedContent: { paddingBottom: 20 },
-  feedTitle: { ...TYPOGRAPHY.heading, color: SYS.TEXT_LIGHT, padding: 20, paddingBottom: 12 },
+  feedTitle: { ...TYPOGRAPHY.heading, color: theme.text, padding: 20, paddingBottom: 12 },
 
   ootdBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.card,
     borderRadius: 14,
     padding: 16,
     marginHorizontal: 20,
     marginBottom: 12,
     gap: 12,
   },
-  ootdText: { ...TYPOGRAPHY.bodyMedium, color: SYS.TEXT_LIGHT, flex: 1 },
+  ootdText: { ...TYPOGRAPHY.bodyMedium, color: theme.text, flex: 1 },
 
   filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 16 },
-  filterChip: { backgroundColor: theme.card, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8 },
+  filterChip: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8 },
   filterChipActive: { backgroundColor: BRAND.CORAL },
-  filterChipText: { ...TYPOGRAPHY.caption, color: '#888' },
+  filterChipText: { ...TYPOGRAPHY.caption },
   filterChipTextActive: { color: SYS.TEXT_LIGHT },
 
   courseCard: {
-    backgroundColor: theme.card,
     borderRadius: 20,
     padding: 20,
     marginHorizontal: 20,
@@ -493,25 +522,25 @@ function makeStyles(theme: SigmaTheme) {
     gap: 12,
   },
   courseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  courseCoupleLabel: { ...TYPOGRAPHY.bodyMedium, color: SYS.TEXT_LIGHT, flex: 1 },
-  courseRegionBadge: { backgroundColor: '#0F1626', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
-  courseRegionText: { ...TYPOGRAPHY.caption, color: '#888' },
+  courseCoupleLabel: { ...TYPOGRAPHY.bodyMedium, color: theme.text, flex: 1 },
+  courseRegionBadge: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
+  courseRegionText: { ...TYPOGRAPHY.caption },
 
   coursePlaces: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   coursePlaceRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  coursePlaceChip: { backgroundColor: '#0F1626', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
-  coursePlaceText: { ...TYPOGRAPHY.caption, color: SYS.TEXT_LIGHT },
+  coursePlaceChip: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
+  coursePlaceText: { ...TYPOGRAPHY.caption },
   courseArrow: { ...TYPOGRAPHY.caption, color: '#555' },
 
   courseTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  courseTag: { backgroundColor: '#0F1626', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
-  courseTagText: { ...TYPOGRAPHY.caption, color: '#888' },
+  courseTag: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
+  courseTagText: { ...TYPOGRAPHY.caption },
 
   courseRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   courseRatingText: { ...TYPOGRAPHY.caption, color: '#888' },
-  courseRatingDivider: { width: 1, height: 12, backgroundColor: '#333' },
+  courseRatingDivider: { width: 1, height: 12 },
 
-  courseReview: { ...TYPOGRAPHY.caption, color: '#888', fontStyle: 'italic' },
+  courseReview: { ...TYPOGRAPHY.caption, fontStyle: 'italic' },
 
   courseMapBtn: { marginTop: 4 },
   courseMapBtnGradient: {

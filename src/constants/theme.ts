@@ -52,28 +52,42 @@ export function buildSigmaTheme(auraVector: AuraVector): SigmaTheme {
   const lightness = Math.max(40, Math.min(72, 55 + dominantScore * 8));
 
   return {
-    bg: 'transparent', // AuraMeshBackground가 배경 담당
-    bgSecondary: 'transparent',
-    card: `hsla(${hue}, ${saturation * 0.3}%, 15%, 0.75)`, // 반투명 카드 — 배경 그라데이션이 비쳐 보이도록
+    bg: hsl(hue, saturation * 0.3, 12),
+    bgSecondary: hsl(hue, saturation * 0.35, 16),
+    card: hsl(hue, saturation * 0.4, 20),
     accent: hsl(hue, saturation, lightness),
-    accentSoft: `hsla(${hue}, ${saturation * 0.4}%, 25%, 0.6)`,
+    accentSoft: hsl(hue, saturation * 0.5, 25),
     text: '#FFFFFF',
-    textMuted: hsl(hue, 20, 70),
-    border: `hsla(${hue}, ${saturation * 0.4}%, 50%, 0.25)`,
-    tabBar: `hsla(${hue}, ${saturation * 0.3}%, 8%, 0.9)`,
+    textMuted: hsl(hue, 20, 65),
+    border: hsl(hue, saturation * 0.4, 25),
+    tabBar: hsl(hue, saturation * 0.3, 12),
   };
 }
 
 export function getDefaultDarkTheme(): SigmaTheme {
   return {
-    bg: 'transparent', // 배경은 AuraMeshBackground가 단순 어두운 배경 렌더링
-    bgSecondary: 'transparent',
-    card: 'rgba(30, 41, 59, 0.85)',
+    bg: '#0A0D1A',
+    bgSecondary: '#0F1626',
+    card: '#1E293B',
     accent: '#FFA4A4', // BRAND.CORAL
     accentSoft: '#2D1F2B',
     text: '#FFFFFF',
     textMuted: '#888888',
-    border: 'rgba(30, 41, 59, 0.8)',
-    tabBar: 'rgba(10, 13, 26, 0.95)',
+    border: '#1E293B',
+    tabBar: '#0A0D1A',
+  };
+}
+
+export function getLightTheme(): SigmaTheme {
+  return {
+    bg: '#F8F9FA',
+    bgSecondary: '#F0F2F5',
+    card: '#FFFFFF',
+    accent: '#FFA4A4',
+    accentSoft: '#FFE8E8',
+    text: '#1A1A1A',
+    textMuted: '#888888',
+    border: '#E8EAED',
+    tabBar: '#FFFFFF',
   };
 }

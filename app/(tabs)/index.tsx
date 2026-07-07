@@ -11,13 +11,13 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import CircularGauge from '@/components/CircularGauge';
-import AuraMeshBackground from '@/components/AuraMeshBackground';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { getRelationshipTier, formatScore } from '@/engine/scoreCalculator';
-import { BRAND, SYS, GRADIENT } from '@/constants/colors';
+import { BRAND, GRADIENT } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -42,11 +42,8 @@ export default function Home() {
   const router = useRouter();
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const personaMatrix = useUserStore((s) => s.personaMatrix);
-  console.log('auraVector:', personaMatrix?.auraVector ? '있음' : '없음');
-  console.log('meshStops count:', personaMatrix?.auraVector?.meshStops?.length);
+  const themeMode = useSessionStore((s) => s.themeMode);
   const name = useUserStore((s) => s.name);
-  const auraVector = useUserStore((s) => s.personaMatrix?.auraVector ?? null);
   const relationshipStartDate = useCoupleStore((s) => s.relationshipStartDate);
   const sCurrent = useScoreStore((s) => s.sCurrent);
   const sBase = useScoreStore((s) => s.sBase);
@@ -67,74 +64,76 @@ export default function Home() {
     : ['🌧️ 주의 필요', '💔 회복 중', '🤔 돌아보기'];
 
   return (
-    <AuraMeshBackground auraVector={auraVector} screenKey="main">
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          bounces={true}
-          alwaysBounceVertical={true}
-        >
-          <View style={styles.header}>
-            <Text style={styles.headerName}>{name ?? '트윈'}</Text>
-            {dDay !== null && (
-              <Text style={styles.headerDday}>연애 {dDay}일째</Text>
-            )}
-          </View>
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+        alwaysBounceVertical={true}
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerName}>{name ?? '트윈'}</Text>
+          {dDay !== null && (
+            <Text style={styles.headerDday}>연애 {dDay}일째</Text>
+          )}
+        </View>
 
-          <View style={styles.gaugeSection}>
-            <View style={styles.gaugeContainer}>
-              <CircularGauge score={displayScore} />
-              <View style={styles.gaugeCenter}>
-                <MaskedView
-                  maskElement={
-                    <Text style={styles.score}>{formatScore(displayScore)}</Text>
-                  }
+        <View style={styles.gaugeSection}>
+          <View style={styles.gaugeContainer}>
+            <CircularGauge
+              score={displayScore}
+              size={220}
+              trackColor={themeMode === 'light' ? '#E0E0E0' : '#1E293B'}
+            />
+            <View style={styles.gaugeCenter}>
+              <MaskedView
+                maskElement={
+                  <Text style={styles.score}>{formatScore(displayScore)}</Text>
+                }
+              >
+                <LinearGradient
+                  colors={[...GRADIENT.BRAND_STOPS]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
                 >
-                  <LinearGradient
-                    colors={[...GRADIENT.BRAND_STOPS]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <Text style={[styles.score, { opacity: 0 }]}>
-                      {formatScore(displayScore)}
-                    </Text>
-                  </LinearGradient>
-                </MaskedView>
-                <Text style={styles.tierText}>{tier.emoji} {tier.title}</Text>
-              </View>
+                  <Text style={[styles.score, { opacity: 0 }]}>
+                    {formatScore(displayScore)}
+                  </Text>
+                </LinearGradient>
+              </MaskedView>
+              <Text style={styles.tierText}>{tier.emoji} {tier.title}</Text>
             </View>
           </View>
+        </View>
 
-          <Text style={styles.statusText}>{statusEmoji(displayScore)} {statusMessage}</Text>
+        <Text style={styles.statusText}>{statusEmoji(displayScore)} {statusMessage}</Text>
 
-          <View style={styles.tagRow}>
-            {moodTags.map((tag) => (
-              <View key={tag} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
+        <View style={styles.tagRow}>
+          {moodTags.map((tag) => (
+            <View key={tag} style={styles.tag}>
+              <Text style={styles.tagText}>{tag}</Text>
+            </View>
+          ))}
+        </View>
 
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/chat')}>
-              <Ionicons name="chatbubble-ellipses" size={20} color={BRAND.CORAL} />
-              <Text style={styles.actionBtnText}>트윈과 대화</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/history')}>
-              <Ionicons name="time" size={20} color={BRAND.MINT} />
-              <Text style={styles.actionBtnText}>히스토리 보기</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </AuraMeshBackground>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/chat')}>
+            <Ionicons name="chatbubble-ellipses" size={20} color={BRAND.CORAL} />
+            <Text style={styles.actionBtnText}>트윈과 대화</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/history')}>
+            <Ionicons name="time" size={20} color={BRAND.MINT} />
+            <Text style={styles.actionBtnText}>히스토리 보기</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
-    safeArea: { flex: 1 },
+    safeArea: { flex: 1, backgroundColor: theme.bg },
     scrollContent: {
       flexGrow: 1,
       padding: 24,
@@ -147,7 +146,7 @@ function makeStyles(theme: SigmaTheme) {
     },
     headerName: {
       ...TYPOGRAPHY.heading,
-      color: SYS.TEXT_LIGHT,
+      color: theme.text,
     },
     headerDday: {
       ...TYPOGRAPHY.caption,
@@ -175,7 +174,7 @@ function makeStyles(theme: SigmaTheme) {
     },
     tierText: {
       ...TYPOGRAPHY.label,
-      color: SYS.TEXT_LIGHT,
+      color: theme.text,
       marginTop: 8,
     },
     statusText: {
@@ -198,7 +197,7 @@ function makeStyles(theme: SigmaTheme) {
     },
     tagText: {
       ...TYPOGRAPHY.caption,
-      color: SYS.TEXT_LIGHT,
+      color: theme.text,
     },
     actionsRow: {
       flexDirection: 'row',
@@ -215,7 +214,7 @@ function makeStyles(theme: SigmaTheme) {
     },
     actionBtnText: {
       ...TYPOGRAPHY.label,
-      color: SYS.TEXT_LIGHT,
+      color: theme.text,
       marginTop: 6,
     },
   });

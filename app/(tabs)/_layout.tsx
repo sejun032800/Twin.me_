@@ -1,9 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { useSessionStore } from '@/store/sessionStore';
 
 export default function TabsLayout() {
   const theme = useTheme();
+  const themeMode = useSessionStore((s) => s.themeMode);
 
   return (
     <Tabs
@@ -11,14 +13,14 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle: {
           backgroundColor: theme.tabBar,
-          borderTopColor: theme.border,
+          borderTopColor: '#1E293B',
           borderTopWidth: 1,
           height: 60,
           paddingBottom: 8,
           paddingTop: 4,
         },
         tabBarActiveTintColor: theme.accent,
-        tabBarInactiveTintColor: '#555',
+        tabBarInactiveTintColor: themeMode === 'light' ? '#888' : '#555',
         tabBarLabelStyle: {
           fontSize: 11,
           marginTop: 2,

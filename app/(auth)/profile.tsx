@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
@@ -25,6 +25,7 @@ const EMPTY_MBTI_SELECTION: MbtiSelection = { EI: null, SN: null, TF: null, JP: 
 
 export default function Profile() {
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const setMbti = useUserStore((s) => s.setMbti);
   const setUserId = useUserStore((s) => s.setUserId);
   const setName = useUserStore((s) => s.setName);
@@ -57,7 +58,12 @@ export default function Profile() {
     }
 
     setSubmitting(false);
-    router.push('/(auth)/kakao-upload');
+
+    if (from === 'settings') {
+      router.back();
+    } else {
+      router.push('/(auth)/kakao-upload');
+    }
   }
 
   return (

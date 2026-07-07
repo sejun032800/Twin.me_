@@ -15,7 +15,6 @@ import type { ActiveChatRoom } from '@/store/sessionStore';
 import { useUserStore } from '@/store/userStore';
 import { useMatchEngine } from '@/hooks/useMatchEngine';
 import { useTheme } from '@/hooks/useTheme';
-import AuraMeshBackground from '@/components/AuraMeshBackground';
 import { callLLM } from '@/api/llm';
 import type { ClassifierMessage } from '@/engine/eventClassifier';
 import { BRAND, SYS } from '@/constants/colors';
@@ -38,7 +37,6 @@ export default function Chat() {
   const activeChatRoom = useSessionStore((s) => s.activeChatRoom);
   const setActiveChatRoom = useSessionStore((s) => s.setActiveChatRoom);
   const name = useUserStore((s) => s.name);
-  const auraVector = useUserStore((s) => s.personaMatrix?.auraVector ?? null);
   const { processMessage } = useMatchEngine();
   const [chatHistory, setChatHistory] = useState<ClassifierMessage[]>([]);
 
@@ -118,8 +116,28 @@ export default function Chat() {
     // 트윈 AI 응답 생성
     let replyText = '...';
     try {
-      const { name, personaMatrix } = useUserStore.getState();
-      const systemPrompt = `너는 ${name ?? '사용자'}의 트윈 AI야.
+      const { name, personaMatrix, toneVector } = useUserStore.getState();
+      const privacyLevel = useSessionStore.getState().privacyLevel;
+
+      let systemPrompt: string;
+      if (privacyLevel === 0) {
+        systemPrompt = `너는 ${name ?? '사용자'}의 트윈 AI야.
+최소한의 정보만 사용해서 일반적인 대화 상대로만 행동해.
+개인 정보나 말투 패턴은 학습하지 않는다.
+반말로 짧게 1문장으로만 답해.`;
+      } else if (privacyLevel === 2) {
+        const toneSummary =
+          toneVector
+            ? `말투 특성: 웃음체 ${Math.round(toneVector.laughter.frequency * 100)}%, 이모지 빈도 ${Math.round(toneVector.emoji.density * 100)}%`
+            : '';
+        systemPrompt = `너는 ${name ?? '사용자'}의 완벽한 복제 AI야.
+${name ?? '사용자'}의 말투, 성격, 감정 패턴을 최대한 그대로 흉내 내.
+에니어그램 유형: ${personaMatrix?.enneagramType ?? '미확정'}
+toneVector가 있다면 그 말투 패턴을 적극 반영해.
+반말로 짧게 1문장으로만 답해. 이모티콘 자주 써.
+${toneSummary}`;
+      } else {
+        systemPrompt = `너는 ${name ?? '사용자'}의 트윈 AI야.
 ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
 규칙:
 - 반말로 짧게 1문장으로만 답해
@@ -127,6 +145,7 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
 - 질문엔 질문으로 받아쳐
 - 너무 친절하거나 AI스럽게 말하지 마
 에니어그램 유형: ${personaMatrix?.enneagramType ?? '미확정'}`;
+      }
 
       const response = await callLLM({
         systemPrompt,
@@ -186,10 +205,10 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
         <Text style={styles.dmHeaderTitle}>채팅</Text>
         <View style={styles.dmHeaderIcons}>
           <TouchableOpacity style={styles.dmHeaderBtn}>
-            <Ionicons name="videocam-outline" size={24} color={SYS.TEXT_LIGHT} />
+            <Ionicons name="videocam-outline" size={24} color={theme.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.dmHeaderBtn}>
-            <Ionicons name="create-outline" size={24} color={SYS.TEXT_LIGHT} />
+            <Ionicons name="create-outline" size={24} color={theme.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -203,7 +222,7 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
           onPress={() => setActiveChatRoom(null)}
           style={styles.backBtn}
         >
-          <Ionicons name="chevron-back" size={24} color={SYS.TEXT_LIGHT} />
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
 
         <View style={styles.chatHeaderCenter}>
@@ -290,7 +309,7 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
                     )}
                     <View>
                       <View style={[styles.bubble, msg.role === 'me' ? styles.bubbleMe : styles.bubbleTwin]}>
-                        <Text style={styles.bubbleText}>{msg.text}</Text>
+                        <Text style={[styles.bubbleText, msg.role !== 'me' && { color: theme.text }]}>{msg.text}</Text>
                       </View>
                       <Text style={[styles.msgTime, msg.role === 'me' && { textAlign: 'right' }]}>
                         {formatTime(msg.timestamp)}
@@ -333,21 +352,19 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
   }
 
   return (
-    <AuraMeshBackground auraVector={auraVector} screenKey="chat">
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.container}>
-          {currentRoom === null ? renderListHeader() : renderChatHeader()}
-          {currentRoom === null ? renderRoomList() : renderChatScreen()}
-        </View>
-      </SafeAreaView>
-    </AuraMeshBackground>
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
+      <View style={styles.container}>
+        {currentRoom === null ? renderListHeader() : renderChatHeader()}
+        {currentRoom === null ? renderRoomList() : renderChatScreen()}
+      </View>
+    </SafeAreaView>
   );
 }
 
 function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
+  safeArea: { flex: 1, backgroundColor: theme.bg },
+  container: { flex: 1, backgroundColor: theme.bg },
 
   // 룸 목록 화면 헤더 (인스타 DM 스타일 — 타이틀 + 아이콘)
   dmHeader: {
@@ -358,7 +375,7 @@ function makeStyles(theme: SigmaTheme) {
     paddingTop: 8,
     paddingBottom: 16,
   },
-  dmHeaderTitle: { ...TYPOGRAPHY.title, color: SYS.TEXT_LIGHT },
+  dmHeaderTitle: { ...TYPOGRAPHY.title, color: theme.text },
   dmHeaderIcons: { flexDirection: 'row', gap: 4 },
   dmHeaderBtn: { padding: 8 },
 
@@ -387,11 +404,11 @@ function makeStyles(theme: SigmaTheme) {
     height: 14,
     borderRadius: 7,
     borderWidth: 2,
-    borderColor: '#050810',
+    borderColor: theme.bg,
   },
   dmContent: { flex: 1, gap: 4 },
   dmTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dmName: { ...TYPOGRAPHY.bodyMedium, color: SYS.TEXT_LIGHT },
+  dmName: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
   dmTime: { ...TYPOGRAPHY.caption, color: '#555' },
   dmPreview: { ...TYPOGRAPHY.caption, color: '#666' },
 
@@ -408,7 +425,7 @@ function makeStyles(theme: SigmaTheme) {
   chatHeaderCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   chatHeaderAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   chatHeaderAvatarText: { fontSize: 16 },
-  chatHeaderName: { ...TYPOGRAPHY.bodyMedium, color: SYS.TEXT_LIGHT },
+  chatHeaderName: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
   chatHeaderSub: { ...TYPOGRAPHY.caption, color: '#555' },
 
   placeholder: {
@@ -452,7 +469,7 @@ function makeStyles(theme: SigmaTheme) {
   },
   input: {
     ...TYPOGRAPHY.body,
-    color: SYS.TEXT_LIGHT,
+    color: theme.text,
     maxHeight: 120,
   },
   sendBtn: {

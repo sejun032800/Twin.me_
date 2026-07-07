@@ -6,9 +6,10 @@ interface Props {
   score: number; // 0~100
   size?: number;
   strokeWidth?: number;
+  trackColor?: string;
 }
 
-export default function CircularGauge({ score, size = 220, strokeWidth = 12 }: Props) {
+export default function CircularGauge({ score, size = 220, strokeWidth = 12, trackColor }: Props) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = Math.max(0, Math.min(100, score));
@@ -26,7 +27,7 @@ export default function CircularGauge({ score, size = 220, strokeWidth = 12 }: P
         </Defs>
         <Circle
           cx={center} cy={center} r={radius}
-          stroke="#1E293B" strokeWidth={strokeWidth} fill="none"
+          stroke={trackColor ?? '#1E293B'} strokeWidth={strokeWidth} fill="none"
         />
         <Circle
           cx={center} cy={center} r={radius}
