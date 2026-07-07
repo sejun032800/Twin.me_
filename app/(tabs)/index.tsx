@@ -11,11 +11,14 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import CircularGauge from '@/components/CircularGauge';
+import AuraMeshBackground from '@/components/AuraMeshBackground';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
+import { useTheme } from '@/hooks/useTheme';
 import { getRelationshipTier, formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS, GRADIENT } from '@/constants/colors';
+import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
 function computeDDay(relationshipStartDate: string | null): number | null {
@@ -37,7 +40,13 @@ function statusEmoji(score: number): string {
 
 export default function Home() {
   const router = useRouter();
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+  const personaMatrix = useUserStore((s) => s.personaMatrix);
+  console.log('auraVector:', personaMatrix?.auraVector ? '있음' : '없음');
+  console.log('meshStops count:', personaMatrix?.auraVector?.meshStops?.length);
   const name = useUserStore((s) => s.name);
+  const auraVector = useUserStore((s) => s.personaMatrix?.auraVector ?? null);
   const relationshipStartDate = useCoupleStore((s) => s.relationshipStartDate);
   const sCurrent = useScoreStore((s) => s.sCurrent);
   const sBase = useScoreStore((s) => s.sBase);
@@ -58,152 +67,156 @@ export default function Home() {
     : ['🌧️ 주의 필요', '💔 회복 중', '🤔 돌아보기'];
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        bounces={true}
-        alwaysBounceVertical={true}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerName}>{name ?? '트윈'}</Text>
-          {dDay !== null && (
-            <Text style={styles.headerDday}>연애 {dDay}일째</Text>
-          )}
-        </View>
+    <AuraMeshBackground auraVector={auraVector} screenKey="main">
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          alwaysBounceVertical={true}
+        >
+          <View style={styles.header}>
+            <Text style={styles.headerName}>{name ?? '트윈'}</Text>
+            {dDay !== null && (
+              <Text style={styles.headerDday}>연애 {dDay}일째</Text>
+            )}
+          </View>
 
-        <View style={styles.gaugeSection}>
-          <View style={styles.gaugeContainer}>
-            <CircularGauge score={displayScore} />
-            <View style={styles.gaugeCenter}>
-              <MaskedView
-                maskElement={
-                  <Text style={styles.score}>{formatScore(displayScore)}</Text>
-                }
-              >
-                <LinearGradient
-                  colors={[...GRADIENT.BRAND_STOPS]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+          <View style={styles.gaugeSection}>
+            <View style={styles.gaugeContainer}>
+              <CircularGauge score={displayScore} />
+              <View style={styles.gaugeCenter}>
+                <MaskedView
+                  maskElement={
+                    <Text style={styles.score}>{formatScore(displayScore)}</Text>
+                  }
                 >
-                  <Text style={[styles.score, { opacity: 0 }]}>
-                    {formatScore(displayScore)}
-                  </Text>
-                </LinearGradient>
-              </MaskedView>
-              <Text style={styles.tierText}>{tier.emoji} {tier.title}</Text>
+                  <LinearGradient
+                    colors={[...GRADIENT.BRAND_STOPS]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Text style={[styles.score, { opacity: 0 }]}>
+                      {formatScore(displayScore)}
+                    </Text>
+                  </LinearGradient>
+                </MaskedView>
+                <Text style={styles.tierText}>{tier.emoji} {tier.title}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <Text style={styles.statusText}>{statusEmoji(displayScore)} {statusMessage}</Text>
+          <Text style={styles.statusText}>{statusEmoji(displayScore)} {statusMessage}</Text>
 
-        <View style={styles.tagRow}>
-          {moodTags.map((tag) => (
-            <View key={tag} style={styles.tag}>
-              <Text style={styles.tagText}>{tag}</Text>
-            </View>
-          ))}
-        </View>
+          <View style={styles.tagRow}>
+            {moodTags.map((tag) => (
+              <View key={tag} style={styles.tag}>
+                <Text style={styles.tagText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
 
-        <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/chat')}>
-            <Ionicons name="chatbubble-ellipses" size={20} color={BRAND.CORAL} />
-            <Text style={styles.actionBtnText}>트윈과 대화</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/history')}>
-            <Ionicons name="time" size={20} color={BRAND.MINT} />
-            <Text style={styles.actionBtnText}>히스토리 보기</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/chat')}>
+              <Ionicons name="chatbubble-ellipses" size={20} color={BRAND.CORAL} />
+              <Text style={styles.actionBtnText}>트윈과 대화</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/history')}>
+              <Ionicons name="time" size={20} color={BRAND.MINT} />
+              <Text style={styles.actionBtnText}>히스토리 보기</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </AuraMeshBackground>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
-    gap: 24,
-  },
-  header: {
-    marginTop: 8,
-    alignItems: 'center',
-    gap: 4,
-  },
-  headerName: {
-    ...TYPOGRAPHY.heading,
-    color: SYS.TEXT_LIGHT,
-  },
-  headerDday: {
-    ...TYPOGRAPHY.caption,
-    color: '#888',
-  },
-  gaugeSection: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  gaugeContainer: {
-    width: 220,
-    height: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  gaugeCenter: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  score: {
-    ...TYPOGRAPHY.display,
-    fontVariant: ['tabular-nums'],
-  },
-  tierText: {
-    ...TYPOGRAPHY.label,
-    color: SYS.TEXT_LIGHT,
-    marginTop: 8,
-  },
-  statusText: {
-    ...TYPOGRAPHY.caption,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  tag: {
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  tagText: {
-    ...TYPOGRAPHY.caption,
-    color: SYS.TEXT_LIGHT,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  actionBtn: {
-    flex: 1,
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2D3F55',
-  },
-  actionBtnText: {
-    ...TYPOGRAPHY.label,
-    color: SYS.TEXT_LIGHT,
-    marginTop: 6,
-  },
-});
+function makeStyles(theme: SigmaTheme) {
+  return StyleSheet.create({
+    safeArea: { flex: 1 },
+    scrollContent: {
+      flexGrow: 1,
+      padding: 24,
+      gap: 24,
+    },
+    header: {
+      marginTop: 8,
+      alignItems: 'center',
+      gap: 4,
+    },
+    headerName: {
+      ...TYPOGRAPHY.heading,
+      color: SYS.TEXT_LIGHT,
+    },
+    headerDday: {
+      ...TYPOGRAPHY.caption,
+      color: theme.textMuted,
+    },
+    gaugeSection: {
+      alignItems: 'center',
+      marginTop: 16,
+    },
+    gaugeContainer: {
+      width: 220,
+      height: 220,
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+    },
+    gaugeCenter: {
+      position: 'absolute',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    score: {
+      ...TYPOGRAPHY.display,
+      fontVariant: ['tabular-nums'],
+    },
+    tierText: {
+      ...TYPOGRAPHY.label,
+      color: SYS.TEXT_LIGHT,
+      marginTop: 8,
+    },
+    statusText: {
+      ...TYPOGRAPHY.caption,
+      color: theme.textMuted,
+      textAlign: 'center',
+      marginTop: 8,
+    },
+    tagRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    tag: {
+      backgroundColor: theme.card,
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    tagText: {
+      ...TYPOGRAPHY.caption,
+      color: SYS.TEXT_LIGHT,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 16,
+    },
+    actionBtn: {
+      flex: 1,
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      paddingVertical: 18,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    actionBtnText: {
+      ...TYPOGRAPHY.label,
+      color: SYS.TEXT_LIGHT,
+      marginTop: 6,
+    },
+  });
+}

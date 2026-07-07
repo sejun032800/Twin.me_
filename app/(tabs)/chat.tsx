@@ -6,16 +6,20 @@
 // 실제 AI 연동(§4.3 이하)은 TODO — 지금은 전송 시 고정 스텁 메시지만 추가한다.
 
 import { useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { Ionicons } from '@expo/vector-icons';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useSessionStore } from '@/store/sessionStore';
+import type { ActiveChatRoom } from '@/store/sessionStore';
 import { useUserStore } from '@/store/userStore';
 import { useMatchEngine } from '@/hooks/useMatchEngine';
+import { useTheme } from '@/hooks/useTheme';
+import AuraMeshBackground from '@/components/AuraMeshBackground';
 import { callLLM } from '@/api/llm';
 import type { ClassifierMessage } from '@/engine/eventClassifier';
 import { BRAND, SYS } from '@/constants/colors';
+import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
 type RoomKey = 'lover' | 'twin' | 'analyst';
@@ -27,22 +31,16 @@ interface ChatMessage {
   timestamp: number;
 }
 
-const ROOM_LABELS: Record<RoomKey, string> = {
-  lover: '연인',
-  twin: '트윈',
-  analyst: '분석가',
-};
-
-const ROOM_ORDER: RoomKey[] = ['lover', 'twin', 'analyst'];
-
 export default function Chat() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const isPartnerConnected = useCoupleStore((s) => s.isPartnerConnected);
   const activeChatRoom = useSessionStore((s) => s.activeChatRoom);
   const setActiveChatRoom = useSessionStore((s) => s.setActiveChatRoom);
   const name = useUserStore((s) => s.name);
+  const auraVector = useUserStore((s) => s.personaMatrix?.auraVector ?? null);
   const { processMessage } = useMatchEngine();
   const [chatHistory, setChatHistory] = useState<ClassifierMessage[]>([]);
-  const headerHeight = useHeaderHeight();
 
   const [messagesByRoom, setMessagesByRoom] = useState<Record<RoomKey, ChatMessage[]>>({
     lover: [],
@@ -55,6 +53,40 @@ export default function Chat() {
   const currentRoom = activeChatRoom as RoomKey | null;
   const isLoverLocked = currentRoom === 'lover' && !isPartnerConnected;
   const messages = currentRoom ? messagesByRoom[currentRoom] : [];
+
+  const formatTime = (timestamp: number) => {
+    const d = new Date(timestamp);
+    return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const ROOMS = [
+    {
+      key: 'lover' as ActiveChatRoom,
+      label: '연인',
+      subtitle: '연인을 초대하면 함께할 수 있어요',
+      icon: '🔒',
+      color: BRAND.PINK,
+      locked: !isPartnerConnected,
+    },
+    {
+      key: 'twin' as ActiveChatRoom,
+      label: '트윈',
+      subtitle: '나를 닮은 AI와 솔직하게 대화해요',
+      icon: name ? name[0] : 'T',
+      color: BRAND.MINT,
+      locked: false,
+    },
+    {
+      key: 'analyst' as ActiveChatRoom,
+      label: '분석가',
+      subtitle: '우리 대화 패턴을 함께 들여다봐요',
+      icon: '📊',
+      color: BRAND.CORAL,
+      locked: false,
+    },
+  ];
+
+  const currentRoomData = ROOMS.find((r) => r.key === currentRoom);
 
   async function handleSend() {
     if (!currentRoom || !inputText.trim() || isLoverLocked) return;
@@ -122,37 +154,6 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
     }));
   }
 
-  function getPreview(key: RoomKey): string {
-    const msgs = messagesByRoom[key];
-    if (msgs.length > 0) return msgs[msgs.length - 1].text;
-    if (key === 'lover') return isPartnerConnected ? '연인과 대화해보세요' : '연인을 초대해야 이용할 수 있어요';
-    if (key === 'twin') return '트윈 AI와 대화하세요';
-    return '대화 패턴을 분석해드려요';
-  }
-
-  function renderAvatar(key: RoomKey) {
-    if (key === 'lover') {
-      return (
-        <View style={[styles.avatar, { backgroundColor: BRAND.PINK }]}>
-          <Text style={styles.avatarText}>{isPartnerConnected ? '연' : '🔒'}</Text>
-        </View>
-      );
-    }
-    if (key === 'twin') {
-      const initial = name?.trim() ? name.trim()[0] : '트';
-      return (
-        <View style={[styles.avatar, { backgroundColor: BRAND.MINT }]}>
-          <Text style={styles.avatarText}>{initial}</Text>
-        </View>
-      );
-    }
-    return (
-      <View style={[styles.avatar, { backgroundColor: BRAND.CORAL }]}>
-        <Text style={styles.avatarText}>AI</Text>
-      </View>
-    );
-  }
-
   function renderPlaceholder() {
     if (currentRoom === 'lover' && isLoverLocked) {
       return (
@@ -179,25 +180,43 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
     return null;
   }
 
-  function renderHeader() {
+  function renderListHeader() {
     return (
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          {currentRoom && (
-            <TouchableOpacity style={styles.headerBackBtn} onPress={() => setActiveChatRoom(null)}>
-              <Text style={styles.headerIcon}>←</Text>
-            </TouchableOpacity>
-          )}
-          <Text style={styles.headerTitle}>{currentRoom ? ROOM_LABELS[currentRoom] : '채팅'}</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIconBtn}>
-            <Text style={styles.headerIcon}>+</Text>
+      <View style={styles.dmHeader}>
+        <Text style={styles.dmHeaderTitle}>채팅</Text>
+        <View style={styles.dmHeaderIcons}>
+          <TouchableOpacity style={styles.dmHeaderBtn}>
+            <Ionicons name="videocam-outline" size={24} color={SYS.TEXT_LIGHT} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconBtn}>
-            <Text style={styles.headerIcon}>🔍</Text>
+          <TouchableOpacity style={styles.dmHeaderBtn}>
+            <Ionicons name="create-outline" size={24} color={SYS.TEXT_LIGHT} />
           </TouchableOpacity>
         </View>
+      </View>
+    );
+  }
+
+  function renderChatHeader() {
+    return (
+      <View style={styles.chatHeader}>
+        <TouchableOpacity
+          onPress={() => setActiveChatRoom(null)}
+          style={styles.backBtn}
+        >
+          <Ionicons name="chevron-back" size={24} color={SYS.TEXT_LIGHT} />
+        </TouchableOpacity>
+
+        <View style={styles.chatHeaderCenter}>
+          <View style={[styles.chatHeaderAvatar, { backgroundColor: currentRoomData?.color + '33', borderColor: currentRoomData?.color }]}>
+            <Text style={styles.chatHeaderAvatarText}>{currentRoomData?.icon}</Text>
+          </View>
+          <View>
+            <Text style={styles.chatHeaderName}>{currentRoomData?.label}</Text>
+            <Text style={styles.chatHeaderSub}>Twin.me</Text>
+          </View>
+        </View>
+
+        <View style={{ width: 40 }} />
       </View>
     );
   }
@@ -205,14 +224,29 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
   function renderRoomList() {
     return (
       <ScrollView bounces={true} alwaysBounceVertical={true}>
-        {ROOM_ORDER.map((key) => (
-          <TouchableOpacity key={key} style={styles.listItem} onPress={() => setActiveChatRoom(key)}>
-            {renderAvatar(key)}
-            <View style={styles.listItemBody}>
-              <Text style={styles.listItemName}>{ROOM_LABELS[key]}</Text>
-              <Text style={styles.listItemPreview} numberOfLines={1}>{getPreview(key)}</Text>
+        {ROOMS.map((room) => (
+          <TouchableOpacity
+            key={room.key}
+            style={styles.dmItem}
+            onPress={() => !room.locked && setActiveChatRoom(room.key)}
+            activeOpacity={room.locked ? 1 : 0.7}
+          >
+            <View style={[styles.dmAvatar, { backgroundColor: room.color + '40' }]}>
+              <Text style={styles.dmAvatarText}>{room.icon}</Text>
+              {!room.locked && <View style={[styles.dmOnlineDot, { backgroundColor: room.color }]} />}
             </View>
-            <Text style={styles.listItemTime}>{''}</Text>
+
+            <View style={styles.dmContent}>
+              <View style={styles.dmTop}>
+                <Text style={[styles.dmName, room.locked && { color: '#555' }]}>
+                  {room.label}
+                </Text>
+                {room.locked && <Text style={styles.dmTime}>초대 필요</Text>}
+              </View>
+              <Text style={[styles.dmPreview, room.locked && { color: '#333' }]} numberOfLines={1}>
+                {room.subtitle}
+              </Text>
+            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -221,110 +255,161 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
 
   function renderChatScreen() {
     return (
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
-      >
-        {messages.length === 0 ? (
-          renderPlaceholder()
-        ) : (
-          <ScrollView
-            ref={scrollRef}
-            style={styles.messageList}
-            contentContainerStyle={styles.messageListContent}
-            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-            keyboardShouldPersistTaps="handled"
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={{ flex: 1 }}>
+          {/*
+            TODO: EAS Build 환경에서 react-native-avoid-softinput으로 교체.
+            현재는 iPhone 14 Pro 기준 고정 offset(120) 사용.
+            교체 시 keyboardVerticalOffset 제거하고
+            AvoidSoftInput.setShouldMimicIOSBehavior(true) 적용.
+          */}
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 120 : 0}
           >
-            {messages.map((msg) => {
-              const fromMe = msg.role === 'me';
-              return (
-                <View
-                  key={msg.id}
-                  style={[styles.bubbleRow, fromMe ? styles.bubbleRowMe : styles.bubbleRowOther]}
-                >
-                  <View style={[styles.bubble, fromMe ? styles.bubbleMe : styles.bubbleOther]}>
-                    <Text style={styles.bubbleText}>{msg.text}</Text>
+            {messages.length === 0 ? (
+              renderPlaceholder()
+            ) : (
+              <ScrollView
+                ref={scrollRef}
+                style={styles.messageList}
+                contentContainerStyle={styles.messageListContent}
+                onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                keyboardShouldPersistTaps="handled"
+              >
+                {messages.map((msg) => (
+                  <View
+                    key={msg.id}
+                    style={[styles.msgRow, msg.role === 'me' ? styles.msgRowMe : styles.msgRowTwin]}
+                  >
+                    {msg.role !== 'me' && (
+                      <View style={[styles.msgAvatar, { backgroundColor: currentRoomData?.color + '33' }]}>
+                        <Text style={{ fontSize: 14 }}>{currentRoomData?.icon}</Text>
+                      </View>
+                    )}
+                    <View>
+                      <View style={[styles.bubble, msg.role === 'me' ? styles.bubbleMe : styles.bubbleTwin]}>
+                        <Text style={styles.bubbleText}>{msg.text}</Text>
+                      </View>
+                      <Text style={[styles.msgTime, msg.role === 'me' && { textAlign: 'right' }]}>
+                        {formatTime(msg.timestamp)}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
+                ))}
+              </ScrollView>
+            )}
 
-        <View style={styles.inputBar}>
-          <TextInput
-            style={[styles.input, isLoverLocked && styles.inputDisabled]}
-            placeholder={isLoverLocked ? '입력할 수 없어요' : `${name ?? '나'}로 메시지 보내기`}
-            placeholderTextColor="#888"
-            value={inputText}
-            onChangeText={setInputText}
-            editable={!isLoverLocked}
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, isLoverLocked && styles.sendBtnDisabled]}
-            onPress={handleSend}
-            disabled={isLoverLocked}
-          >
-            <Text style={styles.sendBtnText}>전송</Text>
-          </TouchableOpacity>
+            <View style={styles.inputBar}>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder={isLoverLocked ? '입력할 수 없어요' : `${name ?? '나'}로 메시지 보내기`}
+                  placeholderTextColor="#555"
+                  editable={!isLoverLocked}
+                  multiline
+                  maxLength={500}
+                />
+              </View>
+              <TouchableOpacity
+                style={[styles.sendBtn, (!inputText.trim() || isLoverLocked) && styles.sendBtnDisabled]}
+                onPress={handleSend}
+                disabled={!inputText.trim() || isLoverLocked}
+              >
+                <Ionicons
+                  name="arrow-up"
+                  size={20}
+                  color={inputText.trim() && !isLoverLocked ? SYS.TEXT_LIGHT : '#555'}
+                />
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
         </View>
-      </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     );
   }
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <View style={styles.container}>
-        {renderHeader()}
-        {currentRoom === null ? renderRoomList() : renderChatScreen()}
-      </View>
-    </SafeAreaView>
+    <AuraMeshBackground auraVector={auraVector} screenKey="chat">
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <View style={styles.container}>
+          {currentRoom === null ? renderListHeader() : renderChatHeader()}
+          {currentRoom === null ? renderRoomList() : renderChatScreen()}
+        </View>
+      </SafeAreaView>
+    </AuraMeshBackground>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT },
-  container: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT },
+function makeStyles(theme: SigmaTheme) {
+  return StyleSheet.create({
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
 
-  header: {
+  // 룸 목록 화면 헤더 (인스타 DM 스타일 — 타이틀 + 아이콘)
+  dmHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  dmHeaderTitle: { ...TYPOGRAPHY.title, color: SYS.TEXT_LIGHT },
+  dmHeaderIcons: { flexDirection: 'row', gap: 4 },
+  dmHeaderBtn: { padding: 8 },
+
+  // 룸 목록 아이템 (인스타 DM 스타일 — 플랫 리스트)
+  dmItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: SYS.BG_DARK_MIDNIGHT,
-    paddingHorizontal: 16,
-    height: 52,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 14,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerBackBtn: { paddingRight: 4 },
-  headerTitle: { ...TYPOGRAPHY.heading, color: SYS.TEXT_LIGHT },
-  headerRight: { flexDirection: 'row', gap: 16 },
-  headerIconBtn: { paddingHorizontal: 4 },
-  headerIcon: { fontSize: 20, color: SYS.TEXT_LIGHT },
+  dmAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  dmAvatarText: { fontSize: 24 },
+  dmOnlineDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: '#050810',
+  },
+  dmContent: { flex: 1, gap: 4 },
+  dmTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dmName: { ...TYPOGRAPHY.bodyMedium, color: SYS.TEXT_LIGHT },
+  dmTime: { ...TYPOGRAPHY.caption, color: '#555' },
+  dmPreview: { ...TYPOGRAPHY.caption, color: '#666' },
 
-  listItem: {
+  // 룸 안 채팅 화면 헤더 (뒤로가기 + 룸 아바타/이름)
+  chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: theme.border,
   },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { fontSize: 18, fontWeight: 'bold', color: SYS.TEXT_DARK },
-  listItemBody: { flex: 1, gap: 2 },
-  listItemName: { fontSize: 15, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
-  listItemPreview: { fontSize: 13, color: '#888' },
-  listItemTime: { fontSize: 12, color: '#888' },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  chatHeaderCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  chatHeaderAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  chatHeaderAvatarText: { fontSize: 16 },
+  chatHeaderName: { ...TYPOGRAPHY.bodyMedium, color: SYS.TEXT_LIGHT },
+  chatHeaderSub: { ...TYPOGRAPHY.caption, color: '#555' },
 
   placeholder: {
     flex: 1,
@@ -336,38 +421,48 @@ const styles = StyleSheet.create({
   placeholderText: { fontSize: 15, color: '#888', textAlign: 'center' },
   messageList: { flex: 1 },
   messageListContent: { padding: 16, gap: 8 },
-  bubbleRow: { flexDirection: 'row' },
-  bubbleRowMe: { justifyContent: 'flex-end' },
-  bubbleRowOther: { justifyContent: 'flex-start' },
-  bubble: { maxWidth: '75%', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 14, marginVertical: 4 },
-  bubbleMe: { backgroundColor: BRAND.CORAL },
-  bubbleOther: { backgroundColor: SYS.CARD_DARK },
+
+  msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12, paddingHorizontal: 16, gap: 8 },
+  msgRowMe: { justifyContent: 'flex-end' },
+  msgRowTwin: { justifyContent: 'flex-start' },
+  msgAvatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  bubble: { maxWidth: 280, padding: 12, paddingHorizontal: 16 },
+  bubbleMe: { backgroundColor: BRAND.CORAL, borderRadius: 20, borderBottomRightRadius: 4 },
+  bubbleTwin: { backgroundColor: theme.card, borderRadius: 20, borderBottomLeftRadius: 4 },
   bubbleText: { ...TYPOGRAPHY.body, color: SYS.TEXT_LIGHT },
+  msgTime: { ...TYPOGRAPHY.caption, color: '#555', marginTop: 4, paddingHorizontal: 4 },
+
   inputBar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 8,
     gap: 8,
-    padding: 12,
-    paddingBottom: Platform.OS === 'ios' ? 0 : 8,
     borderTopWidth: 1,
-    borderTopColor: SYS.CARD_DARK,
+    borderTopColor: theme.border,
+  },
+  inputWrapper: {
+    flex: 1,
+    backgroundColor: theme.card,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    minHeight: 44,
   },
   input: {
     ...TYPOGRAPHY.body,
-    flex: 1,
-    backgroundColor: SYS.CARD_DARK,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
     color: SYS.TEXT_LIGHT,
+    maxHeight: 120,
   },
-  inputDisabled: { opacity: 0.5 },
   sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: BRAND.CORAL,
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sendBtnDisabled: { backgroundColor: SYS.CARD_DARK },
-  sendBtnText: { fontSize: 14, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
-});
+  sendBtnDisabled: { backgroundColor: theme.card },
+  });
+}
