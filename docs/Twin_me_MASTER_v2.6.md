@@ -594,7 +594,7 @@ resolveActiveCapPlus(crisisMemoryActive: boolean): number
 
 ### 5.8 기준 점수 산출 유틸 — `scoreCalculator.ts` ★ v2.6 신규 명세
 
-`src/utils/scoreCalculator.ts`는 `metrics.ts`와 `auraThemeEngine.ts` 양쪽에서 `OverflowStatus` 타입을 공급하는 의존 파일이다. 새 코드베이스에 반드시 함께 이식해야 한다.
+`src/engine/scoreCalculator.ts`(2026.07.08 경로 정정 — §14.2 참고)는 `metrics.ts`와 `auraThemeEngine.ts` 양쪽에서 `OverflowStatus` 타입을 공급하는 의존 파일이다. 새 코드베이스에 반드시 함께 이식해야 한다.
 
 | 함수 | 역할 |
 |---|---|
@@ -634,19 +634,27 @@ resolveActiveCapPlus(crisisMemoryActive: boolean): number
 
 ## 7. 히스토리 탭 모듈
 
-### 7.1 탭 구조 (최종 확정) ★ FUN-HIS-001/005 수정 반영
+### 7.1 탭 구조 (v2.6.1 재수정 — 2026.07.08 구현 감사 후 정정) ★ FUN-HIS-001/005 수정 반영
 
-**세그먼트 컨트롤 3탭 구성 (키 명칭 최종):**
+**세그먼트 컨트롤 3탭 구성 (키 명칭 최종 — `archive`/`map`/`feed`로 확정):**
 
 | 탭 인덱스 | 키(Key) | 화면 명칭 | 내용 |
 |---|---|---|---|
-| 0 | `archive` | 추억 월 | 폴라로이드 형태 추억 아카이브 |
-| 1 | `helix` | DNA 나선 | 3D 나선형 데이트 타임라인 ← 지도 뷰 대체 확정(A안) |
-| 2 | `feed` | 무드 피드 | 파트너 무드 피드 |
+| 0 | `archive` | 추억 월 | 폴라로이드 형태 추억 아카이브. 3D DNA 나선(헬릭스) 연출은 별도 탭이 아니라 이 탭 내부의 좌우 교차 parallax 스크롤(reanimated, 중앙 확대/선명 효과)로 근사 구현 — 아래 "설계 변경 사유" 참고 |
+| 1 | `map` | 데이트 지도 | 카카오맵 API 연동 지도 뷰(API 키 미입력 시 플레이스홀더로 대체). 구버전(v2.5 이하) §7.1이 요구한 `helix`(DNA 나선 뷰)의 탭 슬롯을 대체 |
+| 2 | `feed` | 인기 데이트코스 피드 | Supabase `date_courses` 공개 데이트 코스 피드 |
 
-**Dead code 정리:** `DateMapView` 및 `HistoryKakaoMapView`는 어디서도 호출되지 않는 dead code로 확인됨. 지도 뷰(뷰파인더 모드)는 `FUN-HIS-002` 데이트 셔틀 모달의 자체 지도 렌더링으로 대체. `history.tsx`에서 미사용 컴포넌트 제거.
+**설계 변경 사유 (2026.07.08, 구현 감사 반영):** v2.5~v2.6 스펙은 `helix`(3D DNA 나선 타임라인)를 지도 뷰의 대체 탭으로 확정했으나(구 §7.1 "지도 뷰 대체 확정(A안)"), 실제 구현 단계에서 아래 이유로 `map` 탭을 그대로 유지하고 `helix`를 독립 탭에서 제외하기로 의도적으로 변경했다:
 
-### FUN-HIS-001 — DNA 나선 타임라인 (헬릭스 뷰)
+1. 3D 나선 실시간 렌더링은 Expo Go(managed workflow) 환경에서 난이도가 지나치게 높다 — 본 문서 FUN-HIS-001 "MVP 구현 주의"에서도 이미 이 리스크를 예견하고 있었다. Skia 등 추가 3D 렌더링 의존성 없이는 성능을 보장할 수 없다.
+2. 카카오맵 API 연동 자체가 FUN-HIS-002(AI 데이트 코스 셔틀)의 전제 조건으로 이미 별도 존재하므로, "지도"라는 개념 자체를 탭에서 지우기보다 실제 지도 탭으로 유지하는 편이 셔틀 기능과의 연결 흐름상 자연스럽다.
+3. 헬릭스가 의도한 "정서적 스크롤 경험"은 `archive` 탭 내부의 parallax 연출(좌우 교차 translateX + 중앙 확대/선명 효과)로 핵심을 상당 부분 재현할 수 있어, 별도 탭 신설 없이도 사용자 경험의 본질은 보존된다.
+
+결과적으로 탭 구조는 `archive`(헬릭스 감성을 흡수한 아카이브) / `map`(실제 지도, 구 `helix` 탭 슬롯 대체) / `feed`로 확정한다. 이하 FUN-HIS-001 "DNA 나선 타임라인" 요구사항은 독립 탭이 아니라 `archive` 탭의 parallax 연출 요구사항으로 범위를 좁혀 적용한다.
+
+**Dead code 정리:** `DateMapView` 및 `HistoryKakaoMapView`는 어디서도 호출되지 않는 dead code로 확인되어 제거됨. 단, 위 설계 변경에 따라 지도 뷰 자체는 셔틀 모달로 완전히 흡수되지 않고 `map` 탭(`renderMap()`)으로 유지된다 — `FUN-HIS-002` 데이트 셔틀 모달은 이 지도 탭과는 별개로 자체 지도 렌더링을 갖는다.
+
+### FUN-HIS-001 — DNA 나선 타임라인 (헬릭스 뷰) — ★ 독립 탭에서 `archive` 탭 내부 연출로 범위 축소(2026.07.08)
 
 **정의:** 중앙 수직 기둥을 나선형으로 휘감는 3D 램프 그래픽 인터페이스.
 
@@ -859,7 +867,7 @@ VIP 코드 입력 화면 (`/settings/vip-code.tsx`). 유효한 코드 입력 시
 
 | 항목 | 요구사항 | 참조 |
 |---|---|---|
-| 히스토리 탭 구조 | `archive` / `helix` / `feed` 3탭. 지도뷰 컴포넌트 미도입. | §7.1 |
+| 히스토리 탭 구조 | `archive` / `map` / `feed` 3탭(2026.07.08 정정 — 구 `helix` 탭은 `archive` 내부 parallax 연출로 흡수, `map`은 실제 카카오맵 지도 탭으로 유지). | §7.1 |
 | Wrapped 페이월 게이팅 | 무료 유저에게 풀 시퀀스 노출 금지. tier 분기 반드시 구현. | §11.3 |
 | Founding VIP | `isFoundingVip` 필드, 12개월 무료, 13개월차 50% 자동 전환 로직을 초기 설계에 포함. | §9.7 |
 | API 키 격리 | 클라이언트에 `EXPO_PUBLIC_ANTHROPIC_API_KEY` 직접 노출 절대 금지. 모든 LLM 호출은 Edge Function 프록시 경유. | §14.4 |
@@ -908,6 +916,8 @@ VIP 코드 입력 화면 (`/settings/vip-code.tsx`). 유효한 코드 입력 시
 | 2026.07.01~04 | v2.4 | 스프린트 시리즈: FUN-HIS-001/005 dead code 정리, Wrapped 게이팅, Founding VIP 구현, Magic Mirror 옵트인, rawKakaoText 프라이버시 재설계, ViewShot PNG 전환, CrisisMode 헤지드 언어, 변동성 지수(V) 구현, 무드피드 듀얼모드, Wrapped 2카드 추가, FUN-ONB-004(Instagram DM) 스코프 추가 |
 | 2026.07.05 | v2.5 | 디자인 시스템 전면 재정의 (§1): 브랜드 팔레트 4색 확정(Mint/Cream/Pink/Coral), 6축 오라 시스템 색상 조정(Deep Rose·Soft Amber·Sage Mint), 2-레이어 컬러 아키텍처 공식화. FUN-HIS-001/005 탭 구조 최종 확정(A안). Wrapped 게이팅 긴급 수정 요구사항 명시. 전체 분산 문서를 단일 정본으로 통합. |
 | **2026.07.05** | **v2.6 (본 문서)** | **엔진 파일 교차 감사 반영 + 기술 스택 확정: 오라 색상 정책 B안 확정, 6축 라벨 코드 변수명 기준 통일(§1.3), colors.ts 구현 스펙 신규(§1.7), 점토 4단계 전환 조건 명세(§3), coolingBleed(§5.6)/위기 메모리(§5.7)/scoreCalculator(§5.8) 추가, 부록G 인라인 통합, §12.2 신규 개발 체크포인트 교체, §14 이식 파일 명세 신규. 기술 스택 확정(§0.6): Expo Managed Workflow / Bundle ID me.twin.app / Supabase 백엔드 / EAS Build iOS+Android 동시 출시.** |
+| 2026.07.08 | v2.6.1 | 구현 감사(§12.2 체크포인트 1) 후속 정정: §7.1 히스토리 탭 구조를 실제 구현 기준 `archive`/`map`/`feed`로 변경. 구 `helix`(3D DNA 나선) 독립 탭 요구사항은 Expo Go 렌더링 난이도 + 카카오맵 셔틀 연동 편의를 이유로 폐기하고, `archive` 탭 내부의 parallax 연출 요구사항으로 범위를 축소. FUN-HIS-001 표제에 범위 축소 명시. |
+| 2026.07.08 | v2.6.2 | 구현 감사(§12.2 체크포인트 8) 후속 정정: `scoreCalculator.ts` 경로를 §14.1 이식 파일 표와 일관되게 `src/utils/` → `src/engine/`로 정정(§5.8, §14.2). 함수명은 코드 쪽을 스펙에 맞춰 `getRelationshipTier`→`getTierFromScore`, `getNationalPercentileTop`→`computeNationalPercentile`로 리네임(호출부 2곳, 무호출 함수 1곳 — 실제 리네임, alias 미사용). |
 
 ---
 
@@ -1044,10 +1054,12 @@ VIP 코드 입력 화면 (`/settings/vip-code.tsx`). 유효한 코드 입력 시
 
 ### 14.2 새로 작성할 파일 (`scoreCalculator.ts` 포함)
 
-`src/utils/scoreCalculator.ts`는 이식 에셋에 포함되지 않아 **새로 작성**한다. 아래 스펙 기준:
+**경로 정정 (2026.07.08, 구현 감사 후속 정리):** 이 절이 원래 지정한 경로 `src/utils/scoreCalculator.ts`는 §14.1 이식 파일 표(`metrics.ts` 등 나머지 엔진 파일 전부가 `src/engine/`에 배치)와 자체 모순이었다 — `metrics.ts`가 이 파일의 `OverflowStatus`를 import하는데 정작 이 파일만 다른 디렉터리(`utils`)에 두도록 명시돼 있었다. 실제 구현은 `src/engine/scoreCalculator.ts`로 작성되어 §14.1 표와 일관되며, 아래 함수 시그니처도 모두 이 절이 요구한 이름 그대로 구현되어 있다(`getNationalPercentileTop`/`getRelationshipTier`로 다르게 구현됐던 것은 이번 정리에서 스펙 이름으로 리네임 완료). 아래 경로를 정본으로 한다:
+
+`src/engine/scoreCalculator.ts`는 이식 에셋에 포함되지 않아 **새로 작성**한다. 아래 스펙 기준:
 
 ```typescript
-// src/utils/scoreCalculator.ts
+// src/engine/scoreCalculator.ts
 export type OverflowStatus = 'EXCESS_GAIN' | 'CRITICAL_LOSS' | 'NONE';
 
 export function getMBTICompatibilityGrade(mbtiA: string, mbtiB: string): string
@@ -1067,7 +1079,7 @@ export function formatScore(score: number): string
 
 ```
 1단계 — 독립 (즉시)
-  src/utils/scoreCalculator.ts  ← 신규 작성 (최우선)
+  src/engine/scoreCalculator.ts  ← 신규 작성 (최우선)
   src/types/genesis.ts          ← genesis.ts 이식
   src/data/genesisQuestionBank.ts
   src/data/auraStoryPool.ts

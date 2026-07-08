@@ -135,7 +135,7 @@ export default function Genesis() {
         <TextInput
           style={styles.input}
           placeholder="답변을 입력하세요"
-          placeholderTextColor="#888"
+          placeholderTextColor={SYS.TEXT_MUTED}
           value={inputText}
           onChangeText={setInputText}
         />
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   },
   actLabel: {
     fontSize: 14,
-    color: '#888',
+    color: SYS.TEXT_MUTED,
     textAlign: 'center',
   },
   questionText: {

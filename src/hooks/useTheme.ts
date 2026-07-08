@@ -6,17 +6,27 @@
 import { useSessionStore } from '@/store/sessionStore';
 import { useUserStore } from '@/store/userStore';
 import { buildSigmaTheme, getDefaultDarkTheme, getLightTheme, type SigmaTheme } from '@/constants/theme';
+import { SYS } from '@/constants/colors';
+
+// §8 FUN-SET-001B — 오라 끄기(reduceAuraMotion) 시 sigma 테마의 accent를 무채색으로
+// 오버라이드한다. light/dark는 애초에 오라와 무관한 고정 팔레트라 대상에서 제외한다.
+const REDUCED_AURA_ACCENT = SYS.TEXT_MUTED;
 
 export function useTheme(): SigmaTheme {
   const themeMode = useSessionStore((s) => s.themeMode);
   const personaMatrix = useUserStore((s) => s.personaMatrix);
+  const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
 
   if (themeMode === 'light') return getLightTheme();
   if (themeMode === 'dark') return getDefaultDarkTheme();
 
   // sigma: 제네시스 완료 시 오라 기반 테마, 미완료 시 라이트
   if (personaMatrix?.auraVector) {
-    return buildSigmaTheme(personaMatrix.auraVector);
+    const sigmaTheme = buildSigmaTheme(personaMatrix.auraVector);
+    if (reduceAuraMotion) {
+      return { ...sigmaTheme, accent: REDUCED_AURA_ACCENT };
+    }
+    return sigmaTheme;
   }
   return getLightTheme();
 }

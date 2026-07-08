@@ -69,6 +69,6 @@ const styles = StyleSheet.create({
   },
   tagline: {
     ...TYPOGRAPHY.body,
-    color: '#888',
+    color: SYS.TEXT_MUTED,
   },
 });

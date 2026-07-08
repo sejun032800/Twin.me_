@@ -77,7 +77,7 @@ export default function Profile() {
       <TextInput
         style={styles.input}
         placeholder="닉네임"
-        placeholderTextColor="#888"
+        placeholderTextColor={SYS.TEXT_MUTED}
         value={name}
         onChangeText={setLocalName}
       />
@@ -85,7 +85,7 @@ export default function Profile() {
       <TextInput
         style={styles.input}
         placeholder="연애 시작일 (YYYY-MM-DD)"
-        placeholderTextColor="#888"
+        placeholderTextColor={SYS.TEXT_MUTED}
         value={relationshipStartDate}
         onChangeText={setLocalRelationshipStartDate}
         keyboardType="numbers-and-punctuation"

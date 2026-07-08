@@ -1,20 +1,19 @@
 // ─── FUN-SET — 설정 탭 (MASTER.md §8) ────────────────────────────────────────
 // §8 FUN-SET-001(프라이버시 슬라이더), FUN-SET-001B(오라 테마), FUN-SET-001C(Founding VIP,
-// 커플 연동 전 단계) 기준. 오라 온/오프는 아직 sessionStore에 reduceAuraMotion 필드가
-// 없어 로컬 AsyncStorage('twin_aura_motion_v1')로 직접 관리한다.
+// 커플 연동 전 단계) 기준. 오라 온/오프는 sessionStore.reduceAuraMotion으로 관리(§8-1).
 // 프라이버시 슬라이더의 실제 AI 학습 범위 연동, 계정 관리/지원 섹션의 실제 화면 이동은
 // Phase 7 이후 구현 예정이라 현재는 TODO 스텁으로 남긴다.
 
-import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Switch, ScrollView, StyleSheet, Alert, Linking } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TouchableOpacity, Switch, ScrollView, StyleSheet, Alert, Linking, Modal, TextInput } from 'react-native';
 import type { ReactNode } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabaseClient';
 import { createCouple } from '@/services/coupleService';
+import { redeemVipCode } from '@/services/vipPromotionService';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
@@ -23,8 +22,6 @@ import { useTheme } from '@/hooks/useTheme';
 import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
-
-const AURA_MOTION_KEY = 'twin_aura_motion_v1';
 
 function generateInviteCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -84,10 +81,15 @@ export default function Settings() {
   const mbti = useUserStore((s) => s.mbti);
   const personaMatrix = useUserStore((s) => s.personaMatrix);
   const resetUser = useUserStore((s) => s.reset);
+  const isFoundingVip = useUserStore((s) => s.isFoundingVip);
+  const setFoundingVip = useUserStore((s) => s.setFoundingVip);
+  const setSubscriptionStatus = useUserStore((s) => s.setSubscriptionStatus);
   const themeMode = useSessionStore((s) => s.themeMode);
   const setThemeMode = useSessionStore((s) => s.setThemeMode);
   const privacyLevel = useSessionStore((s) => s.privacyLevel);
   const setPrivacyLevel = useSessionStore((s) => s.setPrivacyLevel);
+  const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
+  const setReduceAuraMotion = useSessionStore((s) => s.setReduceAuraMotion);
   const hasAuraVector = !!personaMatrix?.auraVector;
   const inviteCode = useCoupleStore((s) => s.inviteCode);
   const setInviteCode = useCoupleStore((s) => s.setInviteCode);
@@ -97,17 +99,32 @@ export default function Settings() {
   const resetScore = useScoreStore((s) => s.reset);
   const resetSession = useSessionStore((s) => s.reset);
 
-  const [auraEnabled, setAuraEnabled] = useState(true);
+  const [vipModalVisible, setVipModalVisible] = useState(false);
+  const [vipCodeInput, setVipCodeInput] = useState('');
+  const [vipSubmitting, setVipSubmitting] = useState(false);
 
-  useEffect(() => {
-    AsyncStorage.getItem(AURA_MOTION_KEY).then((raw) => {
-      if (raw !== null) setAuraEnabled(JSON.parse(raw));
-    });
-  }, []);
+  async function handleRedeemVip() {
+    if (!vipCodeInput.trim() || vipSubmitting) return;
+    setVipSubmitting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-  function toggleAura(value: boolean) {
-    setAuraEnabled(value);
-    AsyncStorage.setItem(AURA_MOTION_KEY, JSON.stringify(value));
+      const result = await redeemVipCode(user.id, vipCodeInput.trim());
+      if (result.success) {
+        setFoundingVip(true);
+        if (result.status) setSubscriptionStatus(result.status);
+        setVipModalVisible(false);
+        setVipCodeInput('');
+        Alert.alert('🎉 Founding VIP 활성화!', result.message);
+      } else {
+        Alert.alert('유효하지 않은 코드입니다', result.message);
+      }
+    } catch {
+      Alert.alert('오류', '코드 확인에 실패했어요. 다시 시도해주세요.');
+    } finally {
+      setVipSubmitting(false);
+    }
   }
 
   async function handleLogout() {
@@ -119,6 +136,11 @@ export default function Settings() {
   }
 
   async function handleDeleteAccountConfirmed() {
+    try {
+      await supabase.functions.invoke('delete-account');
+    } catch {
+      // 서버 삭제 실패해도 로컬은 정리
+    }
     await supabase.auth.signOut();
     resetUser();
     resetCouple();
@@ -318,6 +340,15 @@ export default function Settings() {
               <Text style={styles.rowText}>연동 상태</Text>
               <Text style={styles.rowValue}>{isPartnerConnected ? '연동됨' : '미연동'}</Text>
             </View>
+            <View style={styles.divider} />
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => setVipModalVisible(true)}
+              disabled={isFoundingVip}
+            >
+              <Text style={styles.rowText}>Founding VIP 코드 입력</Text>
+              <Text style={styles.rowValue}>{isFoundingVip ? '✨ 활성화됨' : ''}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -328,8 +359,8 @@ export default function Settings() {
             <View style={styles.row}>
               <Text style={styles.rowText}>오라 효과</Text>
               <Switch
-                value={auraEnabled}
-                onValueChange={toggleAura}
+                value={!reduceAuraMotion}
+                onValueChange={(value) => setReduceAuraMotion(!value)}
                 trackColor={{ false: '#333', true: BRAND.CORAL }}
                 thumbColor={SYS.TEXT_LIGHT}
               />
@@ -398,6 +429,49 @@ export default function Settings() {
           </View>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={vipModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVipModalVisible(false)}
+      >
+        <View style={styles.vipModalBackdrop}>
+          <View style={styles.vipModalCard}>
+            <Text style={styles.vipModalTitle}>Founding VIP 코드 입력</Text>
+            <Text style={styles.vipModalDesc}>
+              베타 창립 멤버 프로모션 코드를 입력하면{'\n'}
+              Deep Talk Night가 12개월간 무료로 제공돼요.
+            </Text>
+            <TextInput
+              style={styles.vipModalInput}
+              placeholder="코드 입력"
+              placeholderTextColor={SYS.TEXT_MUTED}
+              value={vipCodeInput}
+              onChangeText={setVipCodeInput}
+              autoCapitalize="characters"
+            />
+            <View style={styles.vipModalActions}>
+              <TouchableOpacity
+                style={styles.vipModalCancelBtn}
+                onPress={() => {
+                  setVipModalVisible(false);
+                  setVipCodeInput('');
+                }}
+              >
+                <Text style={styles.vipModalCancelText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.vipModalConfirmBtn}
+                onPress={handleRedeemVip}
+                disabled={!vipCodeInput.trim() || vipSubmitting}
+              >
+                <Text style={styles.vipModalConfirmText}>{vipSubmitting ? '확인 중...' : '확인'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -438,7 +512,7 @@ function makeStyles(theme: SigmaTheme) {
   rowIcon: { ...TYPOGRAPHY.body },
   rowText: { ...TYPOGRAPHY.body, color: theme.text },
   rowSub: { ...TYPOGRAPHY.caption, color: '#666', marginTop: 2 },
-  rowValue: { ...TYPOGRAPHY.body, color: '#888' },
+  rowValue: { ...TYPOGRAPHY.body, color: SYS.TEXT_MUTED },
   logoutText: { ...TYPOGRAPHY.bodyMedium, color: SYS.CRISIS_RED },
 
   profileRow: { gap: 16 },
@@ -453,7 +527,7 @@ function makeStyles(theme: SigmaTheme) {
   avatarText: { ...TYPOGRAPHY.heading, color: SYS.TEXT_LIGHT },
   profileInfo: { flex: 1, gap: 4 },
   profileName: { ...TYPOGRAPHY.heading, color: theme.text },
-  profileMbti: { ...TYPOGRAPHY.label, color: '#888' },
+  profileMbti: { ...TYPOGRAPHY.label, color: SYS.TEXT_MUTED },
 
   themeBtnRow: { flexDirection: 'row', gap: 12, padding: 16 },
   themeBtn: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
@@ -486,8 +560,52 @@ function makeStyles(theme: SigmaTheme) {
   privacyCard: { padding: 16, gap: 8 },
   levelBadge: { backgroundColor: BRAND.MINT, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   levelBadgeText: { ...TYPOGRAPHY.caption, color: SYS.TEXT_DARK },
-  privacyDesc: { ...TYPOGRAPHY.caption, color: '#888' },
+  privacyDesc: { ...TYPOGRAPHY.caption, color: SYS.TEXT_MUTED },
   slider: { width: '100%', height: 32, marginTop: 4 },
   privacyLevelText: { ...TYPOGRAPHY.label, color: SYS.TEXT_LIGHT, textAlign: 'center' },
+
+  // Founding VIP 코드 입력 모달(§9-2)
+  vipModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  vipModalCard: {
+    width: '100%',
+    backgroundColor: theme.card,
+    borderRadius: 20,
+    padding: 24,
+    gap: 12,
+  },
+  vipModalTitle: { ...TYPOGRAPHY.heading, color: theme.text, textAlign: 'center' },
+  vipModalDesc: { ...TYPOGRAPHY.caption, color: theme.textMuted, textAlign: 'center', lineHeight: 18 },
+  vipModalInput: {
+    backgroundColor: theme.bg,
+    borderRadius: 12,
+    padding: 14,
+    color: theme.text,
+    fontSize: 16,
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  vipModalActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  vipModalCancelBtn: {
+    flex: 1,
+    backgroundColor: theme.bg,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  vipModalCancelText: { ...TYPOGRAPHY.label, color: theme.text },
+  vipModalConfirmBtn: {
+    flex: 1,
+    backgroundColor: BRAND.CORAL,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  vipModalConfirmText: { ...TYPOGRAPHY.label, color: SYS.TEXT_LIGHT },
   });
 }

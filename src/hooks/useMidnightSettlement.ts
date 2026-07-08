@@ -7,7 +7,9 @@
 
 import { useEffect } from 'react';
 import { settleMidnight, shouldActivateCrisisMemory, resolveActiveCapPlus, computeVolatilityIndex } from '@/engine/metrics';
+import { formatScore } from '@/engine/scoreCalculator';
 import { useScoreStore } from '@/store/scoreStore';
+import { useUserStore } from '@/store/userStore';
 import { scheduleLocalNotification } from '@/services/notificationService';
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -30,6 +32,12 @@ async function runSettlement() {
   store.setLastSettledAt(new Date().toISOString());
   store.setSCurrent(result.sCurrent);
 
+  // §9.3 무료 플랜 월간 대화 횟수 — 매월 1일 자정 정산 때만 리셋
+  const today = new Date();
+  if (today.getDate() === 1) {
+    useUserStore.getState().setMonthlyChatCount(0);
+  }
+
   // §5.5 변동성 지수 — 7일 롤링 구간의 일별 증감(Δ_daily) 표준편차.
   // scoreHistory는 일별 settled 절대점수라 연속 항목 차분으로 Δ_daily를 구해야 한다
   // (원점수 자체의 표준편차를 넣으면 "변동성"이 아니라 "기준점 높낮이"를 재게 된다).
@@ -45,7 +53,7 @@ async function runSettlement() {
 
   await scheduleLocalNotification(
     '오늘의 연애 온도 📊',
-    `오늘 하루 ${result.sCurrent.toFixed(1)}점으로 마무리됐어요`,
+    `오늘 하루 ${formatScore(result.sCurrent)}점으로 마무리됐어요`,
   );
 }
 

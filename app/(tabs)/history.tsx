@@ -4,10 +4,9 @@
 // archive의 실제 3D 나선 렌더러는 Expo Go 한계로 reanimated 기반 parallax
 // (좌우 교차 translateX + 중앙 확대/선명 효과)로 근사한다.
 
-import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -18,7 +17,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useSessionStore } from '@/store/sessionStore';
+import { useScoreStore } from '@/store/scoreStore';
 import { useTheme } from '@/hooks/useTheme';
+import { usePremiumGate } from '@/hooks/usePremiumGate';
+import { supabase } from '@/lib/supabaseClient';
+import { callLLM } from '@/api/llm';
+import { getPublicCourses, type DateCourse } from '@/services/dateCourseService';
+import WrappedModal from '@/components/WrappedModal';
+import { formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
@@ -127,6 +133,7 @@ function ArchiveTab() {
   const styles = makeStyles(theme);
   const relationshipStartDate = useCoupleStore((s) => s.relationshipStartDate);
   const dDay = computeDDay(relationshipStartDate);
+  const [wrappedVisible, setWrappedVisible] = useState(false);
 
   const scrollY = useSharedValue(0);
   const viewportHeight = useSharedValue(500);
@@ -163,6 +170,12 @@ function ArchiveTab() {
         <Text style={styles.helixStatItem}>📸 {HELIX_CARDS.length}장</Text>
         <Text style={styles.helixStatItem}>📍 {MOCK_PLACES_COUNT}곳</Text>
       </View>
+
+      <TouchableOpacity style={[styles.wrappedBtn, styles.wrappedBtnSolid]} onPress={() => setWrappedVisible(true)}>
+        <Text style={styles.wrappedBtnText}>✨ 우리의 Wrapped 보기</Text>
+      </TouchableOpacity>
+
+      <WrappedModal visible={wrappedVisible} onClose={() => setWrappedVisible(false)} />
     </View>
   );
 }
@@ -176,60 +189,22 @@ const FEED_FILTERS: Array<{ key: FeedFilterKey; label: string }> = [
   { key: 'nearby', label: '📍 내 지역' },
 ];
 
-const MOCK_COURSES = [
-  {
-    id: '1',
-    tierEmoji: '🏆',
-    tierTitle: '환상 속의 신화적 결합',
-    region: '경리단길',
-    places: [
-      { emoji: '🍷', name: '경리단길 와인바' },
-      { emoji: '🗼', name: 'N서울타워' },
-      { emoji: '☕', name: '해방촌 루프탑' },
-    ],
-    tags: ['시크', '로맨틱', '차분함'],
-    myRating: 4.9,
-    partnerRating: 5.0,
-    review: '조용히 우리 얘기만 할 수 있어서 좋았어요.',
-  },
-  {
-    id: '2',
-    tierEmoji: '✨',
-    tierTitle: '다정다감한 모범 커플',
-    region: '홍대',
-    places: [
-      { emoji: '☕', name: '카페 골목' },
-      { emoji: '👗', name: '무신사 스탠다드' },
-      { emoji: '🥩', name: '연남동 돼지고기' },
-    ],
-    tags: ['페미닌', '캐주얼', '힐링'],
-    myRating: 4.5,
-    partnerRating: 4.7,
-    review: '쇼핑하고 맛있는 것까지 먹으니 하루가 꽉 찼어요.',
-  },
-  {
-    id: '3',
-    tierEmoji: '💎',
-    tierTitle: '눈빛만 봐도 아는 사이',
-    region: '성수동',
-    places: [
-      { emoji: '🎪', name: '성수 팝업' },
-      { emoji: '🏭', name: '카페 할아버지공장' },
-      { emoji: '🌿', name: '뚝섬 한강' },
-    ],
-    tags: ['힙한', '감성', '여유'],
-    myRating: 4.8,
-    partnerRating: 4.6,
-    review: '사진 찍을 곳이 많아서 종일 웃으면서 걸었어요.',
-  },
-];
-
 function FeedTab() {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const themeMode = useSessionStore((s) => s.themeMode);
+  const { hasReportAccess } = usePremiumGate();
   const [ootdOnly, setOotdOnly] = useState(false);
   const [filter, setFilter] = useState<FeedFilterKey>('rating');
+  const [courses, setCourses] = useState<DateCourse[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getPublicCourses().then((data) => {
+      setCourses(data);
+      setLoading(false);
+    });
+  }, []);
 
   return (
     <ScrollView
@@ -239,6 +214,12 @@ function FeedTab() {
       alwaysBounceVertical={true}
     >
       <Text style={styles.feedTitle}>💑 인기 데이트코스</Text>
+
+      {!hasReportAccess && (
+        <View style={styles.freeFeedBanner}>
+          <Text style={styles.freeFeedBannerText}>Coffee Talk 이상에서 전체 피드를 볼 수 있어요</Text>
+        </View>
+      )}
 
       <View style={[styles.ootdBar, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.CARD_DARK }]}>
         <Text style={styles.ootdText}>✨ 내 현재 OOTD & 무드 코스만 보기</Text>
@@ -277,70 +258,76 @@ function FeedTab() {
         })}
       </View>
 
-      {MOCK_COURSES.map((course) => (
-        <View
-          key={course.id}
-          style={[styles.courseCard, { backgroundColor: themeMode === 'light' ? '#FFFFFF' : SYS.CARD_DARK }]}
-        >
-          <View style={styles.courseHeader}>
-            <Text style={styles.courseCoupleLabel}>
-              익명의 [{course.tierEmoji} {course.tierTitle}] 커플
-            </Text>
-            <View
-              style={[
-                styles.courseRegionBadge,
-                { backgroundColor: themeMode === 'light' ? '#FFE8E8' : SYS.BG_DARK_MIDNIGHT },
-              ]}
-            >
-              <Text style={[styles.courseRegionText, { color: BRAND.CORAL }]}>📍 {course.region}</Text>
-            </View>
-          </View>
-
-          <View style={styles.coursePlaces}>
-            {course.places.map((place, i) => (
-              <View key={place.name} style={styles.coursePlaceRow}>
-                <View
-                  style={[
-                    styles.coursePlaceChip,
-                    { backgroundColor: themeMode === 'light' ? '#FFF0F0' : SYS.BG_DARK_MIDNIGHT },
-                  ]}
-                >
-                  <Text style={[styles.coursePlaceText, { color: theme.textMuted }]}>{place.name}{place.emoji}</Text>
-                </View>
-                {i < course.places.length - 1 && <Text style={styles.courseArrow}>→</Text>}
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.courseTags}>
-            {course.tags.map((tag) => (
+      {loading ? (
+        <ActivityIndicator style={styles.feedLoading} color={BRAND.CORAL} />
+      ) : courses.length === 0 ? (
+        <Text style={styles.feedEmptyText}>아직 공유된 코스가 없어요</Text>
+      ) : (
+        courses.map((course) => (
+          <View
+            key={course.id}
+            style={[styles.courseCard, { backgroundColor: themeMode === 'light' ? SYS.CARD_LIGHT : SYS.CARD_DARK }]}
+          >
+            <View style={styles.courseHeader}>
+              <Text style={styles.courseCoupleLabel}>
+                익명의 [{course.tierEmoji} {course.tierName}] 커플
+              </Text>
               <View
-                key={tag}
-                style={[styles.courseTag, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.BG_DARK_MIDNIGHT }]}
+                style={[
+                  styles.courseRegionBadge,
+                  { backgroundColor: themeMode === 'light' ? '#FFE8E8' : SYS.BG_DARK_MIDNIGHT },
+                ]}
               >
-                <Text style={[styles.courseTagText, { color: theme.textMuted }]}>{tag}</Text>
+                <Text style={[styles.courseRegionText, { color: BRAND.CORAL }]}>📍 {course.area}</Text>
               </View>
-            ))}
+            </View>
+
+            <View style={styles.coursePlaces}>
+              {course.places.map((place, i) => (
+                <View key={place.name} style={styles.coursePlaceRow}>
+                  <View
+                    style={[
+                      styles.coursePlaceChip,
+                      { backgroundColor: themeMode === 'light' ? '#FFF0F0' : SYS.BG_DARK_MIDNIGHT },
+                    ]}
+                  >
+                    <Text style={[styles.coursePlaceText, { color: theme.textMuted }]}>{place.name}{place.emoji}</Text>
+                  </View>
+                  {i < course.places.length - 1 && <Text style={styles.courseArrow}>→</Text>}
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.courseTags}>
+              {course.tags.map((tag) => (
+                <View
+                  key={tag}
+                  style={[styles.courseTag, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.BG_DARK_MIDNIGHT }]}
+                >
+                  <Text style={[styles.courseTagText, { color: theme.textMuted }]}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.courseRatingRow}>
+              <Text style={styles.courseRatingText}>나의 별점 ⭐{formatScore(course.myScore)}</Text>
+              <View
+                style={[
+                  styles.courseRatingDivider,
+                  { backgroundColor: themeMode === 'light' ? '#E8D0D5' : '#2D3F55' },
+                ]}
+              />
+              <Text style={styles.courseRatingText}>연인의 별점 ⭐{formatScore(course.partnerScore)}</Text>
+            </View>
+
+            <Text style={[styles.courseReview, { color: theme.textMuted }]}>"{course.review}"</Text>
+
+            <TouchableOpacity style={[styles.courseMapBtn, styles.courseMapBtnSolid]}>
+              <Text style={styles.courseMapBtnText}>🗺️ 이 코스 내 지도에 담기</Text>
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.courseRatingRow}>
-            <Text style={styles.courseRatingText}>나의 별점 ⭐{course.myRating.toFixed(1)}</Text>
-            <View
-              style={[
-                styles.courseRatingDivider,
-                { backgroundColor: themeMode === 'light' ? '#E8D0D5' : '#2D3F55' },
-              ]}
-            />
-            <Text style={styles.courseRatingText}>연인의 별점 ⭐{course.partnerRating.toFixed(1)}</Text>
-          </View>
-
-          <Text style={[styles.courseReview, { color: theme.textMuted }]}>"{course.review}"</Text>
-
-          <TouchableOpacity style={[styles.courseMapBtn, styles.courseMapBtnSolid]}>
-            <Text style={styles.courseMapBtnText}>🗺️ 이 코스 내 지도에 담기</Text>
-          </TouchableOpacity>
-        </View>
-      ))}
+        ))
+      )}
     </ScrollView>
   );
 }
@@ -350,6 +337,33 @@ export default function History() {
   const styles = makeStyles(theme);
   const themeMode = useSessionStore((s) => s.themeMode);
   const [subTab, setSubTab] = useState<SubTab>('archive');
+  const [aiLoading, setAiLoading] = useState(false);
+
+  async function handleAIRecommend() {
+    setAiLoading(true);
+    try {
+      await supabase.auth.getUser();
+      const coupleArea = '서울'; // TODO: 위치 기반으로 교체
+
+      const response = await callLLM({
+        systemPrompt: `당신은 데이트 코스 전문가입니다.
+        커플의 연애 데이터를 바탕으로
+        ${coupleArea} 지역의 데이트 코스 3가지를 추천해주세요.
+        각 코스는 장소 3곳과 분위기 태그를 포함해주세요.`,
+        userMessage: JSON.stringify({
+          avgScore: useScoreStore.getState().sLive,
+          tags: ['감성', '로맨틱'],
+        }),
+        maxTokens: 500,
+      });
+
+      Alert.alert('AI 데이트 추천 🗺️', response.content);
+    } catch {
+      Alert.alert('오류', 'AI 추천을 불러오지 못했어요.');
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   function renderMap() {
     if (!KAKAO_MAP_API_KEY) {
@@ -369,9 +383,16 @@ export default function History() {
             <Text style={[styles.mapPinEmpty, { color: theme.textMuted }]}>아직 기록된 장소가 없어요</Text>
           </View>
 
-          <TouchableOpacity style={[styles.aiRecommendBtn, styles.aiRecommendSolid]}>
-            <Ionicons name="sparkles" size={18} color={SYS.TEXT_LIGHT} />
-            <Text style={styles.aiRecommendText}>AI 데이트 추천</Text>
+          <TouchableOpacity
+            style={[styles.aiRecommendBtn, styles.aiRecommendSolid]}
+            onPress={handleAIRecommend}
+            disabled={aiLoading}
+          >
+            {aiLoading ? (
+              <ActivityIndicator color={SYS.TEXT_LIGHT} />
+            ) : (
+              <Text style={styles.aiRecommendText}>✨ AI 데이트 추천</Text>
+            )}
           </TouchableOpacity>
         </View>
       );
@@ -465,6 +486,11 @@ function makeStyles(theme: SigmaTheme) {
   },
   helixStatItem: { ...TYPOGRAPHY.label, color: theme.text },
 
+  // 커플 Wrapped(§11) 진입 버튼
+  wrappedBtn: { marginHorizontal: 20, marginBottom: 16, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  wrappedBtnSolid: { backgroundColor: BRAND.CORAL },
+  wrappedBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
+
   // 지도 — 카카오맵 연동 전 플레이스홀더 (수정 금지)
   mapPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
   mapPlaceholderEmoji: { fontSize: 64 },
@@ -481,6 +507,16 @@ function makeStyles(theme: SigmaTheme) {
   feedContent: { paddingBottom: 20 },
   feedTitle: { ...TYPOGRAPHY.heading, color: theme.text, padding: 20, paddingBottom: 12 },
 
+  freeFeedBanner: {
+    backgroundColor: theme.accentSoft,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  freeFeedBannerText: { ...TYPOGRAPHY.caption, color: BRAND.CORAL, textAlign: 'center' },
+
   ootdBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -492,6 +528,9 @@ function makeStyles(theme: SigmaTheme) {
     gap: 12,
   },
   ootdText: { ...TYPOGRAPHY.bodyMedium, color: theme.text, flex: 1 },
+
+  feedLoading: { marginTop: 40 },
+  feedEmptyText: { ...TYPOGRAPHY.body, color: theme.textMuted, textAlign: 'center', marginTop: 40 },
 
   filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 16 },
   filterChip: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8 },

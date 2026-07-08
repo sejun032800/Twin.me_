@@ -140,5 +140,5 @@ const styles = StyleSheet.create({
   nextBtn: { backgroundColor: BRAND.CORAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   nextBtnDisabled: { backgroundColor: SYS.CARD_DARK },
   nextBtnText: { fontSize: 16, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
-  skipText: { fontSize: 14, color: '#888', textAlign: 'center' },
+  skipText: { fontSize: 14, color: SYS.TEXT_MUTED, textAlign: 'center' },
 });

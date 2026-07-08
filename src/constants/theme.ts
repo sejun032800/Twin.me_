@@ -6,7 +6,7 @@
 import type { AuraVector, AuraAxis } from '@/types/genesis';
 import { AURA_AXES } from '@/types/genesis';
 import { auraChannelToCss } from '@/engine/auraEngine';
-import { AURA_BASE_HUE } from '@/constants/colors';
+import { AURA_BASE_HUE, BRAND, SYS } from '@/constants/colors';
 
 export type ThemeMode = 'sigma' | 'light' | 'dark';
 
@@ -57,7 +57,7 @@ export function buildSigmaTheme(auraVector: AuraVector): SigmaTheme {
     card: hsl(hue, saturation * 0.4, 20),
     accent: hsl(hue, saturation, lightness),
     accentSoft: hsl(hue, saturation * 0.5, 25),
-    text: '#FFFFFF',
+    text: SYS.TEXT_LIGHT,
     textMuted: hsl(hue, 20, 65),
     border: hsl(hue, saturation * 0.4, 25),
     tabBar: hsl(hue, saturation * 0.3, 12),
@@ -66,28 +66,28 @@ export function buildSigmaTheme(auraVector: AuraVector): SigmaTheme {
 
 export function getDefaultDarkTheme(): SigmaTheme {
   return {
-    bg: '#0A0D1A',
+    bg: SYS.BG_DARK_MIDNIGHT,
     bgSecondary: '#0F1626',
-    card: '#1E293B',
-    accent: '#FFA4A4', // BRAND.CORAL
+    card: SYS.CARD_DARK,
+    accent: BRAND.CORAL,
     accentSoft: '#2D1F2B',
-    text: '#FFFFFF',
-    textMuted: '#888888',
-    border: '#1E293B',
-    tabBar: '#0A0D1A',
+    text: SYS.TEXT_LIGHT,
+    textMuted: SYS.TEXT_MUTED,
+    border: SYS.CARD_DARK,
+    tabBar: SYS.BG_DARK_MIDNIGHT,
   };
 }
 
 export function getLightTheme(): SigmaTheme {
   return {
-    bg: '#F8F9FA',
+    bg: SYS.BG_LIGHT_SNOW,
     bgSecondary: '#F0F2F5',
-    card: '#FFFFFF',
-    accent: '#FFA4A4',
+    card: SYS.CARD_LIGHT,
+    accent: BRAND.CORAL,
     accentSoft: '#FFE8E8',
-    text: '#1A1A1A',
-    textMuted: '#888888',
+    text: SYS.TEXT_DARK,
+    textMuted: SYS.TEXT_MUTED,
     border: '#E8EAED',
-    tabBar: '#FFFFFF',
+    tabBar: SYS.CARD_LIGHT,
   };
 }

@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   backBtn: { position: 'absolute', top: 60, left: 24 },
   backText: { fontSize: 15, color: SYS.TEXT_LIGHT },
   title: { fontSize: 28, fontWeight: 'bold', color: BRAND.CORAL, marginBottom: 4, textAlign: 'center' },
-  subtitle: { fontSize: 14, color: '#888', textAlign: 'center', marginBottom: 16 },
+  subtitle: { fontSize: 14, color: SYS.TEXT_MUTED, textAlign: 'center', marginBottom: 16 },
   codeInput: {
     backgroundColor: SYS.CARD_DARK,
     borderRadius: 16,

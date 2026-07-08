@@ -100,7 +100,7 @@ function normalCdf(x: number, mean: number, sd: number): number {
 }
 
 /** score가 전국 커플 분포 상위 몇 %에 위치하는지 반환 (1~99로 클램프). */
-export function getNationalPercentileTop(score: number): number {
+export function computeNationalPercentile(score: number): number {
   const topFraction = 1 - normalCdf(score, SCORE_DISTRIBUTION_MEAN, SCORE_DISTRIBUTION_SD);
   const topPercent = Math.round(topFraction * 100);
   return Math.max(1, Math.min(99, topPercent));
@@ -207,7 +207,7 @@ const TIER_THEMES = {
 } as const;
 
 // ── [FUN-HOM-003] 5% 격차 10단계 마스터 티어 매퍼 ────────────────────────────
-export function getRelationshipTier(score: number): RelationshipTier {
+export function getTierFromScore(score: number): RelationshipTier {
   if (score >= 95.0) return {
     emoji: '🏆', title: '환상 속의 신화적 결합',
     description: '대화 호흡과 어휘 동기화가 신의 경지에 이른 기적적 상태',

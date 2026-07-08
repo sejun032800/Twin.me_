@@ -1,6 +1,6 @@
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { View } from 'react-native';
-import { BRAND } from '@/constants/colors';
+import { BRAND, SYS } from '@/constants/colors';
 
 interface Props {
   score: number; // 0~100
@@ -27,7 +27,7 @@ export default function CircularGauge({ score, size = 220, strokeWidth = 12, tra
         </Defs>
         <Circle
           cx={center} cy={center} r={radius}
-          stroke={trackColor ?? '#1E293B'} strokeWidth={strokeWidth} fill="none"
+          stroke={trackColor ?? SYS.CARD_DARK} strokeWidth={strokeWidth} fill="none"
         />
         <Circle
           cx={center} cy={center} r={radius}

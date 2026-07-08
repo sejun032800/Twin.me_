@@ -1,23 +1,28 @@
 // ─── FUN-HOM-001~003 — 메인 탭 연애 대시보드 (MASTER.md §3, §5.1) ────────────────
 // S_Current(자정 정산 공식 일치율, §5.1)를 화면 중앙에 표시. 아직 자정 정산 이벤트가
 // 한 번도 없어 S_Current=0인 첫 실행 구간에서는 S_Base(MBTI 기준 점수)로 대체 노출한다.
-// 티어는 scoreCalculator.getRelationshipTier()(§5.8, FUN-HOM-003 10단계 매퍼)로 산출.
+// 티어는 scoreCalculator.getTierFromScore()(§5.8, FUN-HOM-003 10단계 매퍼)로 산출.
 // 정보 밀도보다 여백과 감성을 우선하는 미니멀 레이아웃 — 카드 박스는 최소화한다.
 
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { useRef, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import ViewShot from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 import CircularGauge from '@/components/CircularGauge';
 import PartnerStatusBar from '@/components/PartnerStatusBar';
+import OverflowBanner from '@/components/OverflowBanner';
+import ShareCard from '@/components/ShareCard';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useTheme } from '@/hooks/useTheme';
-import { getRelationshipTier, formatScore } from '@/engine/scoreCalculator';
-import { BRAND, GRADIENT } from '@/constants/colors';
+import { getTierFromScore, formatScore } from '@/engine/scoreCalculator';
+import { BRAND, SYS, GRADIENT } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -49,8 +54,31 @@ export default function Home() {
   const sBase = useScoreStore((s) => s.sBase);
 
   const displayScore = sLive > 0 ? sLive : (sCurrent > 0 ? sCurrent : sBase);
-  const tier = getRelationshipTier(displayScore);
+  const tier = getTierFromScore(displayScore);
   const dDay = computeDDay(relationshipStartDate);
+
+  const viewShotRef = useRef<ViewShot>(null);
+  const [sharing, setSharing] = useState(false);
+
+  async function handleShare() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await viewShotRef.current?.capture?.();
+      if (!uri) throw new Error('캡처에 실패했어요');
+
+      const available = await Sharing.isAvailableAsync();
+      if (!available) {
+        Alert.alert('오류', '이 기기에서는 공유 기능을 사용할 수 없어요.');
+        return;
+      }
+      await Sharing.shareAsync(uri);
+    } catch {
+      Alert.alert('오류', '공유 카드를 만들지 못했어요. 다시 시도해주세요.');
+    } finally {
+      setSharing(false);
+    }
+  }
 
   const statusMessage =
     displayScore >= 70 ? '오늘도 잘 하고 있어요' :
@@ -79,6 +107,8 @@ export default function Home() {
         </View>
 
         <PartnerStatusBar />
+
+        <OverflowBanner />
 
         <View style={styles.gaugeSection}>
           <View style={styles.gaugeContainer}>
@@ -128,7 +158,24 @@ export default function Home() {
             <Text style={styles.actionBtnText}>히스토리 보기</Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity style={styles.shareBtn} onPress={handleShare} disabled={sharing}>
+          {sharing ? (
+            <ActivityIndicator color={SYS.TEXT_LIGHT} />
+          ) : (
+            <>
+              <Ionicons name="share-outline" size={20} color={SYS.TEXT_LIGHT} />
+              <Text style={styles.shareBtnText}>공유하기</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </ScrollView>
+
+      <View style={styles.shareCardOffscreen} pointerEvents="none">
+        <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+          <ShareCard score={displayScore} />
+        </ViewShot>
+      </View>
     </SafeAreaView>
   );
 }
@@ -218,6 +265,24 @@ function makeStyles(theme: SigmaTheme) {
       ...TYPOGRAPHY.label,
       color: theme.text,
       marginTop: 6,
+    },
+    shareBtn: {
+      flexDirection: 'row',
+      backgroundColor: BRAND.CORAL,
+      borderRadius: 16,
+      paddingVertical: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    shareBtnText: {
+      ...TYPOGRAPHY.button,
+      color: SYS.TEXT_LIGHT,
+    },
+    shareCardOffscreen: {
+      position: 'absolute',
+      top: -9999,
+      left: 0,
     },
   });
 }

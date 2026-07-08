@@ -30,7 +30,7 @@ export default function Signup() {
       <TextInput
         style={styles.input}
         placeholder="이메일"
-        placeholderTextColor="#888"
+        placeholderTextColor={SYS.TEXT_MUTED}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -39,7 +39,7 @@ export default function Signup() {
       <TextInput
         style={styles.input}
         placeholder="비밀번호 (6자 이상)"
-        placeholderTextColor="#888"
+        placeholderTextColor={SYS.TEXT_MUTED}
         value={password}
         onChangeText={setPassword}
         secureTextEntry

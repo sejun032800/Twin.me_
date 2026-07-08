@@ -6,7 +6,7 @@
 // 실제 AI 연동(§4.3 이하)은 TODO — 지금은 전송 시 고정 스텁 메시지만 추가한다.
 
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,13 +16,17 @@ import type { ActiveChatRoom } from '@/store/sessionStore';
 import { useUserStore } from '@/store/userStore';
 import { useMatchEngine } from '@/hooks/useMatchEngine';
 import { useTheme } from '@/hooks/useTheme';
+import { usePremiumGate } from '@/hooks/usePremiumGate';
 import { callLLM } from '@/api/llm';
 import { scheduleLocalNotification } from '@/services/notificationService';
 import { generateWeeklyReport, getLastReport, type WeeklyReport } from '@/services/weeklyReportService';
 import type { ClassifierMessage } from '@/engine/eventClassifier';
+import { formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
+
+const FREE_MONTHLY_LIMIT = 4;
 
 type RoomKey = 'lover' | 'twin' | 'analyst';
 
@@ -42,6 +46,9 @@ export default function Chat() {
   const isCrisisMode = useSessionStore((s) => s.isCrisisMode);
   const setCrisisMode = useSessionStore((s) => s.setCrisisMode);
   const name = useUserStore((s) => s.name);
+  const monthlyChatCount = useUserStore((s) => s.monthlyChatCount);
+  const setMonthlyChatCount = useUserStore((s) => s.setMonthlyChatCount);
+  const { hasReportAccess, hasDeepChatAccess } = usePremiumGate();
   const { processMessage } = useMatchEngine();
   const [chatHistory, setChatHistory] = useState<ClassifierMessage[]>([]);
 
@@ -70,8 +77,7 @@ export default function Chat() {
     if (reportLoading) return;
     setReportLoading(true);
     try {
-      // TODO: usePremiumGate 연동 후 실제 구독 상태로 교체
-      const report = await generateWeeklyReport(false);
+      const report = await generateWeeklyReport(hasReportAccess);
       setLastReport(report);
     } catch (e) {
       console.error('주간 리포트 생성 실패:', e);
@@ -116,6 +122,20 @@ export default function Chat() {
 
   async function handleSend() {
     if (!currentRoom || !inputText.trim() || isLoverLocked) return;
+
+    // §9.3 — 트윈방/분석가방은 무료 플랜 월 4회 제한 (Deep Talk Night만 무제한)
+    const isGatedRoom = currentRoom === 'twin' || currentRoom === 'analyst';
+    if (isGatedRoom && !hasDeepChatAccess && monthlyChatCount >= FREE_MONTHLY_LIMIT) {
+      Alert.alert(
+        '이번 달 대화 한도',
+        '무료 플랜은 이번 달 4회 대화가 가능해요.\nCoffee Talk으로 업그레이드하면 30회까지!',
+        [{ text: '확인' }],
+      );
+      return;
+    }
+    if (isGatedRoom) {
+      setMonthlyChatCount(monthlyChatCount + 1);
+    }
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -233,9 +253,9 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
           <Text style={styles.reportTitle}>📊 주간 연애 리포트</Text>
           <Text style={styles.reportPeriod}>{lastReport.weekStart} ~ {lastReport.weekEnd}</Text>
           <View style={styles.reportStats}>
-            <Text style={styles.reportStatText}>평균 {lastReport.avgScore.toFixed(1)}점</Text>
-            <Text style={styles.reportStatText}>최고 {lastReport.maxScore.toFixed(1)}점</Text>
-            <Text style={styles.reportStatText}>최저 {lastReport.minScore.toFixed(1)}점</Text>
+            <Text style={styles.reportStatText}>평균 {formatScore(lastReport.avgScore)}점</Text>
+            <Text style={styles.reportStatText}>최고 {formatScore(lastReport.maxScore)}점</Text>
+            <Text style={styles.reportStatText}>최저 {formatScore(lastReport.minScore)}점</Text>
           </View>
           <Text style={styles.reportSummary}>{lastReport.summary}</Text>
           {!lastReport.fullAnalysis && (
@@ -560,7 +580,7 @@ function makeStyles(theme: SigmaTheme) {
     gap: 12,
   },
   placeholderIcon: { fontSize: 32 },
-  placeholderText: { fontSize: 15, color: '#888', textAlign: 'center' },
+  placeholderText: { fontSize: 15, color: SYS.TEXT_MUTED, textAlign: 'center' },
   messageList: { flex: 1 },
   messageListContent: { padding: 16, gap: 8 },
 
