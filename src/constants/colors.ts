@@ -19,6 +19,7 @@ export const SYS = {
   CRISIS_RED:       '#EF4444',   // CrisisMode 배경 펄스
   TEXT_DARK:        '#1A1A1A',
   TEXT_LIGHT:       '#FFFFFF',
+  TEXT_MUTED:       '#888888',   // 보조 텍스트 (라벨/캡션 회색조)
 } as const;
 
 // ── Layer 2: 오라 시스템 — 기준 hue 상수만 노출, 실제 색상은 auraEngine이 계산 ──

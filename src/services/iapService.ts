@@ -21,6 +21,15 @@
  *   If the var is empty the store receipt is trusted locally (dev / staging).
  *
  * teardownIAP() — call in component useEffect cleanup to prevent listener leaks.
+ *
+ * TODO(§0 하드 제약, 2026-07-08 감사): app.json의 `react-native-iap` config plugin은
+ * prebuild/EAS Build 타임에만 적용되고 Expo Go는 app.json plugins를 아예 읽지 않으므로
+ * 그 자체로는 Expo Go 실행에 영향 없음. 이 파일도 require('react-native-iap')를 iap()
+ * 안에서 지연 호출하고 isNitroReady() 첫 호출을 try/catch로 감싸 sandbox로 폴백하지만,
+ * 현재는 이 서비스를 런타임에 import하는 화면/스토어가 전무해 그 경로 자체가 실행된 적
+ * 없음(usePremiumGate.ts가 유일한 런타임 import원인데 그마저 미사용 죽은 코드).
+ * usePremiumGate 또는 구독 화면을 실제로 연결하는 시점에는, 반드시 순정 Expo Go 세션에서
+ * "require 자체가 네이티브 크래시 없이 sandbox 모드로 폴백되는지" 1회 실기기 검증 필요.
  */
 
 import { Platform } from 'react-native';

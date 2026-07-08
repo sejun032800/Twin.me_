@@ -11,10 +11,10 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import CircularGauge from '@/components/CircularGauge';
+import PartnerStatusBar from '@/components/PartnerStatusBar';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
-import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { getRelationshipTier, formatScore } from '@/engine/scoreCalculator';
 import { BRAND, GRADIENT } from '@/constants/colors';
@@ -42,13 +42,13 @@ export default function Home() {
   const router = useRouter();
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const themeMode = useSessionStore((s) => s.themeMode);
   const name = useUserStore((s) => s.name);
   const relationshipStartDate = useCoupleStore((s) => s.relationshipStartDate);
+  const sLive = useScoreStore((s) => s.sLive);
   const sCurrent = useScoreStore((s) => s.sCurrent);
   const sBase = useScoreStore((s) => s.sBase);
 
-  const displayScore = sCurrent > 0 ? sCurrent : sBase;
+  const displayScore = sLive > 0 ? sLive : (sCurrent > 0 ? sCurrent : sBase);
   const tier = getRelationshipTier(displayScore);
   const dDay = computeDDay(relationshipStartDate);
 
@@ -78,12 +78,14 @@ export default function Home() {
           )}
         </View>
 
+        <PartnerStatusBar />
+
         <View style={styles.gaugeSection}>
           <View style={styles.gaugeContainer}>
             <CircularGauge
               score={displayScore}
               size={220}
-              trackColor={themeMode === 'light' ? '#E0E0E0' : '#1E293B'}
+              trackColor={theme.border}
             />
             <View style={styles.gaugeCenter}>
               <MaskedView

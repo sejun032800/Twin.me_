@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabaseClient';
+import { createCouple } from '@/services/coupleService';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
@@ -90,6 +91,7 @@ export default function Settings() {
   const hasAuraVector = !!personaMatrix?.auraVector;
   const inviteCode = useCoupleStore((s) => s.inviteCode);
   const setInviteCode = useCoupleStore((s) => s.setInviteCode);
+  const setCoupleId = useCoupleStore((s) => s.setCoupleId);
   const isPartnerConnected = useCoupleStore((s) => s.isPartnerConnected);
   const resetCouple = useCoupleStore((s) => s.reset);
   const resetScore = useScoreStore((s) => s.reset);
@@ -249,7 +251,7 @@ export default function Settings() {
                 value={privacyLevel}
                 onValueChange={(v) => setPrivacyLevel(Math.round(v) as 0 | 1 | 2)}
                 minimumTrackTintColor={BRAND.CORAL}
-                maximumTrackTintColor="#0F1626"
+                maximumTrackTintColor={SYS.BG_DARK_MIDNIGHT}
                 thumbTintColor={BRAND.CORAL}
                 style={styles.slider}
               />
@@ -284,14 +286,33 @@ export default function Settings() {
             <View style={styles.divider} />
             <TouchableOpacity
               style={styles.row}
-              onPress={() => {
+              onPress={async () => {
+                const {
+                  data: { user },
+                } = await supabase.auth.getUser();
+                if (!user) return;
+
                 const code = generateInviteCode();
-                setInviteCode(code);
-                Alert.alert('초대 코드 생성됨', `코드: ${code}\n연인에게 공유하세요 💌`);
+                try {
+                  const coupleId = await createCouple(code, user.id);
+                  setInviteCode(code);
+                  setCoupleId(coupleId);
+                  Alert.alert('초대 코드 생성됨', `코드: ${code}\n연인에게 공유하세요 💌`);
+                } catch (e) {
+                  Alert.alert('오류', '코드 생성에 실패했어요. 다시 시도해주세요.');
+                }
               }}
             >
               <Text style={styles.rowText}>초대 코드 생성</Text>
             </TouchableOpacity>
+            {!isPartnerConnected && (
+              <>
+                <View style={styles.divider} />
+                <TouchableOpacity style={styles.row} onPress={() => router.push('/(auth)/join')}>
+                  <Text style={styles.rowText}>연인 코드 입력</Text>
+                </TouchableOpacity>
+              </>
+            )}
             <View style={styles.divider} />
             <View style={styles.row}>
               <Text style={styles.rowText}>연동 상태</Text>
@@ -391,7 +412,7 @@ function makeStyles(theme: SigmaTheme) {
 
   section: { marginBottom: 28 },
   sectionHeader: {
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
     color: '#555',
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -414,11 +435,11 @@ function makeStyles(theme: SigmaTheme) {
     justifyContent: 'space-between',
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowIcon: { fontSize: 18 },
-  rowText: { fontSize: 15, color: theme.text },
-  rowSub: { fontSize: 12, color: '#666', marginTop: 2 },
-  rowValue: { fontSize: 15, color: '#888' },
-  logoutText: { fontSize: 15, color: '#EF4444', fontWeight: 'bold' },
+  rowIcon: { ...TYPOGRAPHY.body },
+  rowText: { ...TYPOGRAPHY.body, color: theme.text },
+  rowSub: { ...TYPOGRAPHY.caption, color: '#666', marginTop: 2 },
+  rowValue: { ...TYPOGRAPHY.body, color: '#888' },
+  logoutText: { ...TYPOGRAPHY.bodyMedium, color: SYS.CRISIS_RED },
 
   profileRow: { gap: 16 },
   avatar: {
@@ -429,17 +450,17 @@ function makeStyles(theme: SigmaTheme) {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 22, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
+  avatarText: { ...TYPOGRAPHY.heading, color: SYS.TEXT_LIGHT },
   profileInfo: { flex: 1, gap: 4 },
-  profileName: { fontSize: 17, fontWeight: 'bold', color: theme.text },
-  profileMbti: { fontSize: 14, color: '#888' },
+  profileName: { ...TYPOGRAPHY.heading, color: theme.text },
+  profileMbti: { ...TYPOGRAPHY.label, color: '#888' },
 
   themeBtnRow: { flexDirection: 'row', gap: 12, padding: 16 },
   themeBtn: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   themeBtnSelected: { backgroundColor: BRAND.CORAL },
-  themeBtnUnselected: { backgroundColor: '#0F1626' },
+  themeBtnUnselected: { backgroundColor: SYS.BG_DARK_MIDNIGHT },
   themeBtnDisabled: { opacity: 0.4 },
-  themeBtnText: { fontSize: 14, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
+  themeBtnText: { ...TYPOGRAPHY.label, color: SYS.TEXT_LIGHT },
   themeHint: {
     ...TYPOGRAPHY.caption,
     color: theme.textMuted,
@@ -457,16 +478,16 @@ function makeStyles(theme: SigmaTheme) {
     padding: 16,
     marginHorizontal: 20,
   },
-  themeShopIcon: { fontSize: 28 },
+  themeShopIcon: { ...TYPOGRAPHY.heading },
   themeShopInfo: { flex: 1, gap: 2 },
   themeShopTitle: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
   themeShopSub: { ...TYPOGRAPHY.caption, color: theme.textMuted },
 
   privacyCard: { padding: 16, gap: 8 },
   levelBadge: { backgroundColor: BRAND.MINT, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
-  levelBadgeText: { fontSize: 12, fontWeight: 'bold', color: SYS.TEXT_DARK },
-  privacyDesc: { fontSize: 13, color: '#888', lineHeight: 18 },
+  levelBadgeText: { ...TYPOGRAPHY.caption, color: SYS.TEXT_DARK },
+  privacyDesc: { ...TYPOGRAPHY.caption, color: '#888' },
   slider: { width: '100%', height: 32, marginTop: 4 },
-  privacyLevelText: { fontSize: 14, fontWeight: 'bold', color: SYS.TEXT_LIGHT, textAlign: 'center' },
+  privacyLevelText: { ...TYPOGRAPHY.label, color: SYS.TEXT_LIGHT, textAlign: 'center' },
   });
 }

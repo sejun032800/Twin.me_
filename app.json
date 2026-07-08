@@ -27,6 +27,7 @@
       "expo-font",
       "expo-secure-store",
       "expo-splash-screen",
+      "expo-notifications",
       [
         "react-native-iap",
         {

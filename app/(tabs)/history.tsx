@@ -7,7 +7,6 @@
 import { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -241,7 +240,7 @@ function FeedTab() {
     >
       <Text style={styles.feedTitle}>💑 인기 데이트코스</Text>
 
-      <View style={[styles.ootdBar, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : '#1E293B' }]}>
+      <View style={[styles.ootdBar, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.CARD_DARK }]}>
         <Text style={styles.ootdText}>✨ 내 현재 OOTD & 무드 코스만 보기</Text>
         <Switch
           value={ootdOnly}
@@ -259,7 +258,7 @@ function FeedTab() {
               key={f.key}
               style={[
                 styles.filterChip,
-                { backgroundColor: themeMode === 'light' ? '#F5E8EC' : '#1E293B' },
+                { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.CARD_DARK },
                 selected && styles.filterChipActive,
               ]}
               onPress={() => setFilter(f.key)}
@@ -281,7 +280,7 @@ function FeedTab() {
       {MOCK_COURSES.map((course) => (
         <View
           key={course.id}
-          style={[styles.courseCard, { backgroundColor: themeMode === 'light' ? '#FFFFFF' : '#1E293B' }]}
+          style={[styles.courseCard, { backgroundColor: themeMode === 'light' ? '#FFFFFF' : SYS.CARD_DARK }]}
         >
           <View style={styles.courseHeader}>
             <Text style={styles.courseCoupleLabel}>
@@ -290,7 +289,7 @@ function FeedTab() {
             <View
               style={[
                 styles.courseRegionBadge,
-                { backgroundColor: themeMode === 'light' ? '#FFE8E8' : '#0F1626' },
+                { backgroundColor: themeMode === 'light' ? '#FFE8E8' : SYS.BG_DARK_MIDNIGHT },
               ]}
             >
               <Text style={[styles.courseRegionText, { color: BRAND.CORAL }]}>📍 {course.region}</Text>
@@ -303,7 +302,7 @@ function FeedTab() {
                 <View
                   style={[
                     styles.coursePlaceChip,
-                    { backgroundColor: themeMode === 'light' ? '#FFF0F0' : '#0F1626' },
+                    { backgroundColor: themeMode === 'light' ? '#FFF0F0' : SYS.BG_DARK_MIDNIGHT },
                   ]}
                 >
                   <Text style={[styles.coursePlaceText, { color: theme.textMuted }]}>{place.name}{place.emoji}</Text>
@@ -317,7 +316,7 @@ function FeedTab() {
             {course.tags.map((tag) => (
               <View
                 key={tag}
-                style={[styles.courseTag, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : '#0F1626' }]}
+                style={[styles.courseTag, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.BG_DARK_MIDNIGHT }]}
               >
                 <Text style={[styles.courseTagText, { color: theme.textMuted }]}>{tag}</Text>
               </View>
@@ -337,15 +336,8 @@ function FeedTab() {
 
           <Text style={[styles.courseReview, { color: theme.textMuted }]}>"{course.review}"</Text>
 
-          <TouchableOpacity style={styles.courseMapBtn}>
-            <LinearGradient
-              colors={[BRAND.MINT, BRAND.CORAL]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.courseMapBtnGradient}
-            >
-              <Text style={styles.courseMapBtnText}>🗺️ 이 코스 내 지도에 담기</Text>
-            </LinearGradient>
+          <TouchableOpacity style={[styles.courseMapBtn, styles.courseMapBtnSolid]}>
+            <Text style={styles.courseMapBtnText}>🗺️ 이 코스 내 지도에 담기</Text>
           </TouchableOpacity>
         </View>
       ))}
@@ -371,22 +363,15 @@ export default function History() {
           </Text>
 
           <View
-            style={[styles.mapPinList, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : '#1E293B' }]}
+            style={[styles.mapPinList, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.CARD_DARK }]}
           >
             <Text style={styles.mapPinListTitle}>📍 등록된 장소</Text>
             <Text style={[styles.mapPinEmpty, { color: theme.textMuted }]}>아직 기록된 장소가 없어요</Text>
           </View>
 
-          <TouchableOpacity style={styles.aiRecommendBtn}>
-            <LinearGradient
-              colors={['#BADFDB', '#FFA4A4']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.aiRecommendGradient}
-            >
-              <Ionicons name="sparkles" size={18} color={SYS.TEXT_LIGHT} />
-              <Text style={styles.aiRecommendText}>AI 데이트 추천</Text>
-            </LinearGradient>
+          <TouchableOpacity style={[styles.aiRecommendBtn, styles.aiRecommendSolid]}>
+            <Ionicons name="sparkles" size={18} color={SYS.TEXT_LIGHT} />
+            <Text style={styles.aiRecommendText}>AI 데이트 추천</Text>
           </TouchableOpacity>
         </View>
       );
@@ -433,7 +418,7 @@ function makeStyles(theme: SigmaTheme) {
     alignItems: 'center',
     paddingVertical: 16,
   },
-  tabLabel: { fontSize: 15, color: '#888' },
+  tabLabel: { fontSize: 15, color: SYS.TEXT_MUTED },
   tabLabelActive: { color: BRAND.CORAL, fontWeight: 'bold' },
   tabUnderline: {
     marginTop: 8,
@@ -451,7 +436,7 @@ function makeStyles(theme: SigmaTheme) {
     alignItems: 'center',
   },
   helixTitle: { ...TYPOGRAPHY.heading, color: theme.text },
-  helixSub: { ...TYPOGRAPHY.caption, color: '#888', marginTop: 4 },
+  helixSub: { ...TYPOGRAPHY.caption, color: SYS.TEXT_MUTED, marginTop: 4 },
   helixContent: { paddingVertical: 20 },
   helixItem: {
     width: CARD_WIDTH,
@@ -469,14 +454,14 @@ function makeStyles(theme: SigmaTheme) {
   helixLabel: { ...TYPOGRAPHY.label, color: theme.text },
   helixDate: { ...TYPOGRAPHY.caption, color: '#666' },
   helixTags: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 4 },
-  helixTag: { backgroundColor: '#0F1626', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
+  helixTag: { backgroundColor: SYS.BG_DARK_MIDNIGHT, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
   helixTagText: { ...TYPOGRAPHY.caption, color: BRAND.MINT },
   helixStatsBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#1E293B',
+    borderTopColor: SYS.CARD_DARK,
   },
   helixStatItem: { ...TYPOGRAPHY.label, color: theme.text },
 
@@ -486,10 +471,10 @@ function makeStyles(theme: SigmaTheme) {
   mapPlaceholderTitle: { ...TYPOGRAPHY.heading, color: theme.text },
   mapPlaceholderDesc: { ...TYPOGRAPHY.body, textAlign: 'center', lineHeight: 24 },
   mapPinList: { width: '100%', borderRadius: 16, padding: 20, gap: 8, marginTop: 8 },
-  mapPinListTitle: { ...TYPOGRAPHY.label, color: '#888' },
+  mapPinListTitle: { ...TYPOGRAPHY.label, color: SYS.TEXT_MUTED },
   mapPinEmpty: { ...TYPOGRAPHY.caption },
   aiRecommendBtn: { width: '100%', marginTop: 8 },
-  aiRecommendGradient: { borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  aiRecommendSolid: { backgroundColor: BRAND.CORAL, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   aiRecommendText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
 
   // 피드 — 인기 데이트코스
@@ -537,13 +522,14 @@ function makeStyles(theme: SigmaTheme) {
   courseTagText: { ...TYPOGRAPHY.caption },
 
   courseRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  courseRatingText: { ...TYPOGRAPHY.caption, color: '#888' },
+  courseRatingText: { ...TYPOGRAPHY.caption, color: SYS.TEXT_MUTED },
   courseRatingDivider: { width: 1, height: 12 },
 
   courseReview: { ...TYPOGRAPHY.caption, fontStyle: 'italic' },
 
   courseMapBtn: { marginTop: 4 },
-  courseMapBtnGradient: {
+  courseMapBtnSolid: {
+    backgroundColor: BRAND.CORAL,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',

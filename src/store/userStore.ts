@@ -23,6 +23,7 @@ export interface UserState {
   isFoundingVip: boolean;
   subscriptionStatus: SubscriptionStatus | null;
   lastGenesisAt: string | null;
+  pushToken: string | null;
 }
 
 export interface UserActions {
@@ -36,6 +37,7 @@ export interface UserActions {
   setFoundingVip: (isFoundingVip: boolean) => void;
   setSubscriptionStatus: (subscriptionStatus: SubscriptionStatus | null) => void;
   setLastGenesisAt: (lastGenesisAt: string | null) => void;
+  setPushToken: (pushToken: string | null) => void;
   /** 로그아웃/계정 전환 시 온보딩 이전 상태로 완전 초기화 */
   reset: () => void;
 }
@@ -51,6 +53,7 @@ const initialState: UserState = {
   isFoundingVip: false,
   subscriptionStatus: null,
   lastGenesisAt: null,
+  pushToken: null,
 };
 
 export const useUserStore = create<UserState & UserActions>()(
@@ -67,6 +70,7 @@ export const useUserStore = create<UserState & UserActions>()(
       setFoundingVip: (isFoundingVip) => set({ isFoundingVip }),
       setSubscriptionStatus: (subscriptionStatus) => set({ subscriptionStatus }),
       setLastGenesisAt: (lastGenesisAt) => set({ lastGenesisAt }),
+      setPushToken: (pushToken) => set({ pushToken }),
       reset: () => set({ ...initialState }),
     }),
     {

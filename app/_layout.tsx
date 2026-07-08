@@ -3,6 +3,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import { useMidnightSettlement } from '@/hooks/useMidnightSettlement';
+import { useNotifications } from '@/hooks/useNotifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -14,6 +16,9 @@ export default function RootLayout() {
     'NotoSerifKR-Regular': require('../assets/fonts/NotoSerifKR-Regular.ttf'),
     'NotoSerifKR-Bold': require('../assets/fonts/NotoSerifKR-Bold.ttf'),
   });
+
+  useMidnightSettlement(fontsLoaded || !!fontError);
+  useNotifications();
 
   useEffect(() => {
     console.log('fontsLoaded:', fontsLoaded);
