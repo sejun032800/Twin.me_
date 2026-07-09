@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useMidnightSettlement } from '@/hooks/useMidnightSettlement';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useVipReconcile } from '@/hooks/useVipReconcile';
+import { useBillingTracker } from '@/hooks/useBillingTracker';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -21,6 +22,7 @@ export default function RootLayout() {
   useMidnightSettlement(fontsLoaded || !!fontError);
   useNotifications();
   useVipReconcile();
+  useBillingTracker();
 
   useEffect(() => {
     console.log('fontsLoaded:', fontsLoaded);

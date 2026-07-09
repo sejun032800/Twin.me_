@@ -14,6 +14,7 @@ import Slider from '@react-native-community/slider';
 import { supabase } from '@/lib/supabaseClient';
 import { createCouple } from '@/services/coupleService';
 import { redeemVipCode } from '@/services/vipPromotionService';
+import { logBillingEvent } from '@/services/billingTrackerService';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
@@ -116,6 +117,7 @@ export default function Settings() {
         if (result.status) setSubscriptionStatus(result.status);
         setVipModalVisible(false);
         setVipCodeInput('');
+        await logBillingEvent({ type: 'vip_activated', planId: 'founding_vip' });
         Alert.alert('🎉 Founding VIP 활성화!', result.message);
       } else {
         Alert.alert('유효하지 않은 코드입니다', result.message);

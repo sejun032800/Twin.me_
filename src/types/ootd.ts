@@ -7,4 +7,6 @@ export interface OOTDEntry {
   mood?: string; // 선택적 무드 태그
   note?: string; // 짧은 메모
   createdAt: string; // ISO timestamp
+  latitude?: number; // 사진 EXIF에서 추출된 위치 (MASTER.md §7, usePhotoMetadata)
+  longitude?: number;
 }

@@ -1,12 +1,25 @@
 // ─── FUN-HIS — 히스토리 탭 3서브탭 구조 (MASTER.md §7) ────────────────────────
 // archive(나선형 Helix 앨범) / map(데이트 지도) / feed(인기 데이트코스) 3탭.
-// map은 카카오맵 API 키 입력 전까지 플레이스홀더로 대체한다 — 수정하지 않음.
+// map은 카카오맵 API 키 입력 전까지 플레이스홀더로 대체하되, "등록된 장소" 섹션은
+// 메모리 맵(memoryMapService)과 연동해 장소 CRUD 및 AI 동선 최적화를 제공한다.
 // archive의 실제 3D 나선 렌더러는 Expo Go 한계로 reanimated 기반 parallax
 // (좌우 교차 translateX + 중앙 확대/선명 효과)로 근사한다.
 
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  TextInput,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -20,11 +33,15 @@ import { useSessionStore } from '@/store/sessionStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useTheme } from '@/hooks/useTheme';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
+import { useGeoLocation } from '@/hooks/useGeoLocation';
 import { supabase } from '@/lib/supabaseClient';
 import { callLLM } from '@/api/llm';
 import { getPublicCourses, type DateCourse } from '@/services/dateCourseService';
+import { loadDatePlaces, saveDatePlace, deleteDatePlace, optimizePlaces } from '@/services/memoryMapService';
+import type { DatePlace } from '@/services/memoryMapService';
 import WrappedModal from '@/components/WrappedModal';
 import OOTDArchiveGrid from '@/components/OOTDArchiveGrid';
+import HighlightGallery from '@/components/HighlightGallery';
 import { formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
@@ -151,6 +168,8 @@ function ArchiveTab() {
       </View>
 
       <OOTDArchiveGrid />
+
+      <HighlightGallery />
 
       <Animated.ScrollView
         onScroll={scrollHandler}
@@ -335,18 +354,162 @@ function FeedTab() {
   );
 }
 
+// ─── 장소 추가 모달 ────────────────────────────────────────────────────────────
+const RATING_OPTIONS = [1, 2, 3, 4, 5];
+
+function AddPlaceModal({
+  visible,
+  onClose,
+  onSaved,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSaved: (place: DatePlace) => void;
+}) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
+  const [name, setName] = useState('');
+  const [area, setArea] = useState('');
+  const [date, setDate] = useState('');
+  const [rating, setRating] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  function reset() {
+    setName('');
+    setArea('');
+    setDate('');
+    setRating(null);
+  }
+
+  function handleClose() {
+    reset();
+    onClose();
+  }
+
+  async function handleSave() {
+    if (!name.trim() || saving) return;
+    setSaving(true);
+    try {
+      const place: DatePlace = {
+        id: Date.now().toString(),
+        name: name.trim(),
+        area: area.trim(),
+        date: date.trim(),
+        rating: rating ?? undefined,
+      };
+      await saveDatePlace(place);
+      onSaved(place);
+      reset();
+      onClose();
+    } catch {
+      Alert.alert('오류', '장소 저장에 실패했어요.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+      <View style={styles.overlay}>
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} />
+
+        <View style={styles.sheet}>
+          <View style={styles.handle} />
+          <Text style={styles.title}>장소 추가</Text>
+
+          <TextInput
+            style={styles.placeInput}
+            placeholder="장소명"
+            placeholderTextColor={theme.textMuted}
+            value={name}
+            onChangeText={setName}
+          />
+          <TextInput
+            style={styles.placeInput}
+            placeholder="지역 (예: 홍대)"
+            placeholderTextColor={theme.textMuted}
+            value={area}
+            onChangeText={setArea}
+          />
+          <TextInput
+            style={styles.placeInput}
+            placeholder="날짜 (YYYY-MM-DD)"
+            placeholderTextColor={theme.textMuted}
+            value={date}
+            onChangeText={setDate}
+          />
+
+          <View style={styles.ratingRow}>
+            {RATING_OPTIONS.map((n) => (
+              <TouchableOpacity
+                key={n}
+                style={[styles.ratingBtn, rating === n && styles.ratingBtnActive]}
+                onPress={() => setRating(rating === n ? null : n)}
+              >
+                <Text style={[styles.ratingBtnText, rating === n && styles.ratingBtnTextActive]}>⭐{n}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.placeModalActions}>
+            <TouchableOpacity style={styles.placeCancelBtn} onPress={handleClose}>
+              <Text style={styles.placeCancelBtnText}>취소</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.placeSaveBtn, !name.trim() && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={!name.trim() || saving}
+            >
+              <Text style={styles.saveBtnText}>{saving ? '저장 중...' : '저장'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function History() {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const themeMode = useSessionStore((s) => s.themeMode);
   const [subTab, setSubTab] = useState<SubTab>('archive');
   const [aiLoading, setAiLoading] = useState(false);
+  const [places, setPlaces] = useState<DatePlace[]>([]);
+  const [optimizing, setOptimizing] = useState(false);
+  const [addPlaceVisible, setAddPlaceVisible] = useState(false);
+  const { location, requestLocation } = useGeoLocation();
+
+  useEffect(() => {
+    loadDatePlaces().then(setPlaces);
+  }, []);
+
+  function handlePlaceSaved(place: DatePlace) {
+    setPlaces((prev) => [place, ...prev]);
+  }
+
+  async function handleDeletePlace(id: string) {
+    await deleteDatePlace(id);
+    setPlaces((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  async function handleOptimize() {
+    if (places.length < 2 || optimizing) return;
+    setOptimizing(true);
+    try {
+      const result = await optimizePlaces(places);
+      setPlaces(result);
+    } finally {
+      setOptimizing(false);
+    }
+  }
 
   async function handleAIRecommend() {
     setAiLoading(true);
     try {
       await supabase.auth.getUser();
-      const coupleArea = '서울'; // TODO: 위치 기반으로 교체
+      const loc = location || (await requestLocation());
+      const coupleArea = loc?.city ?? loc?.district ?? '서울';
 
       const response = await callLLM({
         systemPrompt: `당신은 데이트 코스 전문가입니다.
@@ -356,6 +519,7 @@ export default function History() {
         userMessage: JSON.stringify({
           avgScore: useScoreStore.getState().sLive,
           tags: ['감성', '로맨틱'],
+          area: coupleArea,
         }),
         maxTokens: 500,
       });
@@ -383,8 +547,50 @@ export default function History() {
             style={[styles.mapPinList, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.CARD_DARK }]}
           >
             <Text style={styles.mapPinListTitle}>📍 등록된 장소</Text>
-            <Text style={[styles.mapPinEmpty, { color: theme.textMuted }]}>아직 기록된 장소가 없어요</Text>
+            {places.length === 0 ? (
+              <Text style={[styles.mapPinEmpty, { color: theme.textMuted }]}>아직 기록된 장소가 없어요</Text>
+            ) : (
+              <View style={styles.placeList}>
+                {places.map((place) => (
+                  <View key={place.id} style={styles.placeRow}>
+                    <View style={styles.placeRowInfo}>
+                      <Text style={[styles.placeRowName, { color: theme.text }]} numberOfLines={1}>
+                        📍 {place.name}
+                      </Text>
+                      <Text style={[styles.placeRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                        {[place.area, place.date, place.rating ? `⭐${place.rating}` : null]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => handleDeletePlace(place.id)} hitSlop={8}>
+                      <Ionicons name="trash-outline" size={20} color={SYS.CRISIS_RED} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.addPlaceBtn} onPress={() => setAddPlaceVisible(true)}>
+              <Text style={styles.addPlaceBtnText}>+ 장소 추가</Text>
+            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={[
+              styles.aiRecommendBtn,
+              styles.optimizeBtnSolid,
+              (places.length < 2 || optimizing) && styles.disabledBtn,
+            ]}
+            onPress={handleOptimize}
+            disabled={places.length < 2 || optimizing}
+          >
+            {optimizing ? (
+              <ActivityIndicator color={SYS.TEXT_LIGHT} />
+            ) : (
+              <Text style={styles.aiRecommendText}>✨ 동선 최적화</Text>
+            )}
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.aiRecommendBtn, styles.aiRecommendSolid]}
@@ -397,6 +603,12 @@ export default function History() {
               <Text style={styles.aiRecommendText}>✨ AI 데이트 추천</Text>
             )}
           </TouchableOpacity>
+
+          <AddPlaceModal
+            visible={addPlaceVisible}
+            onClose={() => setAddPlaceVisible(false)}
+            onSaved={handlePlaceSaved}
+          />
         </View>
       );
     }
@@ -494,7 +706,7 @@ function makeStyles(theme: SigmaTheme) {
   wrappedBtnSolid: { backgroundColor: BRAND.CORAL },
   wrappedBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
 
-  // 지도 — 카카오맵 연동 전 플레이스홀더 (수정 금지)
+  // 지도 — 카카오맵 연동 전 플레이스홀더. "등록된 장소" 섹션은 memoryMapService 연동
   mapPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
   mapPlaceholderEmoji: { fontSize: 64 },
   mapPlaceholderTitle: { ...TYPOGRAPHY.heading, color: theme.text },
@@ -502,9 +714,73 @@ function makeStyles(theme: SigmaTheme) {
   mapPinList: { width: '100%', borderRadius: 16, padding: 20, gap: 8, marginTop: 8 },
   mapPinListTitle: { ...TYPOGRAPHY.label, color: SYS.TEXT_MUTED },
   mapPinEmpty: { ...TYPOGRAPHY.caption },
+  placeList: { gap: 10, marginTop: 4 },
+  placeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  placeRowInfo: { flex: 1, gap: 2 },
+  placeRowName: { ...TYPOGRAPHY.bodyMedium },
+  placeRowMeta: { ...TYPOGRAPHY.caption },
+  addPlaceBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: BRAND.CORAL,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  addPlaceBtnText: { ...TYPOGRAPHY.caption, color: SYS.TEXT_LIGHT },
   aiRecommendBtn: { width: '100%', marginTop: 8 },
   aiRecommendSolid: { backgroundColor: BRAND.CORAL, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  optimizeBtnSolid: { backgroundColor: BRAND.MINT, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  disabledBtn: { opacity: 0.4 },
   aiRecommendText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
+
+  // 장소 추가 모달
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.5)' },
+  sheet: {
+    backgroundColor: theme.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    gap: 16,
+  },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.border, alignSelf: 'center' },
+  title: { ...TYPOGRAPHY.title, color: theme.text, textAlign: 'center' },
+  placeInput: {
+    backgroundColor: theme.bgSecondary,
+    borderRadius: 14,
+    padding: 14,
+    color: theme.text,
+    ...TYPOGRAPHY.body,
+  },
+  ratingRow: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
+  ratingBtn: {
+    backgroundColor: theme.accentSoft,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  ratingBtnActive: { backgroundColor: BRAND.CORAL },
+  ratingBtnText: { ...TYPOGRAPHY.caption, color: theme.text },
+  ratingBtnTextActive: { color: SYS.TEXT_LIGHT },
+  placeModalActions: { flexDirection: 'row', gap: 12 },
+  placeCancelBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    backgroundColor: theme.bgSecondary,
+  },
+  placeCancelBtnText: { ...TYPOGRAPHY.button, color: theme.textMuted },
+  placeSaveBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    backgroundColor: BRAND.CORAL,
+  },
+  saveBtnDisabled: { opacity: 0.5 },
+  saveBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
 
   // 피드 — 인기 데이트코스
   feedContent: { paddingBottom: 20 },

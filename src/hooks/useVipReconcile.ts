@@ -6,6 +6,7 @@
 import { useEffect } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { reconcileFoundingVipExpiry } from '@/services/iapService';
+import { logBillingEvent } from '@/services/billingTrackerService';
 
 export function useVipReconcile() {
   useEffect(() => {
@@ -15,6 +16,7 @@ export function useVipReconcile() {
     const reconciled = reconcileFoundingVipExpiry(subscriptionStatus);
     if (reconciled !== subscriptionStatus) {
       setSubscriptionStatus(reconciled);
+      logBillingEvent({ type: 'expired', planId: 'founding_vip' });
     }
   }, []);
 }

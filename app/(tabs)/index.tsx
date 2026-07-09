@@ -25,6 +25,7 @@ import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useTheme } from '@/hooks/useTheme';
+import { useWeather } from '@/hooks/useWeather';
 import { getTierFromScore, formatScore } from '@/engine/scoreCalculator';
 import { shouldShowMasterQuestion, markShownToday, type MasterQuestion } from '@/services/masterQuestionService';
 import { BRAND, SYS, GRADIENT } from '@/constants/colors';
@@ -58,6 +59,7 @@ export default function Home() {
   const sLive = useScoreStore((s) => s.sLive);
   const sCurrent = useScoreStore((s) => s.sCurrent);
   const sBase = useScoreStore((s) => s.sBase);
+  const weather = useWeather();
 
   const displayScore = sLive > 0 ? sLive : (sCurrent > 0 ? sCurrent : sBase);
   const tier = getTierFromScore(displayScore);
@@ -122,9 +124,16 @@ export default function Home() {
         alwaysBounceVertical={true}
       >
         <View style={styles.header}>
-          <Text style={styles.headerName}>{name ?? '트윈'}</Text>
-          {dDay !== null && (
-            <Text style={styles.headerDday}>연애 {dDay}일째</Text>
+          <View style={styles.headerTextGroup}>
+            <Text style={styles.headerName}>{name ?? '트윈'}</Text>
+            {dDay !== null && (
+              <Text style={styles.headerDday}>연애 {dDay}일째</Text>
+            )}
+          </View>
+          {weather && (
+            <Text style={styles.weatherText}>
+              {weather.emoji} {weather.temperature}°
+            </Text>
           )}
         </View>
 
@@ -237,6 +246,12 @@ function makeStyles(theme: SigmaTheme) {
     },
     header: {
       marginTop: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    headerTextGroup: {
       alignItems: 'center',
       gap: 4,
     },
@@ -246,6 +261,10 @@ function makeStyles(theme: SigmaTheme) {
     },
     headerDday: {
       ...TYPOGRAPHY.caption,
+      color: theme.textMuted,
+    },
+    weatherText: {
+      ...TYPOGRAPHY.label,
       color: theme.textMuted,
     },
     gaugeSection: {

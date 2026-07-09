@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/hooks/useTheme';
+import { usePhotoMetadata } from '@/hooks/usePhotoMetadata';
 import { saveOOTDEntry } from '@/services/ootdService';
 import type { OOTDEntry } from '@/types/ootd';
 import { BRAND, SYS } from '@/constants/colors';
@@ -26,15 +27,22 @@ function todayDateString(): string {
 export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const { extractMetadata } = usePhotoMetadata();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [mood, setMood] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [dateTaken, setDateTaken] = useState<string | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
 
   function reset() {
     setImageUri(null);
     setMood(null);
     setNote('');
+    setDateTaken(null);
+    setLatitude(null);
+    setLongitude(null);
   }
 
   function handleClose() {
@@ -54,10 +62,17 @@ export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
       quality: 0.8,
       allowsEditing: true,
       aspect: [1, 1],
+      exif: true,
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
+      const asset = result.assets[0];
+      setImageUri(asset.uri);
+
+      const meta = await extractMetadata(asset.uri, asset.exif);
+      setDateTaken(meta.dateTaken);
+      setLatitude(meta.latitude);
+      setLongitude(meta.longitude);
     }
   }
 
@@ -68,10 +83,12 @@ export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
       const entry: OOTDEntry = {
         id: Date.now().toString(),
         imageUri,
-        date: todayDateString(),
+        date: dateTaken ?? todayDateString(),
         mood: mood ?? undefined,
         note: note.trim() || undefined,
         createdAt: new Date().toISOString(),
+        latitude: latitude ?? undefined,
+        longitude: longitude ?? undefined,
       };
       await saveOOTDEntry(entry);
       onSaved(entry);
@@ -103,6 +120,8 @@ export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
             )}
           </TouchableOpacity>
 
+          {dateTaken && <Text style={styles.dateInfoText}>📅 {dateTaken} (사진에서 추출됨)</Text>}
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -130,6 +149,10 @@ export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
             onChangeText={setNote}
             multiline
           />
+
+          {latitude !== null && longitude !== null && (
+            <Text style={styles.locationInfoText}>📍 위치 정보가 감지됐어요</Text>
+          )}
 
           <TouchableOpacity
             style={[styles.saveBtn, !imageUri && styles.saveBtnDisabled]}
@@ -196,6 +219,15 @@ function makeStyles(theme: SigmaTheme) {
     },
     imagePlaceholderText: {
       ...TYPOGRAPHY.label,
+      color: theme.textMuted,
+    },
+    dateInfoText: {
+      ...TYPOGRAPHY.caption,
+      color: theme.textMuted,
+      textAlign: 'center',
+    },
+    locationInfoText: {
+      ...TYPOGRAPHY.caption,
       color: theme.textMuted,
     },
     moodRow: {

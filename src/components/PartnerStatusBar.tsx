@@ -1,14 +1,17 @@
 // ─── FUN-HOM-002 — 파트너 상태 바 (MASTER.md §3) ──────────────────────────────
 // 커플 미연동 시 초대 유도, 연동 시 연인의 현재 상태 태그(S_Live 기반)를 보여준다.
 
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
+import { useUserStore } from '@/store/userStore';
 import { useTheme } from '@/hooks/useTheme';
+import { getPartnerMood, setMyMood, MOOD_OPTIONS, type PartnerMood } from '@/services/partnerMoodService';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
-import { BRAND } from '@/constants/colors';
+import { BRAND, SYS } from '@/constants/colors';
 
 function statusTagsFor(sLive: number): string[] {
   if (sLive >= 70) return ['💚 안정적', '☀️ 평온함'];
@@ -22,7 +25,27 @@ export default function PartnerStatusBar() {
   const styles = makeStyles(theme);
   const isPartnerConnected = useCoupleStore((s) => s.isPartnerConnected);
   const partnerName = useCoupleStore((s) => s.partnerName);
+  const coupleId = useCoupleStore((s) => s.coupleId);
+  const userId = useUserStore((s) => s.userId);
   const sLive = useScoreStore((s) => s.sLive);
+  const [partnerMood, setPartnerMood] = useState<PartnerMood | null>(null);
+  const [showMoodPicker, setShowMoodPicker] = useState(false);
+
+  useEffect(() => {
+    if (!isPartnerConnected || !coupleId || !userId) return;
+    getPartnerMood(coupleId, userId).then(setPartnerMood);
+  }, [isPartnerConnected, coupleId, userId]);
+
+  async function handleSelectMood(emoji: string, text: string) {
+    if (!coupleId || !userId) return;
+    try {
+      await setMyMood(emoji, text, coupleId, userId);
+    } catch {
+      // non-critical — 무드 저장 실패는 조용히 무시
+    } finally {
+      setShowMoodPicker(false);
+    }
+  }
 
   if (!isPartnerConnected) {
     return (
@@ -39,7 +62,20 @@ export default function PartnerStatusBar() {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.partnerName}>{partnerName ?? '연인'}</Text>
+      <View style={styles.nameRow}>
+        <View style={styles.nameRowLeft}>
+          <Text style={styles.partnerName}>{partnerName ?? '연인'}</Text>
+          {partnerMood && (
+            <Text style={styles.partnerMoodText}>
+              {partnerMood.emoji} {partnerMood.text}
+            </Text>
+          )}
+        </View>
+        <TouchableOpacity style={styles.moodSetBtn} onPress={() => setShowMoodPicker(true)}>
+          <Text style={styles.moodSetBtnText}>내 무드 설정</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -51,6 +87,36 @@ export default function PartnerStatusBar() {
           </View>
         ))}
       </ScrollView>
+
+      <Modal
+        visible={showMoodPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMoodPicker(false)}
+      >
+        <View style={styles.moodOverlay}>
+          <TouchableOpacity
+            style={styles.moodBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowMoodPicker(false)}
+          />
+          <View style={styles.moodSheet}>
+            <Text style={styles.moodSheetTitle}>지금 내 기분은?</Text>
+            <View style={styles.moodGrid}>
+              {MOOD_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.text}
+                  style={styles.moodOption}
+                  onPress={() => handleSelectMood(option.emoji, option.text)}
+                >
+                  <Text style={styles.moodOptionEmoji}>{option.emoji}</Text>
+                  <Text style={styles.moodOptionText}>{option.text}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -77,9 +143,35 @@ function makeStyles(theme: SigmaTheme) {
       ...TYPOGRAPHY.label,
       color: BRAND.CORAL,
     },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    nameRowLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
+    },
     partnerName: {
       ...TYPOGRAPHY.bodyMedium,
       color: theme.text,
+    },
+    partnerMoodText: {
+      ...TYPOGRAPHY.caption,
+      color: theme.textMuted,
+    },
+    moodSetBtn: {
+      backgroundColor: BRAND.MINT,
+      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    moodSetBtnText: {
+      ...TYPOGRAPHY.caption,
+      color: SYS.TEXT_DARK,
     },
     tagRow: {
       flexDirection: 'row',
@@ -93,6 +185,49 @@ function makeStyles(theme: SigmaTheme) {
     },
     tagText: {
       ...TYPOGRAPHY.caption,
+      color: theme.text,
+    },
+    moodOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    moodBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    moodSheet: {
+      backgroundColor: theme.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      gap: 16,
+    },
+    moodSheetTitle: {
+      ...TYPOGRAPHY.title,
+      color: theme.text,
+      textAlign: 'center',
+    },
+    moodGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+      justifyContent: 'space-between',
+    },
+    moodOption: {
+      width: '47%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: theme.bgSecondary,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+    },
+    moodOptionEmoji: {
+      fontSize: 22,
+    },
+    moodOptionText: {
+      ...TYPOGRAPHY.bodyMedium,
       color: theme.text,
     },
   });

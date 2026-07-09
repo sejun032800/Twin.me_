@@ -9,7 +9,10 @@
     "scheme": "twinme",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "me.twin.app"
+      "bundleIdentifier": "me.twin.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "데이트 장소 기록과 날씨 정보를 위해 위치 접근이 필요해요"
+      }
     },
     "android": {
       "package": "me.twin.app",
@@ -17,7 +20,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0D1A"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "web": {
       "favicon": "./assets/favicon.png"

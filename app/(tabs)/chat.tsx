@@ -19,8 +19,11 @@ import { useTheme } from '@/hooks/useTheme';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
 import { callLLMStream } from '@/api/llm';
 import MagicMirrorModal from '@/components/MagicMirrorModal';
+import MuseSheet from '@/components/MuseSheet';
 import { scheduleLocalNotification } from '@/services/notificationService';
+import { detectSensitiveContent } from '@/services/partnerSensitiveService';
 import { generateWeeklyReport, getLastReport, type WeeklyReport } from '@/services/weeklyReportService';
+import { generateCoachingReport, getCoachingReport, type CoachingReport } from '@/services/coachingService';
 import type { ClassifierMessage } from '@/engine/eventClassifier';
 import { formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS } from '@/constants/colors';
@@ -64,10 +67,14 @@ export default function Chat() {
     analyst: [],
   });
   const [inputText, setInputText] = useState('');
+  const [sensitiveWarning, setSensitiveWarning] = useState<string | null>(null);
+  const [museVisible, setMuseVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const [lastReport, setLastReport] = useState<WeeklyReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
+  const [coachingReport, setCoachingReport] = useState<CoachingReport | null>(null);
+  const [coachingLoading, setCoachingLoading] = useState(false);
 
   const currentRoom = activeChatRoom as RoomKey | null;
   const isLoverLocked = currentRoom === 'lover' && !isPartnerConnected;
@@ -76,6 +83,7 @@ export default function Chat() {
   useEffect(() => {
     if (currentRoom === 'analyst') {
       getLastReport().then(setLastReport);
+      getCoachingReport().then(setCoachingReport);
     }
   }, [currentRoom]);
 
@@ -96,6 +104,19 @@ export default function Chat() {
       console.error('주간 리포트 생성 실패:', e);
     } finally {
       setReportLoading(false);
+    }
+  }
+
+  async function handleGenerateCoaching() {
+    if (coachingLoading) return;
+    setCoachingLoading(true);
+    try {
+      const report = await generateCoachingReport();
+      setCoachingReport(report);
+    } catch (e) {
+      console.error('코칭 리포트 생성 실패:', e);
+    } finally {
+      setCoachingLoading(false);
     }
   }
 
@@ -135,6 +156,13 @@ export default function Chat() {
 
   async function handleSend() {
     if (!currentRoom || !inputText.trim() || isLoverLocked) return;
+
+    // FUN-CHA — 민감 표현 감지 (비차단, 전송은 허용하되 넛지만 노출)
+    const detection = detectSensitiveContent(inputText.trim());
+    if (detection.detected && detection.suggestion) {
+      setSensitiveWarning(detection.suggestion);
+      setTimeout(() => setSensitiveWarning(null), 4000);
+    }
 
     // §9.3 — 트윈방/분석가방은 무료 플랜 월 4회 제한 (Deep Talk Night만 무제한)
     const isGatedRoom = currentRoom === 'twin' || currentRoom === 'analyst';
@@ -321,6 +349,33 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
     );
   }
 
+  function renderCoachingSection() {
+    if (!coachingReport) return null;
+    const { weekSummary, strengthPoints, growthPoints, thisWeekChallenge } = coachingReport;
+
+    return (
+      <View style={styles.coachingCard}>
+        <Text style={styles.coachingTitle}>🎯 이번 주 코칭</Text>
+        <Text style={styles.reportSummary}>{weekSummary}</Text>
+
+        <Text style={styles.coachingSection}>💪 잘하고 있어요</Text>
+        {strengthPoints.map((p, i) => (
+          <Text key={i} style={styles.coachingItem}>• {p}</Text>
+        ))}
+
+        <Text style={styles.coachingSection}>🌱 함께 성장해요</Text>
+        {growthPoints.map((p, i) => (
+          <Text key={i} style={styles.coachingItem}>• {p}</Text>
+        ))}
+
+        <View style={styles.challengeBox}>
+          <Text style={styles.challengeTitle}>✅ 이번 주 실천 과제</Text>
+          <Text style={styles.challengeText}>{thisWeekChallenge}</Text>
+        </View>
+      </View>
+    );
+  }
+
   function renderListHeader() {
     return (
       <View>
@@ -438,6 +493,7 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
             {currentRoom === 'analyst' && (
               <ScrollView style={styles.reportSection} showsVerticalScrollIndicator={false}>
                 {renderReportSection()}
+                {renderCoachingSection()}
               </ScrollView>
             )}
 
@@ -475,20 +531,44 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
             )}
 
             {currentRoom === 'analyst' && (
-              <TouchableOpacity
-                style={styles.generateReportBtn}
-                onPress={handleGenerateReport}
-                disabled={reportLoading}
-              >
-                {reportLoading ? (
-                  <ActivityIndicator color={BRAND.CORAL} />
-                ) : (
-                  <Text style={styles.generateReportBtnText}>이번 주 리포트 생성</Text>
-                )}
-              </TouchableOpacity>
+              <View style={styles.analystBtnRow}>
+                <TouchableOpacity
+                  style={[styles.generateReportBtn, styles.analystBtnFlex]}
+                  onPress={handleGenerateReport}
+                  disabled={reportLoading}
+                >
+                  {reportLoading ? (
+                    <ActivityIndicator color={BRAND.CORAL} />
+                  ) : (
+                    <Text style={styles.generateReportBtnText}>이번 주 리포트 생성</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.generateReportBtn, styles.analystBtnFlex]}
+                  onPress={handleGenerateCoaching}
+                  disabled={coachingLoading}
+                >
+                  {coachingLoading ? (
+                    <ActivityIndicator color={BRAND.CORAL} />
+                  ) : (
+                    <Text style={styles.generateReportBtnText}>이번 주 코칭 받기</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {sensitiveWarning && (
+              <Animated.View entering={FadeIn.duration(300)} style={styles.sensitiveWarning}>
+                <Text style={styles.sensitiveWarningText}>💛 {sensitiveWarning}</Text>
+              </Animated.View>
             )}
 
             <View style={styles.inputBar}>
+              {currentRoom === 'twin' && (
+                <TouchableOpacity style={styles.museBtn} onPress={() => setMuseVisible(true)}>
+                  <Text style={styles.museBtnText}>✨</Text>
+                </TouchableOpacity>
+              )}
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
@@ -513,6 +593,13 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
                 />
               </TouchableOpacity>
             </View>
+
+            <MuseSheet
+              visible={museVisible}
+              onClose={() => setMuseVisible(false)}
+              onSelect={(text) => setInputText(text)}
+              recentMessages={messagesByRoom['twin']?.slice(-5).map((m) => m.text) ?? []}
+            />
           </KeyboardAvoidingView>
         </View>
       </TouchableWithoutFeedback>
@@ -664,6 +751,16 @@ function makeStyles(theme: SigmaTheme) {
     alignItems: 'center',
   },
   primaryReportBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
+  analystBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  analystBtnFlex: {
+    flex: 1,
+    marginHorizontal: 0,
+  },
   generateReportBtn: {
     marginHorizontal: 16,
     marginBottom: 8,
@@ -675,6 +772,14 @@ function makeStyles(theme: SigmaTheme) {
   },
   generateReportBtnText: { ...TYPOGRAPHY.label, color: BRAND.CORAL },
 
+  coachingCard: { backgroundColor: theme.card, borderRadius: 16, padding: 16, gap: 10, margin: 8 },
+  coachingTitle: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
+  coachingSection: { ...TYPOGRAPHY.label, color: theme.accent, marginTop: 4 },
+  coachingItem: { ...TYPOGRAPHY.body, color: theme.text, paddingLeft: 8 },
+  challengeBox: { backgroundColor: theme.accentSoft, borderRadius: 12, padding: 12, gap: 6 },
+  challengeTitle: { ...TYPOGRAPHY.label, color: theme.accent },
+  challengeText: { ...TYPOGRAPHY.body, color: theme.text },
+
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12, paddingHorizontal: 16, gap: 8 },
   msgRowMe: { justifyContent: 'flex-end' },
   msgRowTwin: { justifyContent: 'flex-start' },
@@ -685,6 +790,18 @@ function makeStyles(theme: SigmaTheme) {
   bubbleText: { ...TYPOGRAPHY.body, color: SYS.TEXT_LIGHT },
   msgTime: { ...TYPOGRAPHY.caption, color: '#555', marginTop: 4, paddingHorizontal: 4 },
 
+  sensitiveWarning: {
+    backgroundColor: 'rgba(255, 200, 0, 0.15)',
+    borderTopWidth: 1,
+    borderTopColor: '#FFB800',
+    padding: 10,
+    paddingHorizontal: 16,
+  },
+  sensitiveWarningText: {
+    ...TYPOGRAPHY.caption,
+    color: '#FFB800',
+  },
+
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -694,6 +811,17 @@ function makeStyles(theme: SigmaTheme) {
     gap: 8,
     borderTopWidth: 1,
     borderTopColor: theme.border,
+  },
+  museBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  museBtnText: {
+    fontSize: 18,
   },
   inputWrapper: {
     flex: 1,
