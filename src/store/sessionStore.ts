@@ -4,8 +4,9 @@
 // twinResponseEngine.evaluateGate()가 매 이벤트마다 갱신하는 판정 상태).
 // 대부분의 값은 앱을 재시작하면 사라져야 하는 세션 한정 UI/런타임 상태이므로
 // (스플래시 전환 여부, 현재 탭/룸, 인터뷰 진행 플래그, CrisisMode, 오라 화면 키 등)
-// AsyncStorage persist를 사용하지 않는다. 단, privacyLevel(§8 프라이버시 슬라이더)만은
-// 재시작 후에도 유지되어야 하므로 partialize로 그 값만 persist한다.
+// AsyncStorage persist를 사용하지 않는다. 단, privacyLevel(§8 프라이버시 슬라이더)과
+// magicMirrorAccepted(§4 FUN-CHA-004 opt-in 여부)만은 재시작 후에도 유지되어야 하므로
+// partialize로 그 값들만 persist한다.
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
@@ -35,6 +36,8 @@ export interface SessionState {
   themeMode: ThemeMode; // 화면 테마 설정(설정 탭 §8 FUN-SET-001B)
   privacyLevel: 0 | 1 | 2; // AI 학습 범위(설정 탭 §8 프라이버시 슬라이더) — 0=보호 1=최적화 2=완전복제
   reduceAuraMotion: boolean; // 오라 줄이기/끄기(§8 FUN-SET-001B) — true면 정적 무채색 폴백
+  isEarlyDatingMode: boolean; // 연애 초기 모드(§4 채팅 탭) — true면 트윈 AI가 조심스럽고 설레는 초기 연애 톤으로 응답
+  magicMirrorAccepted: boolean; // Magic Mirror(§4 FUN-CHA-004) opt-in 수락 여부 — 트윈방 최초 진입 1회 안내 게이팅
 }
 
 export interface SessionActions {
@@ -49,6 +52,8 @@ export interface SessionActions {
   setThemeMode: (mode: ThemeMode) => void;
   setPrivacyLevel: (level: 0 | 1 | 2) => void;
   setReduceAuraMotion: (reduce: boolean) => void;
+  setEarlyDatingMode: (value: boolean) => void;
+  setMagicMirrorAccepted: (value: boolean) => void;
   reset: () => void;
 }
 
@@ -64,6 +69,8 @@ const initialState: SessionState = {
   themeMode: 'dark',
   privacyLevel: 1,
   reduceAuraMotion: false,
+  isEarlyDatingMode: false,
+  magicMirrorAccepted: false,
 };
 
 export const useSessionStore = create<SessionState & SessionActions>()(
@@ -87,6 +94,8 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         set({ reduceAuraMotion });
         AsyncStorage.setItem(AURA_SETTINGS_KEY, JSON.stringify(reduceAuraMotion)).catch(() => {});
       },
+      setEarlyDatingMode: (isEarlyDatingMode) => set({ isEarlyDatingMode }),
+      setMagicMirrorAccepted: (magicMirrorAccepted) => set({ magicMirrorAccepted }),
       reset: () => {
         set({ ...initialState });
         AsyncStorage.removeItem(AURA_SETTINGS_KEY).catch(() => {});
@@ -95,7 +104,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
     {
       name: 'twin_session_privacy_v1',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ privacyLevel: state.privacyLevel }),
+      partialize: (state) => ({ privacyLevel: state.privacyLevel, magicMirrorAccepted: state.magicMirrorAccepted }),
     },
   ),
 );

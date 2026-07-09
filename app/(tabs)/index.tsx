@@ -4,7 +4,7 @@
 // 티어는 scoreCalculator.getTierFromScore()(§5.8, FUN-HOM-003 10단계 매퍼)로 산출.
 // 정보 밀도보다 여백과 감성을 우선하는 미니멀 레이아웃 — 카드 박스는 최소화한다.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,12 +16,17 @@ import * as Sharing from 'expo-sharing';
 import CircularGauge from '@/components/CircularGauge';
 import PartnerStatusBar from '@/components/PartnerStatusBar';
 import OverflowBanner from '@/components/OverflowBanner';
+import AICoachingCard from '@/components/AICoachingCard';
+import ClayTwinAvatar from '@/components/ClayTwinAvatar';
+import MemoryRingSection from '@/components/MemoryRingSection';
+import MasterQuestionModal from '@/components/MasterQuestionModal';
 import ShareCard from '@/components/ShareCard';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useTheme } from '@/hooks/useTheme';
 import { getTierFromScore, formatScore } from '@/engine/scoreCalculator';
+import { shouldShowMasterQuestion, markShownToday, type MasterQuestion } from '@/services/masterQuestionService';
 import { BRAND, SYS, GRADIENT } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
@@ -48,6 +53,7 @@ export default function Home() {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const name = useUserStore((s) => s.name);
+  const personaMatrix = useUserStore((s) => s.personaMatrix);
   const relationshipStartDate = useCoupleStore((s) => s.relationshipStartDate);
   const sLive = useScoreStore((s) => s.sLive);
   const sCurrent = useScoreStore((s) => s.sCurrent);
@@ -59,6 +65,22 @@ export default function Home() {
 
   const viewShotRef = useRef<ViewShot>(null);
   const [sharing, setSharing] = useState(false);
+
+  const [masterQuestion, setMasterQuestion] = useState<MasterQuestion | null>(null);
+  const [mqVisible, setMqVisible] = useState(false);
+
+  useEffect(() => {
+    const mq = shouldShowMasterQuestion(displayScore);
+    if (mq) setMasterQuestion(mq);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayScore]);
+
+  useEffect(() => {
+    if (masterQuestion) {
+      const t = setTimeout(() => setMqVisible(true), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [masterQuestion]);
 
   async function handleShare() {
     if (sharing) return;
@@ -110,6 +132,16 @@ export default function Home() {
 
         <OverflowBanner />
 
+        <View style={{ alignItems: 'center', marginVertical: 8 }}>
+          <ClayTwinAvatar
+            size={80}
+            auraVector={personaMatrix?.auraVector ?? null}
+            clayStage={3}
+          />
+        </View>
+
+        <AICoachingCard />
+
         <View style={styles.gaugeSection}>
           <View style={styles.gaugeContainer}>
             <CircularGauge
@@ -159,6 +191,8 @@ export default function Home() {
           </TouchableOpacity>
         </View>
 
+        <MemoryRingSection />
+
         <TouchableOpacity style={styles.shareBtn} onPress={handleShare} disabled={sharing}>
           {sharing ? (
             <ActivityIndicator color={SYS.TEXT_LIGHT} />
@@ -176,6 +210,19 @@ export default function Home() {
           <ShareCard score={displayScore} />
         </ViewShot>
       </View>
+
+      <MasterQuestionModal
+        visible={mqVisible}
+        question={masterQuestion}
+        onClose={() => {
+          setMqVisible(false);
+          markShownToday();
+        }}
+        onSendToChat={() => {
+          router.push('/(tabs)/chat');
+          // TODO: 채팅 탭에 질문 전달 (sessionStore 활용)
+        }}
+      />
     </SafeAreaView>
   );
 }

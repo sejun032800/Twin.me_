@@ -6,7 +6,7 @@
 // 실제 AI 연동(§4.3 이하)은 TODO — 지금은 전송 시 고정 스텁 메시지만 추가한다.
 
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +17,8 @@ import { useUserStore } from '@/store/userStore';
 import { useMatchEngine } from '@/hooks/useMatchEngine';
 import { useTheme } from '@/hooks/useTheme';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
-import { callLLM } from '@/api/llm';
+import { callLLMStream } from '@/api/llm';
+import MagicMirrorModal from '@/components/MagicMirrorModal';
 import { scheduleLocalNotification } from '@/services/notificationService';
 import { generateWeeklyReport, getLastReport, type WeeklyReport } from '@/services/weeklyReportService';
 import type { ClassifierMessage } from '@/engine/eventClassifier';
@@ -45,6 +46,11 @@ export default function Chat() {
   const setActiveChatRoom = useSessionStore((s) => s.setActiveChatRoom);
   const isCrisisMode = useSessionStore((s) => s.isCrisisMode);
   const setCrisisMode = useSessionStore((s) => s.setCrisisMode);
+  const isEarlyDatingMode = useSessionStore((s) => s.isEarlyDatingMode);
+  const setEarlyDatingMode = useSessionStore((s) => s.setEarlyDatingMode);
+  const magicMirrorAccepted = useSessionStore((s) => s.magicMirrorAccepted);
+  const setMagicMirrorAccepted = useSessionStore((s) => s.setMagicMirrorAccepted);
+  const [showMirrorModal, setShowMirrorModal] = useState(false);
   const name = useUserStore((s) => s.name);
   const monthlyChatCount = useUserStore((s) => s.monthlyChatCount);
   const setMonthlyChatCount = useUserStore((s) => s.setMonthlyChatCount);
@@ -72,6 +78,13 @@ export default function Chat() {
       getLastReport().then(setLastReport);
     }
   }, [currentRoom]);
+
+  useEffect(() => {
+    if (currentRoom === 'twin' && !magicMirrorAccepted) {
+      const t = setTimeout(() => setShowMirrorModal(true), 1000);
+      return () => clearTimeout(t);
+    }
+  }, [currentRoom, magicMirrorAccepted]);
 
   async function handleGenerateReport() {
     if (reportLoading) return;
@@ -161,8 +174,20 @@ export default function Chat() {
 
     setInputText('');
 
-    // 트윈 AI 응답 생성
-    let replyText = '...';
+    // 트윈 AI 응답 생성 — '말하는 중...' 스트리밍 타이핑 (MASTER.md §4.3 응답 분할 전송)
+    const twinMsgId = (Date.now() + 1).toString();
+    const twinMsg: ChatMessage = {
+      id: twinMsgId,
+      role: 'twin',
+      text: '',
+      timestamp: Date.now() + 1,
+    };
+    setMessagesByRoom((prev) => ({
+      ...prev,
+      [currentRoom]: [...prev[currentRoom], twinMsg],
+    }));
+
+    let fullText = '';
     try {
       const { name, personaMatrix, toneVector } = useUserStore.getState();
       const privacyLevel = useSessionStore.getState().privacyLevel;
@@ -195,36 +220,44 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
 에니어그램 유형: ${personaMatrix?.enneagramType ?? '미확정'}`;
       }
 
-      const response = await callLLM({
-        systemPrompt,
-        userMessage: inputText.trim(),
-        maxTokens: 200,
-      });
-      replyText = response.content;
+      const earlyModeInstruction = isEarlyDatingMode
+        ? '\n연애 초기 모드: 아직 서로 알아가는 단계야. 설레고 조심스러운 톤으로 답해. 너무 친하게 굴지 말고 적당한 거리감을 유지해.'
+        : '';
+      systemPrompt += earlyModeInstruction;
+
+      await callLLMStream(
+        { systemPrompt, userMessage: inputText.trim(), maxTokens: 200 },
+        (chunk) => {
+          fullText += chunk;
+          setMessagesByRoom((prev) => ({
+            ...prev,
+            [currentRoom]: prev[currentRoom].map((m) =>
+              m.id === twinMsgId ? { ...m, text: m.text + chunk } : m
+            ),
+          }));
+        },
+        () => {
+          // 완료 — 추가 처리 없음
+        },
+      );
     } catch (e) {
-      console.error('LLM 호출 실패:', e);
-      replyText = detections.length > 0
+      console.error('LLM 스트리밍 호출 실패:', e);
+      fullText = detections.length > 0
         ? `[${detections[0].label}] 감지됐어요`
         : '응, 들었어 💙';
+      setMessagesByRoom((prev) => ({
+        ...prev,
+        [currentRoom]: prev[currentRoom].map((m) =>
+          m.id === twinMsgId ? { ...m, text: fullText } : m
+        ),
+      }));
     }
 
     // 앱이 백그라운드일 때만 알림 (포그라운드에서는 화면에 바로 보임)
     // AppState로 백그라운드 감지는 복잡하므로 일단 항상 발송 (TODO)
-    if (replyText) {
-      await scheduleLocalNotification('트윈의 메시지', replyText.slice(0, 50));
+    if (fullText) {
+      await scheduleLocalNotification('트윈의 메시지', fullText.slice(0, 50));
     }
-
-    const twinMsg: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      role: 'twin',
-      text: replyText,
-      timestamp: Date.now() + 1,
-    };
-
-    setMessagesByRoom((prev) => ({
-      ...prev,
-      [currentRoom]: [...prev[currentRoom], twinMsg],
-    }));
   }
 
   function renderPlaceholder() {
@@ -290,15 +323,29 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
 
   function renderListHeader() {
     return (
-      <View style={styles.dmHeader}>
-        <Text style={styles.dmHeaderTitle}>채팅</Text>
-        <View style={styles.dmHeaderIcons}>
-          <TouchableOpacity style={styles.dmHeaderBtn}>
-            <Ionicons name="videocam-outline" size={24} color={theme.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.dmHeaderBtn}>
-            <Ionicons name="create-outline" size={24} color={theme.text} />
-          </TouchableOpacity>
+      <View>
+        <View style={styles.dmHeader}>
+          <Text style={styles.dmHeaderTitle}>채팅</Text>
+          <View style={styles.dmHeaderIcons}>
+            <TouchableOpacity style={styles.dmHeaderBtn}>
+              <Ionicons name="videocam-outline" size={24} color={theme.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.dmHeaderBtn}>
+              <Ionicons name="create-outline" size={24} color={theme.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.earlyModeRow}>
+          <Text style={styles.earlyModeLabel}>연애 초기 모드</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {isEarlyDatingMode && <Text>💕</Text>}
+            <Switch
+              value={isEarlyDatingMode}
+              onValueChange={setEarlyDatingMode}
+              trackColor={{ false: SYS.CARD_DARK, true: BRAND.CORAL }}
+              thumbColor={SYS.TEXT_LIGHT}
+            />
+          </View>
         </View>
       </View>
     );
@@ -478,6 +525,15 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
         {currentRoom === null ? renderListHeader() : renderChatHeader()}
         {currentRoom === null ? renderRoomList() : renderChatScreen()}
       </View>
+
+      <MagicMirrorModal
+        visible={showMirrorModal}
+        onAccept={() => {
+          setMagicMirrorAccepted(true);
+          setShowMirrorModal(false);
+        }}
+        onDecline={() => setShowMirrorModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -523,6 +579,10 @@ function makeStyles(theme: SigmaTheme) {
   dmHeaderTitle: { ...TYPOGRAPHY.title, color: theme.text },
   dmHeaderIcons: { flexDirection: 'row', gap: 4 },
   dmHeaderBtn: { padding: 8 },
+
+  // 연애 초기 모드 토글(구버전 기능 이식) — 룸 목록 헤더 아래, 구분선 위 배치
+  earlyModeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 10, gap: 8 },
+  earlyModeLabel: { ...TYPOGRAPHY.caption, color: theme.textMuted },
 
   // 룸 목록 아이템 (인스타 DM 스타일 — 플랫 리스트)
   dmItem: {

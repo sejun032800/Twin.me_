@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { systemPrompt, userMessage, maxTokens = 1000 } = await req.json();
+    const { systemPrompt, userMessage, maxTokens = 1000, stream = false } = await req.json();
 
     if (!userMessage) {
       return new Response(
@@ -20,7 +20,10 @@ Deno.serve(async (req) => {
     }
 
     const apiKey = Deno.env.get("GEMINI_API_KEY");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const endpoint = stream ? "streamGenerateContent" : "generateContent";
+    const url = stream
+      ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:${endpoint}?key=${apiKey}&alt=sse`
+      : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:${endpoint}?key=${apiKey}`;
 
     const body = {
       system_instruction: {
@@ -44,6 +47,16 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       const err = await response.text();
       throw new Error(`Gemini API 오류: ${err}`);
+    }
+
+    if (stream) {
+      return new Response(response.body, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+        },
+      });
     }
 
     const data = await response.json();

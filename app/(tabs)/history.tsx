@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { callLLM } from '@/api/llm';
 import { getPublicCourses, type DateCourse } from '@/services/dateCourseService';
 import WrappedModal from '@/components/WrappedModal';
+import OOTDArchiveGrid from '@/components/OOTDArchiveGrid';
 import { formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
@@ -148,6 +149,8 @@ function ArchiveTab() {
         <Text style={styles.helixTitle}>✨ 우리만의 시간</Text>
         <Text style={styles.helixSub}>카카오톡이 기억하는 가장 다정한 순간들</Text>
       </View>
+
+      <OOTDArchiveGrid />
 
       <Animated.ScrollView
         onScroll={scrollHandler}

@@ -7,6 +7,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useGenesisInterview } from '@/hooks/useGenesisInterview';
+import InterviewCallModal from '@/components/InterviewCallModal';
 import { useUserStore } from '@/store/userStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { buildAuraVector, auraChannelToCss } from '@/engine/auraEngine';
@@ -118,37 +119,53 @@ export default function Genesis() {
 
   if (phase === 'asking' || phase === 'act-transition') {
     return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
-        </View>
-
-        <Text style={styles.clayEmoji}>{CLAY_EMOJI[dynamicClayStage]}</Text>
-        <Text style={styles.actLabel}>{ACT_LABEL[act]}</Text>
-
-        <Text style={styles.questionText}>{currentQuestion?.prompt ?? ''}</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="답변을 입력하세요"
-          placeholderTextColor={SYS.TEXT_MUTED}
-          value={inputText}
-          onChangeText={setInputText}
+      <>
+        {/* G.4 입력 모드 — 음성 우선: 전화 수신 풀스크린 UI (실제 STT는 TODO, 타이핑으로 대체) */}
+        <InterviewCallModal
+          visible={inputMode === 'voice'}
+          onClose={switchToTyping}
+          question={currentQuestion?.prompt ?? ''}
+          onSubmit={(text) => {
+            setInputText(text);
+            submitTranscript(text);
+          }}
+          confidence={bayesianState.confidence}
+          act={act}
         />
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleSubmit}>
-          <Text style={styles.primaryBtnText}>제출</Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity onPress={inputMode === 'voice' ? switchToTyping : switchToVoice}>
-          <Text style={styles.linkText}>
-            {inputMode === 'voice' ? '⌨️ 타이핑으로 답할게요' : '🎙️ 음성으로 답할게요'}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+        {/* G.4 무음 폴백 — 텍스트 입력 UI */}
+        {inputMode === 'typing' && (
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progress}%` }]} />
+            </View>
+
+            <Text style={styles.clayEmoji}>{CLAY_EMOJI[dynamicClayStage]}</Text>
+            <Text style={styles.actLabel}>{ACT_LABEL[act]}</Text>
+
+            <Text style={styles.questionText}>{currentQuestion?.prompt ?? ''}</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="답변을 입력하세요"
+              placeholderTextColor={SYS.TEXT_MUTED}
+              value={inputText}
+              onChangeText={setInputText}
+            />
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleSubmit}>
+              <Text style={styles.primaryBtnText}>제출</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={switchToVoice}>
+              <Text style={styles.linkText}>🎙️ 음성으로 답할게요</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+      </>
     );
   }
 
