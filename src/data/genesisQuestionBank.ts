@@ -305,6 +305,10 @@ export function getRomanticQuestions(type: EnneagramType, mix: RomanticMix, tota
  * 곧이어 트윈이 되짚는 confirm 단계에서 사용자가 직접 정정할 수 있다.
  */
 export function matchArchetype(question: GenesisQuestion, transcript: string) {
+  if (!question.archetypes || question.archetypes.length === 0) {
+    return null;
+  }
+
   const text = transcript.trim();
   if (!text) return question.archetypes[0];
 

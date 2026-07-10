@@ -1,5 +1,5 @@
-// ── DateCourse 타입 인라인 정의 (AppContext 의존성 제거 — MASTER.md §14 클린업) ──
-export interface DateCourse {
+// ── KakaoDateCourse 타입 인라인 정의 (kakaoIngestPipeline이 여기서 직접 import) ──
+export interface KakaoDateCourse {
   id: string;
   title: string;
   date: string;           // YYYY-MM-DD
@@ -393,7 +393,7 @@ export async function analyzeInstantMetrics(
 //
 // After parsing, pick ONE memorable line from the user's own messages to keep
 // as a lasting "memory quote" — this is the only verbatim chat text retained
-// once the raw export is purged (see AppContext.tsx / kakaoIngestPipeline.ts).
+// once the raw export is purged (see userStore.ts / kakaoIngestPipeline.ts).
 // Entirely on-device, rule-based, no LLM call. Partner lines are never
 // candidates, consistent with this file's security contract (see file header).
 
@@ -471,7 +471,8 @@ function pickRandomCandidate(
 ): MemoryQuote | null {
   if (pool.length === 0) return null;
   const chosen = pool[Math.floor(Math.random() * pool.length)];
-  return { text: chosen.text, date: chosen.date, category, uploadedAt: Date.now() };
+  const [maskedQuote] = maskSensitive(chosen.text);
+  return { text: maskedQuote, date: chosen.date, category, uploadedAt: Date.now() };
 }
 
 export function selectMemoryQuote(rawText: string, myName: string): MemoryQuote | null {
@@ -513,7 +514,7 @@ export function selectMemoryQuote(rawText: string, myName: string): MemoryQuote 
 // dropped via parseKakaoLine()'s speaker check before scoring, matching this
 // file's security contract) against a valence-keyword table and returns the
 // top candidates. Relocated here (from useMemoryWall.ts) so it has no
-// dependency on React/AppContext — kakaoIngestPipeline.ts calls this
+// dependency on React/userStore — kakaoIngestPipeline.ts calls this
 // directly, and useMemoryWall.ts re-exports it for its own hook's use.
 
 interface ValencePattern {
@@ -578,7 +579,7 @@ function scoreMessage(text: string): { score: number; tag: string } {
   return { score: totalScore, tag: bestTag || '💬 대화' };
 }
 
-function findClosestImage(msgDate: Date, courses: DateCourse[]): string | null {
+function findClosestImage(msgDate: Date, courses: KakaoDateCourse[]): string | null {
   const withImage = courses.filter((c) => c.imageUrl);
   if (!withImage.length) return null;
 
@@ -595,7 +596,7 @@ function findClosestImage(msgDate: Date, courses: DateCourse[]): string | null {
 export function extractSweetSentences(
   rawText: string,
   myName: string,
-  courses: DateCourse[],
+  courses: KakaoDateCourse[],
   maxCount = 7,
 ): MemoryNode[] {
   const lines = rawText.split('\n');
@@ -624,6 +625,8 @@ export function extractSweetSentences(
     if (seenQuotes.has(content)) continue;
     seenQuotes.add(content);
 
+    const [maskedText] = maskSensitive(content);
+
     const y    = String(currentDate.getFullYear());
     const mo   = String(currentDate.getMonth() + 1).padStart(2, '0');
     const d    = String(currentDate.getDate()).padStart(2, '0');
@@ -632,7 +635,7 @@ export function extractSweetSentences(
       id: `mem-${i}`,
       date: `${y}.${mo}.${d}`,
       rawDate: new Date(currentDate),
-      quote: content,
+      quote: maskedText,
       tag,
       speaker: 'me',
       valenceScore: score,

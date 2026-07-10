@@ -73,6 +73,17 @@ export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
       setDateTaken(meta.dateTaken);
       setLatitude(meta.latitude);
       setLongitude(meta.longitude);
+
+      if (meta.latitude !== null && meta.longitude !== null) {
+        Alert.alert(
+          '📍 위치 정보 감지됨',
+          '사진에서 위치 정보가 발견됐어요. 함께 저장할까요?',
+          [
+            { text: '저장 안 함', onPress: () => { setLatitude(null); setLongitude(null); } },
+            { text: '저장', style: 'default' },
+          ]
+        );
+      }
     }
   }
 

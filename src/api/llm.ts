@@ -27,12 +27,16 @@ export async function callLLMStream(
   onChunk: (text: string) => void,
   onDone: () => void,
 ): Promise<void> {
-  const session = await supabase.auth.getSession();
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session) {
+    throw new Error('인증 세션이 없습니다. 다시 로그인해주세요.');
+  }
+  const token = sessionData.session.access_token;
 
   const response = await fetch(`${supabaseUrl}/functions/v1/llm-route`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${session.data.session?.access_token}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
       'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
     },

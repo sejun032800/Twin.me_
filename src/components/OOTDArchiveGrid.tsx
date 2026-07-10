@@ -60,6 +60,8 @@ export default function OOTDArchiveGrid() {
           keyExtractor={(item) => item.id}
           numColumns={3}
           scrollEnabled={false}
+          initialNumToRender={50}
+          windowSize={1}
           columnWrapperStyle={styles.row}
           renderItem={({ item, index }) => (
             <TouchableOpacity

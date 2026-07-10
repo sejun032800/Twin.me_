@@ -209,6 +209,7 @@ export function useGenesisInterview(mbti: MbtiType): UseGenesisInterviewResult {
       }
 
       const archetype = matchArchetype(currentQuestion, text);
+      if (!archetype) return;
       setPendingConfirm({ question: currentQuestion, archetype, transcript: text });
       setPhase('confirming');
     },

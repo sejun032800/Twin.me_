@@ -1,9 +1,9 @@
 // ─── FUN-HOM/FUN-CHA — 마스터 퀘스천 서비스 (MASTER.md §3, §4, 구버전 이식) ───────
 // 관계 점수가 특정 임계값을 넘으면 트윈 AI가 깊은 관계 성찰 질문을 하루 1회 제안한다.
 // "오늘 이미 보여줬는지" 판정은 twin_mq_shown_v1 키의 마지막 날짜와 비교하는데, 이
-// 값을 sessionStore.ts의 reduceAuraMotion과 동일한 패턴으로 모듈 로드 시 한 번
-// AsyncStorage에서 하이드레이션해 모듈 변수에 캐시한다 — shouldShowMasterQuestion()을
-// 동기 함수로 유지하면서도 날짜 판정에 반영하기 위함.
+// 값을 ensureInitialized()가 shouldShowMasterQuestion() 최초 호출 시 AsyncStorage에서
+// 하이드레이션해 모듈 변수에 캐시한다 — 하이드레이션 완료 전 호출돼 초기값(null)으로
+// 판정해버리는 경쟁 상태를 막기 위해 shouldShowMasterQuestion()은 async로 노출한다.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -28,15 +28,22 @@ function todayDateString(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// 마지막으로 보여준 날짜(YYYY-MM-DD) — 모듈 로드 시 한 번 하이드레이션.
+// 마지막으로 보여준 날짜(YYYY-MM-DD) — ensureInitialized()가 최초 호출 시 한 번 하이드레이션.
 let lastShownDate: string | null = null;
-AsyncStorage.getItem(SHOWN_KEY)
-  .then((raw) => {
-    lastShownDate = raw;
-  })
-  .catch(() => {});
+let initPromise: Promise<void> | null = null;
 
-export function shouldShowMasterQuestion(score: number): MasterQuestion | null {
+function ensureInitialized(): Promise<void> {
+  if (!initPromise) {
+    initPromise = AsyncStorage.getItem(SHOWN_KEY).then((val) => {
+      lastShownDate = val ?? null;
+    });
+  }
+  return initPromise;
+}
+
+export async function shouldShowMasterQuestion(score: number): Promise<MasterQuestion | null> {
+  await ensureInitialized();
+
   if (lastShownDate === todayDateString()) return null;
 
   const eligible = MASTER_QUESTIONS.filter((q) => score >= q.minScore);

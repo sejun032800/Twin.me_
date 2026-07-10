@@ -164,6 +164,8 @@ async function refineViaLLM(
   ].join('\n');
 
   try {
+    // TODO: Edge Function 교체 시 AbortController signal 연결 필요
+    // controller.signal을 fetch options에 전달해야 함
     const response = await llmRoutingService.routeInference({
       urgency: 'CRISIS_DETECTION',
       systemPrompt: system,

@@ -2,6 +2,7 @@
 // 대화 맥락과 관계 상태를 바탕으로 연인에게 보낼 감성적인 메시지 3가지를 제안한다.
 
 import { callLLM } from '@/api/llm';
+import { extractJsonContent } from '@/lib/llmJson';
 
 export type MuseCategory = '애정' | '위로' | '응원' | '유머' | '감사';
 
@@ -34,7 +35,7 @@ export async function generateMuseSuggestions(context: MuseContext): Promise<Mus
       userMessage: JSON.stringify(context),
     });
 
-    const parsed = JSON.parse(response.content) as MuseSuggestion[];
+    const parsed = JSON.parse(extractJsonContent(response.content)) as MuseSuggestion[];
     if (!Array.isArray(parsed) || parsed.length === 0) return FALLBACK_SUGGESTIONS;
     return parsed;
   } catch {

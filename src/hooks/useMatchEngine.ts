@@ -11,8 +11,12 @@ const initialFreqState: FrequencyState = createFrequencyState();
 export function useMatchEngine() {
   // sCurrent(자정 정산 값)는 읽기 전용 컨텍스트(갈등 판정)로만 쓰고, 이 훅 내부에서는
   // 절대 갱신하지 않는다 — settleMidnight()만이 sCurrent의 유일한 갱신 지점(§5.1).
-  const { sCurrent, sLive, setSLive, appendEventLog } = useScoreStore();
-  const { gateState, setGateState } = useSessionStore();
+  const sCurrent = useScoreStore((s) => s.sCurrent);
+  const sLive = useScoreStore((s) => s.sLive);
+  const setSLive = useScoreStore((s) => s.setSLive);
+  const appendEventLog = useScoreStore((s) => s.appendEventLog);
+  const gateState = useSessionStore((s) => s.gateState);
+  const setGateState = useSessionStore((s) => s.setGateState);
   const setCrisisMode = useSessionStore((s) => s.setCrisisMode);
 
   // FrequencyState는 세션 내 메모리로 유지 (persist 불필요)
@@ -46,14 +50,16 @@ export function useMatchEngine() {
       inConflict: sCurrent < 40,
     };
 
-    const codes = classifyMessage(msg, ctx);
+    const codes = classifyMessage(msg, ctx).filter(Boolean);
     if (codes.length === 0) return { codes: [], detections: [] };
 
     // sLive(냉각 적용 후 값)를 누적 기준점으로 이어받아야 같은 날 여러 메시지에 걸친
     // 누적 변화가 유지된다 — sCurrent를 기준점으로 삼으면 매 메시지마다 리셋돼버린다.
     let currentScore = cooledLive;
     const detections = [];
-    const currentGateState = gateState ?? createGateState();
+    // 각 이벤트 코드를 순서대로 처리하며
+    // 게이트 상태를 누적 전파 (이전 코드의 nextState → 다음 코드 입력)
+    let runningGateState = gateState ?? createGateState();
 
     for (const code of codes) {
       const eventCtx: EventContext = {
@@ -70,10 +76,13 @@ export function useMatchEngine() {
         // 개별 이벤트 처리 실패 시 무시하고 계속
       }
 
-      const { detection, nextState } = evaluateGate(code, currentGateState);
+      const { detection, nextState } = evaluateGate(code, runningGateState);
       if (detection) detections.push(detection);
-      setGateState(nextState);
+      runningGateState = nextState;
     }
+
+    // 최종 게이트 상태만 1회 저장 (루프 도중 매번 저장하지 않음)
+    setGateState(runningGateState);
 
     // S_Current는 자정 정산(settleMidnight)에서만 갱신 — 실시간 변화는 S_Live만 반영한다(§5.1).
     setSLive(currentScore);

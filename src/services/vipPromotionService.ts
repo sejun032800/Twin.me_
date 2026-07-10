@@ -17,7 +17,6 @@ const REDEEM_ENDPOINT = `${API_BASE}/api/v1/vip/redeem`;
 const TIMEOUT_MS = 10_000;
 
 const USED_CODES_KEY = 'vip_promo_used_codes';
-const STATE_KEY_PREFIX = 'vip_promo_state:';
 
 const SEED_CODES = new Set([
   'FOUNDINGTWIN01',
@@ -86,7 +85,7 @@ function buildFoundingVipStatus(freeUntilIso: string): SubscriptionStatus {
 
 // ── Mock: code redemption ─────────────────────────────────────────────────────
 
-async function redeemMock(userId: string, promoCode: string): Promise<VipRedeemResult> {
+async function redeemMock(_userId: string, promoCode: string): Promise<VipRedeemResult> {
   await new Promise((resolve) => setTimeout(resolve, 700));
 
   const normalized = normalizeCode(promoCode);
@@ -102,7 +101,6 @@ async function redeemMock(userId: string, promoCode: string): Promise<VipRedeemR
 
   await markCodeUsed(normalized);
   const status = buildFoundingVipStatus(twelveMonthsFromNow());
-  await AsyncStorage.setItem(`${STATE_KEY_PREFIX}${userId}`, JSON.stringify(status));
 
   return { success: true, message: MESSAGES.success, status };
 }
@@ -157,17 +155,4 @@ export async function redeemVipCode(
 ): Promise<VipRedeemResult> {
   if (isMockMode) return redeemMock(userId, promoCode);
   return redeemLive(userId, promoCode);
-}
-
-/**
- * 앱 런치 시 AppContext 하이드레이션에서 호출 — 계정에 귀속된 founding-VIP 상태를
- * AsyncStorage에서 복원한다. 저장된 상태가 없으면 null.
- */
-export async function loadFoundingVipState(userId: string): Promise<SubscriptionStatus | null> {
-  try {
-    const raw = await AsyncStorage.getItem(`${STATE_KEY_PREFIX}${userId}`);
-    return raw ? (JSON.parse(raw) as SubscriptionStatus) : null;
-  } catch {
-    return null;
-  }
 }

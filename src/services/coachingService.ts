@@ -6,6 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useScoreStore } from '@/store/scoreStore';
 import { callLLM } from '@/api/llm';
+import { extractJsonContent } from '@/lib/llmJson';
 import type { EventCode } from '@/engine/metrics';
 
 const COACHING_REPORT_KEY = 'twin_coaching_report_v1';
@@ -86,8 +87,19 @@ export async function generateCoachingReport(): Promise<CoachingReport> {
     userMessage: JSON.stringify({ scoreHistory: recentScoreHistory, topEvents, volatilityIndex }),
   });
 
-  const parsed = JSON.parse(response.content) as Omit<CoachingReport, 'generatedAt'>;
-  const report: CoachingReport = { ...parsed, generatedAt: new Date().toISOString() };
+  let report: CoachingReport;
+  try {
+    const parsed = JSON.parse(extractJsonContent(response.content)) as Omit<CoachingReport, 'generatedAt'>;
+    report = { ...parsed, generatedAt: new Date().toISOString() };
+  } catch {
+    report = {
+      weekSummary: '이번 주 데이터를 분석 중이에요',
+      strengthPoints: ['서로를 아끼고 있어요'],
+      growthPoints: ['조금 더 대화해보세요'],
+      thisWeekChallenge: '하루에 한 번 감사 표현하기',
+      generatedAt: new Date().toISOString(),
+    };
+  }
 
   await writeCache(report);
   return report;

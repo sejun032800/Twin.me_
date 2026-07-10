@@ -2,8 +2,11 @@
  * usePremiumGate.ts — Step #40
  *
  * Single source of truth for subscription-based feature gating.
- * Reads subscriptionStatus from AppContext, validates expiry in real-time,
- * and exposes plan-tier permission flags consumed by UI components.
+ * Reads subscriptionStatus from useUserStore (Zustand) and exposes plan-tier
+ * permission flags consumed by UI components.
+ *
+ * 읽기 전용 — subscriptionStatus를 직접 수정하지 않음.
+ * 만료 처리는 useVipReconcile.ts가 단독 담당.
  *
  * Tier matrix:
  *   free   → no premium features
@@ -11,7 +14,6 @@
  *   deep   → hasReportAccess + hasDeepChatAccess, hasLuxuryUI
  */
 
-import { useEffect } from 'react';
 import { useUserStore } from '../store/userStore';
 import { DEFAULT_SUBSCRIPTION_STATUS, type PlanId } from '../services/iapService';
 
@@ -29,57 +31,28 @@ export interface PremiumGateResult {
   planId: PlanId | null;
 }
 
-function isExpiredNow(expiresAt: string | null): boolean {
-  if (!expiresAt) return false;
-  return new Date(expiresAt).getTime() <= Date.now();
-}
-
-function deriveTier(planId: PlanId | null, effectivelyPremium: boolean): PlanTier {
-  if (!effectivelyPremium) return 'free';
+function deriveTier(planId: PlanId | null, isPremium: boolean): PlanTier {
+  if (!isPremium) return 'free';
   if (planId === 'deep') return 'deep';
   if (planId === 'coffee') return 'coffee';
   return 'free';
 }
 
 export function usePremiumGate(): PremiumGateResult {
-  const { subscriptionStatus, setSubscriptionStatus } = useUserStore();
-  const { isPremium, planId, expiresAt } = subscriptionStatus ?? DEFAULT_SUBSCRIPTION_STATUS;
+  const { subscriptionStatus } = useUserStore();
+  const { isPremium, isFoundingVip, planId } = subscriptionStatus ?? DEFAULT_SUBSCRIPTION_STATUS;
 
-  // Hard-gate: runtime expiry enforcement
-  // - On mount / when subscriptionStatus changes: check if already expired.
-  // - Schedule a one-shot timeout to revoke exactly when the subscription ends.
-  useEffect(() => {
-    if (!isPremium || !expiresAt) return;
-
-    const expiryMs = new Date(expiresAt).getTime();
-    const remainingMs = expiryMs - Date.now();
-
-    if (remainingMs <= 0) {
-      // Already expired — hard revoke immediately, safe to call in effect
-      setSubscriptionStatus({ ...DEFAULT_SUBSCRIPTION_STATUS });
-      return;
-    }
-
-    // setTimeout safe upper bound is ~24.8 days; clamp to avoid silent overflow
-    const safeDelay = Math.min(remainingMs, 2_147_483_647);
-    const timer = setTimeout(() => {
-      setSubscriptionStatus({ ...DEFAULT_SUBSCRIPTION_STATUS });
-    }, safeDelay);
-
-    return () => clearTimeout(timer);
-  }, [isPremium, expiresAt, setSubscriptionStatus]);
-
-  // Inline check — catches the window before the above effect fires (same render)
-  const expired = isPremium && isExpiredNow(expiresAt);
-  const effectivelyPremium = isPremium && !expired;
-  const tier = deriveTier(planId, effectivelyPremium);
+  // isPremium/isFoundingVip은 iapService.reconcileFoundingVipExpiry()가 이미
+  // 만료 여부를 반영해둔 값이므로, 여기서는 그대로 읽어 판단할 뿐 만료 시각을
+  // 직접 계산하거나 subscriptionStatus를 갱신하지 않는다.
+  const tier = deriveTier(planId, isPremium);
 
   return {
-    isPremium: effectivelyPremium,
+    isPremium,
     planTier: tier,
     hasReportAccess: tier === 'coffee' || tier === 'deep',
     hasDeepChatAccess: tier === 'deep',
-    hasLuxuryUI: effectivelyPremium,
-    planId: effectivelyPremium ? planId : null,
+    hasLuxuryUI: isPremium || !!isFoundingVip,
+    planId: isPremium ? planId : null,
   };
 }

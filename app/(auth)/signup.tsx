@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabaseClient';
@@ -25,39 +25,44 @@ export default function Signup() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>회원가입</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="이메일"
-        placeholderTextColor={SYS.TEXT_MUTED}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="비밀번호 (6자 이상)"
-        placeholderTextColor={SYS.TEXT_MUTED}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <TouchableOpacity onPress={handleSignup} disabled={loading}>
-        <LinearGradient
-          colors={[...GRADIENT.BRAND_STOPS]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.btn}
-        >
-          <Text style={styles.btnText}>{loading ? '가입 중...' : '가입하기'}</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => router.back()}>
-        <Text style={styles.link}>돌아가기</Text>
-      </TouchableOpacity>
-    </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.container}>
+        <Text style={styles.title}>회원가입</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="이메일"
+          placeholderTextColor={SYS.TEXT_MUTED}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="비밀번호 (6자 이상)"
+          placeholderTextColor={SYS.TEXT_MUTED}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <TouchableOpacity onPress={handleSignup} disabled={loading}>
+          <LinearGradient
+            colors={[...GRADIENT.BRAND_STOPS]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.btn}
+          >
+            <Text style={styles.btnText}>{loading ? '가입 중...' : '가입하기'}</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.link}>돌아가기</Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabaseClient';
+import { useUserStore } from '@/store/userStore';
 import { BRAND, SYS, GRADIENT } from '@/constants/colors';
 
 export default function Login() {
@@ -18,44 +19,54 @@ export default function Login() {
     if (error) {
       Alert.alert('로그인 실패', error.message);
     } else {
-      router.replace('/(auth)/profile');
+      const isOnboardingComplete = useUserStore.getState().isOnboardingComplete;
+      if (isOnboardingComplete) {
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/(auth)/profile');
+      }
     }
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>로그인</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="이메일"
-        placeholderTextColor={SYS.TEXT_MUTED}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="비밀번호"
-        placeholderTextColor={SYS.TEXT_MUTED}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <TouchableOpacity onPress={handleLogin} disabled={loading}>
-        <LinearGradient
-          colors={[...GRADIENT.BRAND_STOPS]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.btn}
-        >
-          <Text style={styles.btnText}>{loading ? '로그인 중...' : '로그인'}</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => router.back()}>
-        <Text style={styles.link}>돌아가기</Text>
-      </TouchableOpacity>
-    </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.container}>
+        <Text style={styles.title}>로그인</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="이메일"
+          placeholderTextColor={SYS.TEXT_MUTED}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="비밀번호"
+          placeholderTextColor={SYS.TEXT_MUTED}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <TouchableOpacity onPress={handleLogin} disabled={loading}>
+          <LinearGradient
+            colors={[...GRADIENT.BRAND_STOPS]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.btn}
+          >
+            <Text style={styles.btnText}>{loading ? '로그인 중...' : '로그인'}</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.link}>돌아가기</Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

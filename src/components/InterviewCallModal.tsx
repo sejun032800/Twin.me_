@@ -10,6 +10,7 @@ import ClayTwinAvatar from '@/components/ClayTwinAvatar';
 import { useTheme } from '@/hooks/useTheme';
 import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
+import type { ClayStage } from '@/types/genesis';
 import { TYPOGRAPHY } from '@/constants/typography';
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
   onSubmit: (text: string) => void;
   confidence: number; // 0~1
   act: 1 | 2 | 3 | 4;
+  clayStage?: ClayStage;
 }
 
 function signalLevel(confidence: number): 0 | 1 | 2 | 3 {
@@ -28,7 +30,7 @@ function signalLevel(confidence: number): 0 | 1 | 2 | 3 {
   return 0;
 }
 
-export default function InterviewCallModal({ visible, onClose, question, onSubmit, confidence, act }: Props) {
+export default function InterviewCallModal({ visible, onClose, question, onSubmit, confidence, act, clayStage = 3 }: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [text, setText] = useState('');
@@ -54,7 +56,7 @@ export default function InterviewCallModal({ visible, onClose, question, onSubmi
         >
         <View style={styles.container}>
         <View style={styles.callerInfo}>
-          <ClayTwinAvatar size={100} auraVector={null} clayStage={3} />
+          <ClayTwinAvatar size={100} auraVector={null} clayStage={clayStage} />
           <Text style={styles.callerName}>트윈</Text>
           <Text style={styles.callerSub}>당신의 AI 트윈</Text>
         </View>

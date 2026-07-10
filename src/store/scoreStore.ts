@@ -40,6 +40,7 @@ export interface ScoreState {
   volatilityIndex: number;
   eventLog: EventHistoryEntry[]; // 최근 24h 이벤트 로그
   lastSettledAt: string | null; // 마지막 자정 정산 시각 ISO
+  _hasHydrated: boolean;
 }
 
 export interface ScoreActions {
@@ -55,6 +56,7 @@ export interface ScoreActions {
   /** 24h(entry.t 기준) 초과 항목은 자동 제거 */
   appendEventLog: (entry: EventHistoryEntry) => void;
   setLastSettledAt: (iso: string) => void;
+  setHasHydrated: (value: boolean) => void;
   reset: () => void;
 }
 
@@ -68,8 +70,14 @@ const initialState: ScoreState = {
   volatilityIndex: 0,
   eventLog: [],
   lastSettledAt: null,
+  _hasHydrated: false,
 };
 
+// TODO: EAS Build 환경에서 createJSONStorage(() => AsyncStorage)를
+// expo-secure-store 기반 암호화 스토리지로 교체 필요.
+// 현재 personaMatrix(심리 프로파일), toneVector(말투 지문),
+// 파트너 정보, 관계 이력이 평문으로 저장됨.
+// 참고: https://docs.expo.dev/versions/latest/sdk/securestore/
 export const useScoreStore = create<ScoreState & ScoreActions>()(
   persist(
     (set) => ({
@@ -93,11 +101,19 @@ export const useScoreStore = create<ScoreState & ScoreActions>()(
           return { eventLog: [...state.eventLog, entry].filter((e) => e.t >= cutoff) };
         }),
       setLastSettledAt: (iso) => set({ lastSettledAt: iso }),
+      setHasHydrated: (_hasHydrated) => set({ _hasHydrated }),
       reset: () => set({ ...initialState }),
     }),
     {
       name: 'twin_score_store_v1',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => {
+        const { _hasHydrated, ...rest } = state;
+        return rest;
+      },
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );

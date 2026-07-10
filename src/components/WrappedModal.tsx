@@ -31,12 +31,12 @@ export default function WrappedModal({ visible, onClose }: WrappedModalProps) {
   useEffect(() => {
     if (visible && !data) {
       setLoading(true);
-      generateWrapped().then((result) => {
+      generateWrapped(hasReportAccess).then((result) => {
         setData(result);
         setLoading(false);
       });
     }
-  }, [visible, data]);
+  }, [visible, data, hasReportAccess]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

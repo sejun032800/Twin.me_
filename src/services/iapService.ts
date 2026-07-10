@@ -140,7 +140,7 @@ export function getPlanMetadataByStatus(
  * 순수함수 — founding-VIP 무료 기간(foundingVipFreeUntil) 만료를 재조정한다.
  * 만료 시 isPremium만 false로 전환하고, isFoundingVip/foundingVipDiscountRate는
  * §8.10 "13개월차부터 평생 50% 할인" 요건에 따라 영구 유지한다.
- * AppContext 하이드레이션에서 앱 런치마다 호출된다.
+ * useVipReconcile.ts에서 앱 런치마다 호출된다.
  */
 export function reconcileFoundingVipExpiry(status: SubscriptionStatus): SubscriptionStatus {
   const isExpired =

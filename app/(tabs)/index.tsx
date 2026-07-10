@@ -4,10 +4,10 @@
 // 티어는 scoreCalculator.getTierFromScore()(§5.8, FUN-HOM-003 10단계 매퍼)로 산출.
 // 정보 밀도보다 여백과 감성을 우선하는 미니멀 레이아웃 — 카드 박스는 최소화한다.
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +24,7 @@ import ShareCard from '@/components/ShareCard';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useWeather } from '@/hooks/useWeather';
 import { getTierFromScore, formatScore } from '@/engine/scoreCalculator';
@@ -52,14 +53,19 @@ function statusEmoji(score: number): string {
 export default function Home() {
   const router = useRouter();
   const theme = useTheme();
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const name = useUserStore((s) => s.name);
   const personaMatrix = useUserStore((s) => s.personaMatrix);
   const relationshipStartDate = useCoupleStore((s) => s.relationshipStartDate);
   const sLive = useScoreStore((s) => s.sLive);
   const sCurrent = useScoreStore((s) => s.sCurrent);
   const sBase = useScoreStore((s) => s.sBase);
-  const weather = useWeather();
+  const { weather, loading: weatherLoading } = useWeather();
+  const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
+
+  useFocusEffect(useCallback(() => {
+    setAuraScreenKey('main');
+  }, [setAuraScreenKey]));
 
   const displayScore = sLive > 0 ? sLive : (sCurrent > 0 ? sCurrent : sBase);
   const tier = getTierFromScore(displayScore);
@@ -72,8 +78,10 @@ export default function Home() {
   const [mqVisible, setMqVisible] = useState(false);
 
   useEffect(() => {
-    const mq = shouldShowMasterQuestion(displayScore);
-    if (mq) setMasterQuestion(mq);
+    (async () => {
+      const mq = await shouldShowMasterQuestion(displayScore);
+      if (mq) setMasterQuestion(mq);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayScore]);
 
@@ -130,10 +138,14 @@ export default function Home() {
               <Text style={styles.headerDday}>연애 {dDay}일째</Text>
             )}
           </View>
-          {weather && (
-            <Text style={styles.weatherText}>
-              {weather.emoji} {weather.temperature}°
-            </Text>
+          {weatherLoading ? (
+            <ActivityIndicator size="small" color={theme.textMuted} />
+          ) : (
+            weather && weather.temperature > -999 && (
+              <Text style={styles.weatherText}>
+                {weather.emoji} {weather.temperature}°
+              </Text>
+            )
           )}
         </View>
 
@@ -145,7 +157,7 @@ export default function Home() {
           <ClayTwinAvatar
             size={80}
             auraVector={personaMatrix?.auraVector ?? null}
-            clayStage={3}
+            clayStage={personaMatrix?.clayStage ?? 3}
           />
         </View>
 
@@ -227,9 +239,11 @@ export default function Home() {
           setMqVisible(false);
           markShownToday();
         }}
-        onSendToChat={() => {
+        onSendToChat={(q) => {
+          useSessionStore.getState().setPendingChatMessage(q);
           router.push('/(tabs)/chat');
-          // TODO: 채팅 탭에 질문 전달 (sessionStore 활용)
+          setMqVisible(false);
+          markShownToday();
         }}
       />
     </SafeAreaView>

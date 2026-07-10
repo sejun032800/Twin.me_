@@ -3,10 +3,11 @@
 // 룸2 트윈방(twin) — 나를 복제한 AI, 내 말투로 실시간 꾸짖고 인정.
 // 룸3 분석가방(analyst) — 냉정한 제3자 전문가 톤, 패턴 분석.
 // activeChatRoom=null이면 룸 목록(인박스), 값이 있으면 해당 룸 채팅 화면.
-// 실제 AI 연동(§4.3 이하)은 TODO — 지금은 전송 시 고정 스텁 메시지만 추가한다.
+// 트윈 AI 응답: Gemini 2.5 Flash (Supabase Edge Function 프록시, 스트리밍 방식)
 
-import { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator, Alert, Switch } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator, Alert, Switch, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import { useUserStore } from '@/store/userStore';
 import { useMatchEngine } from '@/hooks/useMatchEngine';
 import { useTheme } from '@/hooks/useTheme';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
+import { useCrisisIntelligence, type CrisisMessage } from '@/hooks/useCrisisIntelligence';
 import { callLLMStream } from '@/api/llm';
 import MagicMirrorModal from '@/components/MagicMirrorModal';
 import MuseSheet from '@/components/MuseSheet';
@@ -25,6 +27,8 @@ import { detectSensitiveContent } from '@/services/partnerSensitiveService';
 import { generateWeeklyReport, getLastReport, type WeeklyReport } from '@/services/weeklyReportService';
 import { generateCoachingReport, getCoachingReport, type CoachingReport } from '@/services/coachingService';
 import type { ClassifierMessage } from '@/engine/eventClassifier';
+import { buildPersonaBlendPromptSection } from '@/engine/genesisBlending';
+import { pickFewShotAnchors } from '@/engine/userToneVectorBuilder';
 import { formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
@@ -43,7 +47,7 @@ interface ChatMessage {
 
 export default function Chat() {
   const theme = useTheme();
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const isPartnerConnected = useCoupleStore((s) => s.isPartnerConnected);
   const activeChatRoom = useSessionStore((s) => s.activeChatRoom);
   const setActiveChatRoom = useSessionStore((s) => s.setActiveChatRoom);
@@ -53,12 +57,20 @@ export default function Chat() {
   const setEarlyDatingMode = useSessionStore((s) => s.setEarlyDatingMode);
   const magicMirrorAccepted = useSessionStore((s) => s.magicMirrorAccepted);
   const setMagicMirrorAccepted = useSessionStore((s) => s.setMagicMirrorAccepted);
+  const pendingMsg = useSessionStore((s) => s.pendingChatMessage);
+  const setPendingChatMessage = useSessionStore((s) => s.setPendingChatMessage);
+  const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
+
+  useFocusEffect(useCallback(() => {
+    setAuraScreenKey('chat');
+  }, [setAuraScreenKey]));
   const [showMirrorModal, setShowMirrorModal] = useState(false);
   const name = useUserStore((s) => s.name);
   const monthlyChatCount = useUserStore((s) => s.monthlyChatCount);
   const setMonthlyChatCount = useUserStore((s) => s.setMonthlyChatCount);
   const { hasReportAccess, hasDeepChatAccess } = usePremiumGate();
   const { processMessage } = useMatchEngine();
+  const { result: crisisResult, runAnalysis: analyzeConversation } = useCrisisIntelligence();
   const [chatHistory, setChatHistory] = useState<ClassifierMessage[]>([]);
 
   const [messagesByRoom, setMessagesByRoom] = useState<Record<RoomKey, ChatMessage[]>>({
@@ -79,6 +91,20 @@ export default function Chat() {
   const currentRoom = activeChatRoom as RoomKey | null;
   const isLoverLocked = currentRoom === 'lover' && !isPartnerConnected;
   const messages = currentRoom ? messagesByRoom[currentRoom] : [];
+
+  useEffect(() => {
+    if (pendingMsg) {
+      setInputText(pendingMsg);
+      setActiveChatRoom('twin');
+      setPendingChatMessage(null);
+    }
+  }, [pendingMsg]);
+
+  useEffect(() => {
+    if (crisisResult?.crisisActive) {
+      setCrisisMode(true);
+    }
+  }, [crisisResult, setCrisisMode]);
 
   useEffect(() => {
     if (currentRoom === 'analyst') {
@@ -231,12 +257,15 @@ export default function Chat() {
           toneVector
             ? `말투 특성: 웃음체 ${Math.round(toneVector.laughter.frequency * 100)}%, 이모지 평균 ${toneVector.emoji.density.toFixed(1)}개/메시지`
             : '';
+        const myLines = chatHistory.filter((m) => m.role === 'me').map((m) => m.text);
+        const anchors = toneVector && myLines.length > 0 ? pickFewShotAnchors(myLines, toneVector) : [];
+        const fewShotSection = anchors.length > 0 ? `\n[예시 발화]\n${anchors.join('\n')}` : '';
         systemPrompt = `너는 ${name ?? '사용자'}의 완벽한 복제 AI야.
 ${name ?? '사용자'}의 말투, 성격, 감정 패턴을 최대한 그대로 흉내 내.
 에니어그램 유형: ${personaMatrix?.enneagramType ?? '미확정'}
 toneVector가 있다면 그 말투 패턴을 적극 반영해.
 반말로 짧게 1문장으로만 답해. 이모티콘 자주 써.
-${toneSummary}`;
+${toneSummary}${fewShotSection}`;
       } else {
         systemPrompt = `너는 ${name ?? '사용자'}의 트윈 AI야.
 ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
@@ -252,6 +281,13 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
         ? '\n연애 초기 모드: 아직 서로 알아가는 단계야. 설레고 조심스러운 톤으로 답해. 너무 친하게 굴지 말고 적당한 거리감을 유지해.'
         : '';
       systemPrompt += earlyModeInstruction;
+
+      const blendSection = personaMatrix?.blend
+        ? buildPersonaBlendPromptSection(personaMatrix.blend)
+        : '';
+      if (blendSection) {
+        systemPrompt += `\n${blendSection}`;
+      }
 
       await callLLMStream(
         { systemPrompt, userMessage: inputText.trim(), maxTokens: 200 },
@@ -269,7 +305,7 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
         },
       );
     } catch (e) {
-      console.error('LLM 스트리밍 호출 실패:', e);
+      console.warn('LLM 스트리밍 호출 실패:', e);
       fullText = detections.length > 0
         ? `[${detections[0].label}] 감지됐어요`
         : '응, 들었어 💙';
@@ -282,9 +318,20 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
     }
 
     // 앱이 백그라운드일 때만 알림 (포그라운드에서는 화면에 바로 보임)
-    // AppState로 백그라운드 감지는 복잡하므로 일단 항상 발송 (TODO)
-    if (fullText) {
+    if (fullText && AppState.currentState !== 'active') {
       await scheduleLocalNotification('트윈의 메시지', fullText.slice(0, 50));
+    }
+
+    // FUN-CHA-003 — 트윈방 대화 위기 감지 (Crisis Intelligence Engine)
+    if (currentRoom === 'twin') {
+      const recentMsgs = messagesByRoom.twin?.slice(-10) ?? [];
+      const crisisMessages: CrisisMessage[] = recentMsgs.map((m) => ({
+        role: m.role === 'me' ? 'user' : 'ai',
+        text: m.text,
+        timestamp: m.timestamp,
+        type: 'normal',
+      }));
+      analyzeConversation(crisisMessages);
     }
   }
 
@@ -701,8 +748,8 @@ function makeStyles(theme: SigmaTheme) {
   dmContent: { flex: 1, gap: 4 },
   dmTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dmName: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
-  dmTime: { ...TYPOGRAPHY.caption, color: '#555' },
-  dmPreview: { ...TYPOGRAPHY.caption, color: '#666' },
+  dmTime: { ...TYPOGRAPHY.caption, color: theme.textMuted },
+  dmPreview: { ...TYPOGRAPHY.caption, color: theme.textMuted },
 
   // 룸 안 채팅 화면 헤더 (뒤로가기 + 룸 아바타/이름)
   chatHeader: {
@@ -718,7 +765,7 @@ function makeStyles(theme: SigmaTheme) {
   chatHeaderAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   chatHeaderAvatarText: { fontSize: 16 },
   chatHeaderName: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
-  chatHeaderSub: { ...TYPOGRAPHY.caption, color: '#555' },
+  chatHeaderSub: { ...TYPOGRAPHY.caption, color: theme.textMuted },
 
   placeholder: {
     flex: 1,
@@ -788,7 +835,7 @@ function makeStyles(theme: SigmaTheme) {
   bubbleMe: { backgroundColor: BRAND.CORAL, borderRadius: 20, borderBottomRightRadius: 4 },
   bubbleTwin: { backgroundColor: theme.card, borderRadius: 20, borderBottomLeftRadius: 4 },
   bubbleText: { ...TYPOGRAPHY.body, color: SYS.TEXT_LIGHT },
-  msgTime: { ...TYPOGRAPHY.caption, color: '#555', marginTop: 4, paddingHorizontal: 4 },
+  msgTime: { ...TYPOGRAPHY.caption, color: theme.textMuted, marginTop: 4, paddingHorizontal: 4 },
 
   sensitiveWarning: {
     backgroundColor: 'rgba(255, 200, 0, 0.15)',

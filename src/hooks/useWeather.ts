@@ -1,32 +1,32 @@
 // ─── 날씨 훅 (구버전 weatherService.ts 이식) ────────────────────────────────────
-// useGeoLocation으로 실제 위치를 조회한 뒤 해당 좌표로 현재 날씨를 가져온다.
-// 위치 조회 실패 시 useGeoLocation 내부에서 서울 기본 좌표로 대체된다.
+// 서울 기본 좌표로 현재 날씨를 가져온다. 위치 권한은 사용자 동의 없이 요청하지
+// 않으며, 위치 기반 정확한 날씨는 추후 사용자가 명시적으로 허용할 때 별도 구현한다.
 
 import { useEffect, useState } from 'react';
 import { getCurrentWeather, type WeatherData } from '@/services/weatherService';
-import { useGeoLocation } from './useGeoLocation';
 
-const SEOUL_LATITUDE = 37.5665;
-const SEOUL_LONGITUDE = 126.978;
+export interface UseWeatherResult {
+  weather: WeatherData | null;
+  loading: boolean;
+  error: boolean;
+}
 
-export function useWeather(): WeatherData | null {
+export function useWeather(): UseWeatherResult {
   const [weather, setWeather] = useState<WeatherData | null>(null);
-  const { requestLocation } = useGeoLocation();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const loc = await requestLocation();
-      const lat = loc?.latitude ?? SEOUL_LATITUDE;
-      const lon = loc?.longitude ?? SEOUL_LONGITUDE;
-      const data = await getCurrentWeather(lat, lon);
-      if (!cancelled) setWeather(data);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const DEFAULT_LAT = 37.5665;
+    const DEFAULT_LON = 126.978;
+    getCurrentWeather(DEFAULT_LAT, DEFAULT_LON)
+      .then((data) => {
+        setWeather(data);
+        setError(data.temperature <= -999);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
   }, []);
 
-  return weather;
+  return { weather, loading, error };
 }

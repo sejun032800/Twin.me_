@@ -1,7 +1,7 @@
 // ─── 트윈 제네시스 인터뷰 엔진 — 공유 타입 (FUN-HOM-001 Override) ───────────────
 // docs/Twin.me.md FUN-HOM-001 §"10분 인터뷰 퀘스트"의 확장 스펙.
 // User_Persona_Matrix / AuraVector 스키마는 여기서 정의되어
-// AppContext, genesisInference, genesisBlending, auraEngine이 공유한다.
+// userStore, genesisInference, genesisBlending, auraEngine이 공유한다.
 
 export const ENNEAGRAM_TYPES = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
 export type EnneagramType = (typeof ENNEAGRAM_TYPES)[number];

@@ -48,6 +48,11 @@ const initialState: CoupleState = {
   anniversaries: [],
 };
 
+// TODO: EAS Build 환경에서 createJSONStorage(() => AsyncStorage)를
+// expo-secure-store 기반 암호화 스토리지로 교체 필요.
+// 현재 personaMatrix(심리 프로파일), toneVector(말투 지문),
+// 파트너 정보, 관계 이력이 평문으로 저장됨.
+// 참고: https://docs.expo.dev/versions/latest/sdk/securestore/
 export const useCoupleStore = create<CoupleState & CoupleActions>()(
   persist(
     (set) => ({

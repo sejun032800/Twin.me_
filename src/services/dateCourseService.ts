@@ -138,7 +138,12 @@ function rowToDateCourse(row: DateCourseRow): DateCourse {
   };
 }
 
-export async function getPublicCourses(): Promise<DateCourse[]> {
+export interface PublicCoursesResult {
+  courses: DateCourse[];
+  isMock: boolean;
+}
+
+export async function getPublicCourses(): Promise<PublicCoursesResult> {
   try {
     const { data, error } = await supabase
       .from('date_courses')
@@ -147,9 +152,9 @@ export async function getPublicCourses(): Promise<DateCourse[]> {
       .order('likes', { ascending: false })
       .limit(20);
 
-    if (error || !data) return MOCK_COURSES;
-    return (data as DateCourseRow[]).map(rowToDateCourse);
+    if (error || !data) return { courses: MOCK_COURSES, isMock: true };
+    return { courses: (data as DateCourseRow[]).map(rowToDateCourse), isMock: false };
   } catch {
-    return MOCK_COURSES;
+    return { courses: MOCK_COURSES, isMock: true };
   }
 }

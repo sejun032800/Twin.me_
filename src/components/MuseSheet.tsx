@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScoreStore } from '@/store/scoreStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useTheme } from '@/hooks/useTheme';
@@ -22,6 +23,7 @@ interface Props {
 export default function MuseSheet({ visible, onClose, onSelect, recentMessages }: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const insets = useSafeAreaInsets();
   const sLive = useScoreStore((s) => s.sLive);
   const partnerName = useCoupleStore((s) => s.partnerName);
   const [suggestions, setSuggestions] = useState<MuseSuggestion[]>([]);
@@ -51,7 +53,7 @@ export default function MuseSheet({ visible, onClose, onSelect, recentMessages }
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(24, insets.bottom + 16) }]}>
           <View style={styles.handle} />
           <Text style={styles.title}>✨ AI 뮤즈</Text>
           <Text style={styles.subtitle}>연인에게 보낼 말을 골라보세요</Text>

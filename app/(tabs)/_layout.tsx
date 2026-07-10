@@ -14,7 +14,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle: {
           backgroundColor: theme.tabBar,
-          borderTopColor: SYS.CARD_DARK,
+          borderTopColor: theme.border,
           borderTopWidth: 1,
           height: 60,
           paddingBottom: 8,

@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { callLLM } from '@/api/llm';
+import { extractJsonContent } from '@/lib/llmJson';
 
 export interface DatePlace {
   id: string;
@@ -50,7 +51,7 @@ export async function optimizePlaces(places: DatePlace[]): Promise<DatePlace[]> 
       userMessage: JSON.stringify(places.map((p) => ({ id: p.id, area: p.area, name: p.name }))),
     });
 
-    const orderedIds = JSON.parse(response.content) as string[];
+    const orderedIds = JSON.parse(extractJsonContent(response.content)) as string[];
     const placeById = new Map(places.map((p) => [p.id, p]));
     const reordered = orderedIds.map((id) => placeById.get(id)).filter((p): p is DatePlace => !!p);
 

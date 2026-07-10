@@ -16,7 +16,7 @@ const WEATHER_CACHE_KEY = 'twin_weather_cache_v1';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1시간
 
 const FALLBACK_WEATHER: WeatherData = {
-  temperature: 0,
+  temperature: -999,
   weatherCode: 0,
   description: '날씨 정보 없음',
   emoji: '🌡️',

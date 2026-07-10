@@ -19,6 +19,14 @@ function todayDateString(): string {
 }
 
 async function runSettlement() {
+  try {
+    await runSettlementUnsafe();
+  } catch (e) {
+    console.warn('자정 정산 실패:', e);
+  }
+}
+
+async function runSettlementUnsafe() {
   const store = useScoreStore.getState();
   const aEndOfDay = store.eventLog.reduce((sum, e) => sum + e.delta, 0);
   const sTodayOpen = store.sCurrent - aEndOfDay;
@@ -66,8 +74,11 @@ function msUntilNextMidnight(): number {
 }
 
 export function useMidnightSettlement(enabled: boolean) {
+  const hasHydrated = useUserStore((s) => s._hasHydrated);
+  const scoreHydrated = useScoreStore((s) => s._hasHydrated);
+
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !hasHydrated || !scoreHydrated) return;
 
     const lastSettledAt = useScoreStore.getState().lastSettledAt;
     const lastSettledDate = lastSettledAt ? lastSettledAt.slice(0, 10) : null;
@@ -85,5 +96,5 @@ export function useMidnightSettlement(enabled: boolean) {
       clearTimeout(timeoutId);
       if (intervalId) clearInterval(intervalId);
     };
-  }, [enabled]);
+  }, [enabled, hasHydrated, scoreHydrated]);
 }

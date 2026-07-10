@@ -26,6 +26,7 @@ export interface UserState {
   pushToken: string | null;
   /** §9.3 무료 플랜 월간 대화 횟수 카운터 — useMidnightSettlement가 매월 1일에 0으로 리셋 */
   monthlyChatCount: number;
+  _hasHydrated: boolean;
 }
 
 export interface UserActions {
@@ -41,6 +42,7 @@ export interface UserActions {
   setLastGenesisAt: (lastGenesisAt: string | null) => void;
   setPushToken: (pushToken: string | null) => void;
   setMonthlyChatCount: (monthlyChatCount: number) => void;
+  setHasHydrated: (value: boolean) => void;
   /** 로그아웃/계정 전환 시 온보딩 이전 상태로 완전 초기화 */
   reset: () => void;
 }
@@ -58,8 +60,14 @@ const initialState: UserState = {
   lastGenesisAt: null,
   pushToken: null,
   monthlyChatCount: 0,
+  _hasHydrated: false,
 };
 
+// TODO: EAS Build 환경에서 createJSONStorage(() => AsyncStorage)를
+// expo-secure-store 기반 암호화 스토리지로 교체 필요.
+// 현재 personaMatrix(심리 프로파일), toneVector(말투 지문),
+// 파트너 정보, 관계 이력이 평문으로 저장됨.
+// 참고: https://docs.expo.dev/versions/latest/sdk/securestore/
 export const useUserStore = create<UserState & UserActions>()(
   persist(
     (set) => ({
@@ -76,11 +84,19 @@ export const useUserStore = create<UserState & UserActions>()(
       setLastGenesisAt: (lastGenesisAt) => set({ lastGenesisAt }),
       setPushToken: (pushToken) => set({ pushToken }),
       setMonthlyChatCount: (monthlyChatCount) => set({ monthlyChatCount }),
+      setHasHydrated: (_hasHydrated) => set({ _hasHydrated }),
       reset: () => set({ ...initialState }),
     }),
     {
       name: 'twin_user_store_v1',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => {
+        const { _hasHydrated, ...rest } = state;
+        return rest;
+      },
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );

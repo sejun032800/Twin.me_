@@ -15,20 +15,28 @@ function todayDateString(): string {
 }
 
 export function useBillingTracker() {
+  const hasHydrated = useUserStore((s) => s._hasHydrated);
+
   useEffect(() => {
+    if (!hasHydrated) return;
+
     (async () => {
-      const { subscriptionStatus } = useUserStore.getState();
-      if (!subscriptionStatus || !checkExpiryWarning(subscriptionStatus)) return;
+      try {
+        const { subscriptionStatus } = useUserStore.getState();
+        if (!subscriptionStatus || !checkExpiryWarning(subscriptionStatus)) return;
 
-      const today = todayDateString();
-      const lastNotifDate = await AsyncStorage.getItem(EXPIRY_NOTIF_KEY);
-      if (lastNotifDate === today) return;
+        const today = todayDateString();
+        const lastNotifDate = await AsyncStorage.getItem(EXPIRY_NOTIF_KEY);
+        if (lastNotifDate === today) return;
 
-      await scheduleLocalNotification(
-        '구독 만료 임박 ⚠️',
-        'Founding VIP 혜택이 7일 후 만료돼요. 확인해보세요.',
-      );
-      await AsyncStorage.setItem(EXPIRY_NOTIF_KEY, today);
+        await scheduleLocalNotification(
+          '구독 만료 임박 ⚠️',
+          'Founding VIP 혜택이 7일 후 만료돼요. 확인해보세요.',
+        );
+        await AsyncStorage.setItem(EXPIRY_NOTIF_KEY, today);
+      } catch (e) {
+        console.warn('결제 추적 초기화 실패:', e);
+      }
     })();
-  }, []);
+  }, [hasHydrated]);
 }

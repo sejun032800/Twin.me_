@@ -10,7 +10,9 @@ import { useGenesisInterview } from '@/hooks/useGenesisInterview';
 import InterviewCallModal from '@/components/InterviewCallModal';
 import { useUserStore } from '@/store/userStore';
 import { useScoreStore } from '@/store/scoreStore';
-import { buildAuraVector, auraChannelToCss } from '@/engine/auraEngine';
+import { buildAuraVector, auraChannelToCss, AURA_AXIS_DIRECTIONS, toScoreBand } from '@/engine/auraEngine';
+import { generateBaseScore, getMBTICompatibilityGrade } from '@/engine/scoreCalculator';
+import { getAllAuraStoryEntries } from '@/data/auraStoryPool';
 import { ENNEAGRAM_TYPE_NAME, type AuraAxis, type ClayStage } from '@/types/genesis';
 import { BRAND, SYS } from '@/constants/colors';
 
@@ -38,11 +40,11 @@ const AXIS_LABEL_KO: Record<string, string> = {
 export default function Genesis() {
   const router = useRouter();
   const mbti = useUserStore((s) => s.mbti);
-  const enneagramType = useUserStore((s) => s.enneagramType);
   const setPersonaMatrix = useUserStore((s) => s.setPersonaMatrix);
   const completeOnboarding = useUserStore((s) => s.completeOnboarding);
   const setSBase = useScoreStore((s) => s.setSBase);
   const setSCurrent = useScoreStore((s) => s.setSCurrent);
+  const setLastGenesisAt = useUserStore((s) => s.setLastGenesisAt);
 
   const {
     act,
@@ -72,6 +74,12 @@ export default function Genesis() {
     Math.abs(a[1]) > Math.abs(b[1]) ? a : b,
   )[0] as AuraAxis;
   const dominantColor = auraChannelToCss(auraVector.channels[dominantAxis]);
+  const dominantScore = auraVector.axisScores[dominantAxis];
+  const dominantDirection = AURA_AXIS_DIRECTIONS[dominantAxis];
+  const dominantDirectionLabel = dominantScore > 0 ? dominantDirection.b : dominantDirection.a;
+  const dominantStory = getAllAuraStoryEntries().find(
+    (e) => e.axis === dominantAxis && e.band === toScoreBand(dominantScore),
+  );
 
   useEffect(() => {
     if (phase === 'done') {
@@ -88,13 +96,13 @@ export default function Genesis() {
   function handleStart() {
     const matrix = finalizePersonaMatrix();
     setPersonaMatrix(matrix);
-    // TODO: Phase 5에서 커플 연동 후 getMBTICompatibilityGrade()로 실제 상성 계산
-    // 지금은 에니어그램 유형별 기본 점수로 초기화
-    const BASE_SCORE_BY_TYPE: Record<string, number> = {
-      '1': 68, '2': 72, '3': 70, '4': 65, '5': 63,
-      '6': 67, '7': 74, '8': 69, '9': 71,
-    };
-    const baseScore = enneagramType ? (BASE_SCORE_BY_TYPE[enneagramType] ?? 65) : 65;
+    setLastGenesisAt(new Date().toISOString());
+    // 커플 연동 전(§0.3 싱글플레이어 원칙) 파트너 MBTI/에니어그램이 없으므로,
+    // 커플 상성이 아닌 "자기 자신과의 상성"으로 개인 기준점(S_Base)을 산출한다.
+    // 커플 연동 후에는 Phase 5에서 실제 파트너 데이터로 getMBTICompatibilityGrade()를
+    // 다시 호출해 sBase를 갱신해야 한다.
+    const mbtiGrade = mbti ? getMBTICompatibilityGrade(mbti, mbti) : 'AVERAGE';
+    const baseScore = generateBaseScore(mbtiGrade, 'AVERAGE');
     setSBase(baseScore);
     // 앱 첫 실행 시 S_Current를 S_Base로 초기화 — 이후로는 settleMidnight()만이 갱신한다(§5.1).
     setSCurrent(baseScore);
@@ -131,6 +139,7 @@ export default function Genesis() {
           }}
           confidence={bayesianState.confidence}
           act={act}
+          clayStage={dynamicClayStage}
         />
 
         {/* G.4 무음 폴백 — 텍스트 입력 UI */}
@@ -208,6 +217,10 @@ export default function Genesis() {
           <Text style={styles.ceremonyType}>
             에니어그램 {bayesianState.topType}유형 · {ENNEAGRAM_TYPE_NAME[bayesianState.topType]}
           </Text>
+          <Text style={styles.ceremonyDirection}>당신은 {dominantDirectionLabel} 성향이에요</Text>
+          {dominantStory && (
+            <Text style={styles.ceremonyStory}>✨ {dominantStory.title}</Text>
+          )}
           <TouchableOpacity style={styles.primaryBtn} onPress={handleStart}>
             <Text style={styles.primaryBtnText}>시작하기</Text>
           </TouchableOpacity>
@@ -313,6 +326,16 @@ const styles = StyleSheet.create({
   ceremonyType: {
     fontSize: 18,
     color: SYS.TEXT_LIGHT,
+    textAlign: 'center',
+  },
+  ceremonyDirection: {
+    fontSize: 15,
+    color: SYS.TEXT_LIGHT,
+    textAlign: 'center',
+  },
+  ceremonyStory: {
+    fontSize: 13,
+    color: SYS.TEXT_MUTED,
     textAlign: 'center',
   },
   primaryBtn: {

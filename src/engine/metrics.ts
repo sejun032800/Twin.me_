@@ -452,7 +452,6 @@ function within(a: number, b: number, windowMs: number): boolean {
 export function detectCombos(recent: LoggedEvent[], now: number = Date.now()): ComboDefinition[] {
   const hits: ComboDefinition[] = [];
   const window = recent.filter((e) => now - e.t <= NINETY_MIN_MS);
-  const codes = window.map((e) => e.code);
 
   const hasGroup = (prefix: string) => window.some((e) => e.code.startsWith(prefix));
   const lastOf = (prefix: string) => [...window].reverse().find((e) => e.code.startsWith(prefix));
@@ -485,11 +484,9 @@ export function detectCombos(recent: LoggedEvent[], now: number = Date.now()): C
   }
 
   // C-SYN-002: 티키타카 연쇄(G-HUM-007)가 60분 내 2회 이상 지속
-  const humCount = codes.filter((c) => c === 'G-HUM-007' && now - (window.find((e) => e.code === c)?.t ?? 0) <= SIXTY_MIN_MS).length;
   if (window.filter((e) => e.code === 'G-HUM-007').length >= 2) {
     hits.push(COMBO_REGISTRY['C-SYN-002']);
   }
-  void humCount;
 
   // C-DSP-001 (부정 콤보): L-HRS 루프 감지 후 단절(L-CRU-001/005) 발생
   const hrsEvt = firstOf('L-HRS');

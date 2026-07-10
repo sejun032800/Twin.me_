@@ -13,9 +13,9 @@ export function useNotifications() {
   const setPushToken = useUserStore((s) => s.setPushToken);
 
   useEffect(() => {
-    registerForPushNotifications().then((token) => {
-      if (token) setPushToken(token);
-    });
+    registerForPushNotifications()
+      .then((token) => { if (token) setPushToken(token); })
+      .catch((e) => console.warn('푸시 토큰 등록 실패:', e));
 
     const receivedSub = Notifications.addNotificationReceivedListener(() => {
       // 포그라운드 수신 — 배너는 OS/handler 설정을 따르고 별도 처리는 하지 않는다.

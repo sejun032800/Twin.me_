@@ -5,7 +5,8 @@
 // archive의 실제 3D 나선 렌더러는 Expo Go 한계로 reanimated 기반 parallax
 // (좌우 교차 translateX + 중앙 확대/선명 효과)로 근사한다.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -17,6 +18,8 @@ import {
   Alert,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,8 +32,8 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { useCoupleStore } from '@/store/coupleStore';
-import { useSessionStore } from '@/store/sessionStore';
 import { useScoreStore } from '@/store/scoreStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
@@ -95,19 +98,21 @@ interface HelixCardData {
   tags: string[];
 }
 
+type HistoryStyles = ReturnType<typeof makeStyles>;
+
 function HelixCard({
   card,
   index,
   scrollY,
   viewportHeight,
+  styles,
 }: {
   card: HelixCardData;
   index: number;
   scrollY: SharedValue<number>;
   viewportHeight: SharedValue<number>;
+  styles: HistoryStyles;
 }) {
-  const theme = useTheme();
-  const styles = makeStyles(theme);
   const baseOffset = index % 2 === 0 ? -50 : 50;
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -148,7 +153,7 @@ function HelixCard({
 
 function ArchiveTab() {
   const theme = useTheme();
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const relationshipStartDate = useCoupleStore((s) => s.relationshipStartDate);
   const dDay = computeDDay(relationshipStartDate);
   const [wrappedVisible, setWrappedVisible] = useState(false);
@@ -183,7 +188,7 @@ function ArchiveTab() {
         }}
       >
         {HELIX_CARDS.map((card, i) => (
-          <HelixCard key={card.id} card={card} index={i} scrollY={scrollY} viewportHeight={viewportHeight} />
+          <HelixCard key={card.id} card={card} index={i} scrollY={scrollY} viewportHeight={viewportHeight} styles={styles} />
         ))}
       </Animated.ScrollView>
 
@@ -213,19 +218,20 @@ const FEED_FILTERS: Array<{ key: FeedFilterKey; label: string }> = [
 
 function FeedTab() {
   const theme = useTheme();
-  const styles = makeStyles(theme);
-  const themeMode = useSessionStore((s) => s.themeMode);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { hasReportAccess } = usePremiumGate();
   const { location, requestLocation } = useGeoLocation();
   const [ootdOnly, setOotdOnly] = useState(false);
   const [filter, setFilter] = useState<FeedFilterKey>('rating');
   const [courses, setCourses] = useState<DateCourse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMockCourses, setIsMockCourses] = useState(false);
 
   useEffect(() => {
     getPublicCourses()
-      .then((data) => {
+      .then(({ courses: data, isMock }) => {
         setCourses(data);
+        setIsMockCourses(isMock);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -263,13 +269,19 @@ function FeedTab() {
     >
       <Text style={styles.feedTitle}>💑 인기 데이트코스</Text>
 
+      {isMockCourses && (
+        <Text style={styles.mockCoursesBanner}>
+          📋 샘플 데이터입니다. Supabase 테이블 생성 후 실제 코스가 표시돼요.
+        </Text>
+      )}
+
       {!hasReportAccess && (
         <View style={styles.freeFeedBanner}>
           <Text style={styles.freeFeedBannerText}>Coffee Talk 이상에서 전체 피드를 볼 수 있어요</Text>
         </View>
       )}
 
-      <View style={[styles.ootdBar, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.CARD_DARK }]}>
+      <View style={[styles.ootdBar, { backgroundColor: theme.card }]}>
         <Text style={styles.ootdText}>✨ 내 현재 OOTD & 무드 코스만 보기</Text>
         <Switch
           value={ootdOnly}
@@ -287,7 +299,7 @@ function FeedTab() {
               key={f.key}
               style={[
                 styles.filterChip,
-                { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.CARD_DARK },
+                { backgroundColor: theme.card },
                 selected && styles.filterChipActive,
               ]}
               onPress={async () => {
@@ -321,7 +333,7 @@ function FeedTab() {
         filteredCourses.map((course) => (
           <View
             key={course.id}
-            style={[styles.courseCard, { backgroundColor: themeMode === 'light' ? SYS.CARD_LIGHT : SYS.CARD_DARK }]}
+            style={[styles.courseCard, { backgroundColor: theme.card }]}
           >
             <View style={styles.courseHeader}>
               <Text style={styles.courseCoupleLabel}>
@@ -330,7 +342,7 @@ function FeedTab() {
               <View
                 style={[
                   styles.courseRegionBadge,
-                  { backgroundColor: themeMode === 'light' ? '#FFE8E8' : SYS.BG_DARK_MIDNIGHT },
+                  { backgroundColor: theme.accentSoft },
                 ]}
               >
                 <Text style={[styles.courseRegionText, { color: BRAND.CORAL }]}>📍 {course.area}</Text>
@@ -343,7 +355,7 @@ function FeedTab() {
                   <View
                     style={[
                       styles.coursePlaceChip,
-                      { backgroundColor: themeMode === 'light' ? '#FFF0F0' : SYS.BG_DARK_MIDNIGHT },
+                      { backgroundColor: theme.accentSoft },
                     ]}
                   >
                     <Text style={[styles.coursePlaceText, { color: theme.textMuted }]}>{place.name}{place.emoji}</Text>
@@ -357,7 +369,7 @@ function FeedTab() {
               {course.tags.map((tag) => (
                 <View
                   key={tag}
-                  style={[styles.courseTag, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.BG_DARK_MIDNIGHT }]}
+                  style={[styles.courseTag, { backgroundColor: theme.card }]}
                 >
                   <Text style={[styles.courseTagText, { color: theme.textMuted }]}>{tag}</Text>
                 </View>
@@ -369,7 +381,7 @@ function FeedTab() {
               <View
                 style={[
                   styles.courseRatingDivider,
-                  { backgroundColor: themeMode === 'light' ? '#E8D0D5' : '#2D3F55' },
+                  { backgroundColor: theme.border },
                 ]}
               />
               <Text style={styles.courseRatingText}>연인의 별점 ⭐{formatScore(course.partnerScore)}</Text>
@@ -400,7 +412,7 @@ function AddPlaceModal({
   onSaved: (place: DatePlace) => void;
 }) {
   const theme = useTheme();
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [name, setName] = useState('');
   const [area, setArea] = useState('');
   const [date, setDate] = useState('');
@@ -443,7 +455,10 @@ function AddPlaceModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} />
 
         <View style={styles.sheet}>
@@ -497,15 +512,20 @@ function AddPlaceModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 export default function History() {
   const theme = useTheme();
-  const styles = makeStyles(theme);
-  const themeMode = useSessionStore((s) => s.themeMode);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
+
+  useFocusEffect(useCallback(() => {
+    setAuraScreenKey('helix');
+  }, [setAuraScreenKey]));
+
   const [subTab, setSubTab] = useState<SubTab>('archive');
   const [aiLoading, setAiLoading] = useState(false);
   const [places, setPlaces] = useState<DatePlace[]>([]);
@@ -514,7 +534,9 @@ export default function History() {
   const { location, requestLocation } = useGeoLocation();
 
   useEffect(() => {
-    loadDatePlaces().then(setPlaces);
+    loadDatePlaces()
+      .then(setPlaces)
+      .catch(() => console.warn('장소 목록 로드 실패'));
   }, []);
 
   function handlePlaceSaved(place: DatePlace) {
@@ -540,7 +562,12 @@ export default function History() {
   async function handleAIRecommend() {
     setAiLoading(true);
     try {
-      await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('로그인 필요', '로그인 후 이용해주세요.');
+        setAiLoading(false);
+        return;
+      }
       const loc = location || (await requestLocation());
       const coupleArea = loc?.city ?? loc?.district ?? '서울';
 
@@ -577,7 +604,7 @@ export default function History() {
           </Text>
 
           <View
-            style={[styles.mapPinList, { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.CARD_DARK }]}
+            style={[styles.mapPinList, { backgroundColor: theme.card }]}
           >
             <Text style={styles.mapPinListTitle}>📍 등록된 장소</Text>
             {places.length === 0 ? (
@@ -721,9 +748,9 @@ function makeStyles(theme: SigmaTheme) {
   },
   helixEmoji: { fontSize: 48 },
   helixLabel: { ...TYPOGRAPHY.label, color: theme.text },
-  helixDate: { ...TYPOGRAPHY.caption, color: '#666' },
+  helixDate: { ...TYPOGRAPHY.caption, color: theme.textMuted },
   helixTags: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 4 },
-  helixTag: { backgroundColor: SYS.BG_DARK_MIDNIGHT, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
+  helixTag: { backgroundColor: theme.card, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
   helixTagText: { ...TYPOGRAPHY.caption, color: BRAND.MINT },
   helixStatsBar: {
     flexDirection: 'row',
@@ -818,6 +845,13 @@ function makeStyles(theme: SigmaTheme) {
   // 피드 — 인기 데이트코스
   feedContent: { paddingBottom: 20 },
   feedTitle: { ...TYPOGRAPHY.heading, color: theme.text, padding: 20, paddingBottom: 12 },
+  mockCoursesBanner: {
+    ...TYPOGRAPHY.caption,
+    color: theme.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
 
   freeFeedBanner: {
     backgroundColor: theme.accentSoft,
@@ -867,7 +901,7 @@ function makeStyles(theme: SigmaTheme) {
   coursePlaceRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   coursePlaceChip: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
   coursePlaceText: { ...TYPOGRAPHY.caption },
-  courseArrow: { ...TYPOGRAPHY.caption, color: '#555' },
+  courseArrow: { ...TYPOGRAPHY.caption, color: theme.textMuted },
 
   courseTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   courseTag: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },

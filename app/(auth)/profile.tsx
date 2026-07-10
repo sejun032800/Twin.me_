@@ -3,12 +3,14 @@
 // 베이지안 추론으로 갱신되므로 이 화면에서는 다루지 않는다.
 
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
-import { BRAND, SYS } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
+import { BRAND } from '@/constants/colors';
+import type { SigmaTheme } from '@/constants/theme';
 
 type MbtiAxisKey = 'EI' | 'SN' | 'TF' | 'JP';
 
@@ -26,6 +28,8 @@ const EMPTY_MBTI_SELECTION: MbtiSelection = { EI: null, SN: null, TF: null, JP: 
 export default function Profile() {
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const setMbti = useUserStore((s) => s.setMbti);
   const setUserId = useUserStore((s) => s.setUserId);
   const setName = useUserStore((s) => s.setName);
@@ -44,6 +48,13 @@ export default function Profile() {
 
   async function handleComplete() {
     if (!allAxesSelected || !name.trim() || submitting) return;
+
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    if (relationshipStartDate && !DATE_RE.test(relationshipStartDate)) {
+      Alert.alert('날짜 형식 오류', 'YYYY-MM-DD 형식으로 입력해주세요.\n예: 2024-01-15');
+      return;
+    }
+
     setSubmitting(true);
 
     const mbti = MBTI_AXES.map(({ key }) => mbtiSelection[key]).join('');
@@ -51,8 +62,11 @@ export default function Profile() {
     setName(name.trim());
     setRelationshipStartDate(relationshipStartDate || null);
 
-    const { data } = await supabase.auth.getUser();
-    if (data.user) {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) {
+      // 게스트 모드로 진행 — userId는 null 유지
+      console.warn('Supabase 세션 없음, 게스트 모드로 진행');
+    } else {
       setUserId(data.user.id);
       await supabase.auth.updateUser({ data: { name: name.trim() } });
     }
@@ -77,7 +91,7 @@ export default function Profile() {
       <TextInput
         style={styles.input}
         placeholder="닉네임"
-        placeholderTextColor={SYS.TEXT_MUTED}
+        placeholderTextColor={theme.textMuted}
         value={name}
         onChangeText={setLocalName}
       />
@@ -85,7 +99,7 @@ export default function Profile() {
       <TextInput
         style={styles.input}
         placeholder="연애 시작일 (YYYY-MM-DD)"
-        placeholderTextColor={SYS.TEXT_MUTED}
+        placeholderTextColor={theme.textMuted}
         value={relationshipStartDate}
         onChangeText={setLocalRelationshipStartDate}
         keyboardType="numbers-and-punctuation"
@@ -120,18 +134,20 @@ export default function Profile() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT },
-  scrollContent: { padding: 32, justifyContent: 'center', flexGrow: 1, gap: 16 },
-  title: { fontSize: 28, fontWeight: 'bold', color: BRAND.CORAL, marginBottom: 8 },
-  input: { backgroundColor: SYS.CARD_DARK, borderRadius: 12, padding: 16, color: SYS.TEXT_LIGHT, fontSize: 16 },
-  label: { fontSize: 14, color: SYS.TEXT_LIGHT, marginTop: 8 },
-  axisRow: { flexDirection: 'row', gap: 12 },
-  axisBtn: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  axisBtnSelected: { backgroundColor: BRAND.CORAL },
-  axisBtnUnselected: { backgroundColor: SYS.CARD_DARK },
-  axisBtnText: { fontSize: 16, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
-  nextBtn: { backgroundColor: BRAND.CORAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
-  nextBtnDisabled: { backgroundColor: SYS.CARD_DARK },
-  nextBtnText: { fontSize: 16, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
-});
+function makeStyles(theme: SigmaTheme) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    scrollContent: { padding: 32, justifyContent: 'center', flexGrow: 1, gap: 16 },
+    title: { fontSize: 28, fontWeight: 'bold', color: BRAND.CORAL, marginBottom: 8 },
+    input: { backgroundColor: theme.card, borderRadius: 12, padding: 16, color: theme.text, fontSize: 16 },
+    label: { fontSize: 14, color: theme.text, marginTop: 8 },
+    axisRow: { flexDirection: 'row', gap: 12 },
+    axisBtn: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+    axisBtnSelected: { backgroundColor: BRAND.CORAL },
+    axisBtnUnselected: { backgroundColor: theme.card },
+    axisBtnText: { fontSize: 16, fontWeight: 'bold', color: theme.text },
+    nextBtn: { backgroundColor: BRAND.CORAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
+    nextBtnDisabled: { backgroundColor: theme.card },
+    nextBtnText: { fontSize: 16, fontWeight: 'bold', color: theme.text },
+  });
+}

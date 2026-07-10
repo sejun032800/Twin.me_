@@ -63,20 +63,25 @@ export default function ClayTwinAvatar({ size = 100, auraVector, clayStage = 3 }
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      {showRing && (
-        <Animated.View style={[{ position: 'absolute', width: size + 16, height: size + 16 }, ringStyle]}>
-          <Svg width={size + 16} height={size + 16} viewBox="0 0 116 116">
-            <Circle
-              cx={58} cy={58} r={54}
-              fill="none"
-              stroke={color}
-              strokeWidth={2}
-              strokeOpacity={0.6}
-              strokeDasharray="10 8"
-            />
-          </Svg>
-        </Animated.View>
-      )}
+      {showRing && (() => {
+        const ringSize = size + 16;
+        const ringCenter = ringSize / 2;
+        const ringRadius = ringCenter - 4;
+        return (
+          <Animated.View style={[{ position: 'absolute', width: ringSize, height: ringSize }, ringStyle]}>
+            <Svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`}>
+              <Circle
+                cx={ringCenter} cy={ringCenter} r={ringRadius}
+                fill="none"
+                stroke={color}
+                strokeWidth={2}
+                strokeOpacity={0.6}
+                strokeDasharray="10 8"
+              />
+            </Svg>
+          </Animated.View>
+        );
+      })()}
 
       <Svg width={size} height={size} viewBox="0 0 100 100">
         {clayStage === 0 ? (

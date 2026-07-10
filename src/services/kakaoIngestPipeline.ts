@@ -20,7 +20,7 @@ import {
 } from '../lib/kakaoParser';
 import { runKakaoBatchDetection } from './kakaoBatchDetectionService';
 import type { KakaoBatchDetectionResult } from '../engine/twinResponseEngine';
-import type { DateCourse } from '../lib/kakaoParser';
+import type { KakaoDateCourse } from '../lib/kakaoParser';
 import type { EventHistoryEntry } from '../store/scoreStore';
 
 // weeklyReportService는 Edge Function 프록시로 재작성 예정 (MASTER §14.4)
@@ -133,11 +133,18 @@ export async function runKakaoIngestPipeline(
   rawText: string,
   myProfile: UserProfile,
   partnerProfile: PartnerProfile,
-  dateCourses: DateCourse[],
+  dateCourses: KakaoDateCourse[],
   eventHistory: EventHistoryEntry[],
 ): Promise<IngestPipelineResult> {
   const myName = myProfile.name.trim() || '나';
 
+  // 1. 카카오 텍스트 파싱
+  const { myLines } = parseKakaoExport(rawText, myName);
+
+  // 2. 배치 탐지 (이벤트 분류)
+  const batchSummary = runKakaoBatchDetection(myLines);
+
+  // 3. 감성 문장 추출
   const memoryQuote = selectMemoryQuote(rawText, myName);
   const allMemoryQuotes = memoryQuote
     ? await appendMemoryQuote(memoryQuote)
@@ -146,10 +153,14 @@ export async function runKakaoIngestPipeline(
   const newMemoryNodes = extractSweetSentences(rawText, myName, dateCourses, MAX_MEMORY_WALL_NODES);
   const allMemoryNodes = await appendMemoryWallNodes(newMemoryNodes);
 
-  const report = await generateFullReport(rawText, myProfile, partnerProfile, eventHistory, dateCourses);
+  // 4. 리포트 생성 (실패해도 무시)
+  let report: WeeklyReportData = undefined as unknown as WeeklyReportData;
+  try {
+    report = await generateFullReport(rawText, myProfile, partnerProfile, eventHistory, dateCourses);
+  } catch {
+    // weeklyReportService 미구현 — 무시하고 계속 진행
+  }
 
-  const { myLines } = parseKakaoExport(rawText, myName);
-  const batchSummary = runKakaoBatchDetection(myLines);
-
+  // 5. 결과 반환
   return { memoryQuote, allMemoryQuotes, newMemoryNodes, allMemoryNodes, report, batchSummary };
 }

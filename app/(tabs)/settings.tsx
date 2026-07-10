@@ -4,16 +4,17 @@
 // 프라이버시 슬라이더의 실제 AI 학습 범위 연동, 계정 관리/지원 섹션의 실제 화면 이동은
 // Phase 7 이후 구현 예정이라 현재는 TODO 스텁으로 남긴다.
 
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, Switch, ScrollView, StyleSheet, Alert, Linking, Modal, TextInput } from 'react-native';
 import type { ReactNode } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { supabase } from '@/lib/supabaseClient';
 import { createCouple } from '@/services/coupleService';
 import { redeemVipCode } from '@/services/vipPromotionService';
+import { purchaseSubscription } from '@/services/iapService';
 import { logBillingEvent } from '@/services/billingTrackerService';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
@@ -46,7 +47,7 @@ interface SettingsRowItem {
 
 function RowGroup({ items }: { items: SettingsRowItem[] }) {
   const theme = useTheme();
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
     <View style={styles.rowGroup}>
@@ -66,7 +67,7 @@ function RowGroup({ items }: { items: SettingsRowItem[] }) {
                 {item.sub && <Text style={styles.rowSub}>{item.sub}</Text>}
               </View>
             </View>
-            {item.right ?? (item.onPress && <Ionicons name="chevron-forward" size={18} color="#555" />)}
+            {item.right ?? (item.onPress && <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />)}
           </TouchableOpacity>
         </View>
       ))}
@@ -76,7 +77,7 @@ function RowGroup({ items }: { items: SettingsRowItem[] }) {
 
 export default function Settings() {
   const theme = useTheme();
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const router = useRouter();
   const name = useUserStore((s) => s.name);
   const mbti = useUserStore((s) => s.mbti);
@@ -85,6 +86,12 @@ export default function Settings() {
   const isFoundingVip = useUserStore((s) => s.isFoundingVip);
   const setFoundingVip = useUserStore((s) => s.setFoundingVip);
   const setSubscriptionStatus = useUserStore((s) => s.setSubscriptionStatus);
+  const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
+
+  useFocusEffect(useCallback(() => {
+    setAuraScreenKey('settings');
+  }, [setAuraScreenKey]));
+
   const themeMode = useSessionStore((s) => s.themeMode);
   const setThemeMode = useSessionStore((s) => s.setThemeMode);
   const privacyLevel = useSessionStore((s) => s.privacyLevel);
@@ -194,7 +201,7 @@ export default function Settings() {
             <View style={styles.divider} />
             <TouchableOpacity style={styles.row} onPress={() => router.push('/(auth)/profile?from=settings')}>
               <Text style={styles.rowText}>프로필 수정</Text>
-              <Ionicons name="chevron-forward" size={18} color="#555" />
+              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -253,7 +260,7 @@ export default function Settings() {
               <Text style={styles.themeShopTitle}>나만의 테마 꾸미기</Text>
               <Text style={styles.themeShopSub}>스킨 · 배경 · 폰트 3종 테마 상점 →</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#555" />
+            <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -277,7 +284,7 @@ export default function Settings() {
                 value={privacyLevel}
                 onValueChange={(v) => setPrivacyLevel(Math.round(v) as 0 | 1 | 2)}
                 minimumTrackTintColor={BRAND.CORAL}
-                maximumTrackTintColor={SYS.BG_DARK_MIDNIGHT}
+                maximumTrackTintColor={themeMode === 'light' ? '#D0D0D0' : SYS.BG_DARK_MIDNIGHT}
                 thumbTintColor={BRAND.CORAL}
                 style={styles.slider}
               />
@@ -354,6 +361,23 @@ export default function Settings() {
               <Text style={styles.rowValue}>{isFoundingVip ? '✨ 활성화됨' : ''}</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* 6.5. 구독 관리 섹션 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>구독 관리</Text>
+          <TouchableOpacity
+            style={styles.upgradeBtn}
+            onPress={async () => {
+              try {
+                await purchaseSubscription('coffee');
+              } catch (e) {
+                Alert.alert('결제 오류', '결제 중 문제가 발생했어요.');
+              }
+            }}
+          >
+            <Text style={styles.upgradeBtnText}>☕ Coffee Talk 구독하기</Text>
+          </TouchableOpacity>
         </View>
 
         {/* 7. 오라 설정 섹션 */}
@@ -610,5 +634,14 @@ function makeStyles(theme: SigmaTheme) {
     alignItems: 'center',
   },
   vipModalConfirmText: { ...TYPOGRAPHY.label, color: SYS.TEXT_LIGHT },
+
+  upgradeBtn: {
+    backgroundColor: BRAND.CORAL,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginHorizontal: 20,
+  },
+  upgradeBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
   });
 }

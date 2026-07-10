@@ -9,7 +9,11 @@ import { reconcileFoundingVipExpiry } from '@/services/iapService';
 import { logBillingEvent } from '@/services/billingTrackerService';
 
 export function useVipReconcile() {
+  const hasHydrated = useUserStore((s) => s._hasHydrated);
+
   useEffect(() => {
+    if (!hasHydrated) return;
+
     const { isFoundingVip, subscriptionStatus, setSubscriptionStatus } = useUserStore.getState();
     if (!isFoundingVip || !subscriptionStatus) return;
 
@@ -18,5 +22,5 @@ export function useVipReconcile() {
       setSubscriptionStatus(reconciled);
       logBillingEvent({ type: 'expired', planId: 'founding_vip' });
     }
-  }, []);
+  }, [hasHydrated]);
 }

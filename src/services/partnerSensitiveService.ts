@@ -11,7 +11,7 @@ export interface SensitiveDetection {
 }
 
 const SENSITIVE_PATTERNS: Record<SensitiveCategory, string[]> = {
-  갈등: ['짜증', '화나', '싫어', '왜 그래', '또', '항상', '절대'],
+  갈등: ['짜증', '화나', '싫어', '왜 그래', '항상', '절대'],
   비교: ['다른 사람', '친구는', '옛날엔', '전에는'],
   압박: ['빨리', '당장', '지금 당장', '해야지', '해야 해'],
   무시: ['됐어', '알았어', '몰라', '상관없어'],
@@ -24,10 +24,20 @@ const SUGGESTIONS: Record<SensitiveCategory, string> = {
   무시: '이 표현이 상대방을 섭섭하게 할 수 있어요.',
 };
 
+function matchesSensitivePattern(text: string, pattern: string): boolean {
+  // 패턴이 4글자 미만이면 공백으로 감싸서 체크 (단어 단위)
+  if (pattern.length < 4) {
+    return text.includes(` ${pattern} `) ||
+           text.startsWith(`${pattern} `) ||
+           text.endsWith(` ${pattern}`);
+  }
+  return text.includes(pattern);
+}
+
 export function detectSensitiveContent(text: string): SensitiveDetection {
   for (const category of Object.keys(SENSITIVE_PATTERNS) as SensitiveCategory[]) {
     const patterns = SENSITIVE_PATTERNS[category];
-    if (patterns.some((pattern) => text.includes(pattern))) {
+    if (patterns.some((pattern) => matchesSensitivePattern(text, pattern))) {
       return { detected: true, category, suggestion: SUGGESTIONS[category] };
     }
   }

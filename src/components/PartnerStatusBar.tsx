@@ -2,8 +2,9 @@
 // 커플 미연동 시 초대 유도, 연동 시 연인의 현재 상태 태그(S_Live 기반)를 보여준다.
 
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useUserStore } from '@/store/userStore';
@@ -23,6 +24,7 @@ export default function PartnerStatusBar() {
   const router = useRouter();
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const insets = useSafeAreaInsets();
   const isPartnerConnected = useCoupleStore((s) => s.isPartnerConnected);
   const partnerName = useCoupleStore((s) => s.partnerName);
   const coupleId = useCoupleStore((s) => s.coupleId);
@@ -41,7 +43,7 @@ export default function PartnerStatusBar() {
     try {
       await setMyMood(emoji, text, coupleId, userId);
     } catch {
-      // non-critical — 무드 저장 실패는 조용히 무시
+      Alert.alert('저장 실패', '무드를 저장하지 못했어요. 다시 시도해주세요.');
     } finally {
       setShowMoodPicker(false);
     }
@@ -100,7 +102,7 @@ export default function PartnerStatusBar() {
             activeOpacity={1}
             onPress={() => setShowMoodPicker(false)}
           />
-          <View style={styles.moodSheet}>
+          <View style={[styles.moodSheet, { paddingBottom: Math.max(24, insets.bottom + 16) }]}>
             <Text style={styles.moodSheetTitle}>지금 내 기분은?</Text>
             <View style={styles.moodGrid}>
               {MOOD_OPTIONS.map((option) => (

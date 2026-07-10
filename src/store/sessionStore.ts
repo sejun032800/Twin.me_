@@ -38,6 +38,8 @@ export interface SessionState {
   reduceAuraMotion: boolean; // 오라 줄이기/끄기(§8 FUN-SET-001B) — true면 정적 무채색 폴백
   isEarlyDatingMode: boolean; // 연애 초기 모드(§4 채팅 탭) — true면 트윈 AI가 조심스럽고 설레는 초기 연애 톤으로 응답
   magicMirrorAccepted: boolean; // Magic Mirror(§4 FUN-CHA-004) opt-in 수락 여부 — 트윈방 최초 진입 1회 안내 게이팅
+  pendingChatMessage: string | null; // MasterQuestionModal "채팅에서 답하기" → chat.tsx 마운트 시 인풋에 미리 채워넣을 질문
+  overflowBannerDismissedDate: string | null; // OverflowBanner 닫기 상태 — 탭 이동/언마운트에도 유지되도록 스토어에 저장
 }
 
 export interface SessionActions {
@@ -54,6 +56,8 @@ export interface SessionActions {
   setReduceAuraMotion: (reduce: boolean) => void;
   setEarlyDatingMode: (value: boolean) => void;
   setMagicMirrorAccepted: (value: boolean) => void;
+  setPendingChatMessage: (msg: string | null) => void;
+  setOverflowBannerDismissedDate: (date: string | null) => void;
   reset: () => void;
 }
 
@@ -71,6 +75,8 @@ const initialState: SessionState = {
   reduceAuraMotion: false,
   isEarlyDatingMode: false,
   magicMirrorAccepted: false,
+  pendingChatMessage: null,
+  overflowBannerDismissedDate: null,
 };
 
 export const useSessionStore = create<SessionState & SessionActions>()(
@@ -96,6 +102,8 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       },
       setEarlyDatingMode: (isEarlyDatingMode) => set({ isEarlyDatingMode }),
       setMagicMirrorAccepted: (magicMirrorAccepted) => set({ magicMirrorAccepted }),
+      setPendingChatMessage: (pendingChatMessage) => set({ pendingChatMessage }),
+      setOverflowBannerDismissedDate: (overflowBannerDismissedDate) => set({ overflowBannerDismissedDate }),
       reset: () => {
         set({ ...initialState });
         AsyncStorage.removeItem(AURA_SETTINGS_KEY).catch(() => {});

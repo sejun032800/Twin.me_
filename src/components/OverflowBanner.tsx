@@ -1,20 +1,17 @@
 // ─── FUN-HOM-002B — 오버플로우 알림 배너 (MASTER.md §3) ───────────────────────
 // v2.2 일일 등락 포화 캡 초과 이벤트(CRITICAL_LOSS/EXCESS_GAIN) 발생 시 홈 최상단에
-// 경보 배너를 띄운다. 닫기는 세션 메모리(useRef)에만 당일치 날짜를 기록해 처리하고,
-// 별도 스토어/AsyncStorage에는 반영하지 않는다 — 다음 날(날짜가 바뀌면) 다시 노출된다.
+// 경보 배너를 띄운다. 닫기는 sessionStore.overflowBannerDismissedDate에 당일치 날짜를
+// 기록해 처리한다 — 탭 이동 등으로 언마운트돼도 상태가 유지되며, 다음 날(날짜가
+// 바뀌면) 다시 노출된다.
 
-import { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useScoreStore } from '@/store/scoreStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { BRAND, SYS } from '@/constants/colors';
 import { TYPOGRAPHY } from '@/constants/typography';
 import type { OverflowStatus } from '@/engine/scoreCalculator';
-
-function todayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 const COPY: Record<'CRITICAL_LOSS' | 'EXCESS_GAIN', { bg: string; border: string; text: string }> = {
   EXCESS_GAIN: {
@@ -34,21 +31,19 @@ export default function OverflowBanner() {
   const dailyStatusHistory = useScoreStore((s) => s.dailyStatusHistory);
   const todayStatus: OverflowStatus = dailyStatusHistory[dailyStatusHistory.length - 1] ?? 'NONE';
 
-  // dismissed 상태는 당일치 날짜만 세션 메모리(ref)에 기록 — 자정이 지나면(날짜가
-  // 바뀌면) 아래 비교에서 자연히 다시 노출된다.
-  const dismissedDateRef = useRef<string | null>(null);
-  const [, forceRender] = useState(0);
+  const dismissedDate = useSessionStore((s) => s.overflowBannerDismissedDate);
+  const setDismissedDate = useSessionStore((s) => s.setOverflowBannerDismissedDate);
 
   if (todayStatus === 'NONE') return null;
 
-  const today = todayDateString();
-  if (dismissedDateRef.current === today) return null;
+  const today = new Date().toDateString();
+  const isDismissed = dismissedDate === today;
+  if (isDismissed) return null;
 
   const copy = COPY[todayStatus];
 
   function handleDismiss() {
-    dismissedDateRef.current = today;
-    forceRender((n) => n + 1);
+    setDismissedDate(today);
   }
 
   return (

@@ -18,7 +18,6 @@ export default function KakaoUpload() {
 
   const name = useUserStore((s) => s.name);
   const mbti = useUserStore((s) => s.mbti);
-  const setToneVector = useUserStore((s) => s.setToneVector);
   const partnerName = useCoupleStore((s) => s.partnerName);
   const eventLog = useScoreStore((s) => s.eventLog);
 
@@ -78,7 +77,7 @@ export default function KakaoUpload() {
       const myProfile = { name: name ?? '나', mbti: mbti ?? undefined };
       const partnerProfile = { name: partnerName ?? '연인' };
 
-      const result = await runKakaoIngestPipeline(
+      await runKakaoIngestPipeline(
         rawText,
         myProfile,
         partnerProfile,
@@ -88,11 +87,14 @@ export default function KakaoUpload() {
 
       // 말투 벡터 저장 (batchSummary 기반)
       // TODO: Phase 5에서 userToneVectorBuilder 연결
-      console.log('카카오 파이프라인 완료:', result.batchSummary);
 
     } catch (e) {
-      // weeklyReportService 스텁 에러는 무시하고 계속 진행
-      console.log('파이프라인 부분 실패 (정상):', e);
+      const isStubError = e instanceof Error &&
+        e.message.includes('weeklyReportService');
+      if (!isStubError) {
+        console.warn('카카오 파이프라인 오류:', e);
+      }
+      // 스텁 에러는 정상, 그 외 오류도 계속 진행
     } finally {
       setLoading(false);
       router.replace('/(auth)/genesis');
