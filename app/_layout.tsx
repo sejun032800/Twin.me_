@@ -7,6 +7,7 @@ import { useMidnightSettlement } from '@/hooks/useMidnightSettlement';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useVipReconcile } from '@/hooks/useVipReconcile';
 import { useBillingTracker } from '@/hooks/useBillingTracker';
+import { useSessionStore } from '@/store/sessionStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -18,6 +19,7 @@ export default function RootLayout() {
     'NotoSerifKR-Regular': require('../assets/fonts/NotoSerifKR-Regular.ttf'),
     'NotoSerifKR-Bold': require('../assets/fonts/NotoSerifKR-Bold.ttf'),
   });
+  const themeMode = useSessionStore((s) => s.themeMode);
 
   useMidnightSettlement(fontsLoaded || !!fontError);
   useNotifications();
@@ -25,8 +27,6 @@ export default function RootLayout() {
   useBillingTracker();
 
   useEffect(() => {
-    console.log('fontsLoaded:', fontsLoaded);
-    console.log('fontError:', fontError);
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
     }
@@ -39,7 +39,7 @@ export default function RootLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />
-      <StatusBar style="light" />
+      <StatusBar style={themeMode === 'light' ? 'dark' : 'light'} />
     </>
   );
 }

@@ -92,6 +92,8 @@ export default function Settings() {
   const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
   const setReduceAuraMotion = useSessionStore((s) => s.setReduceAuraMotion);
   const hasAuraVector = !!personaMatrix?.auraVector;
+  const themeBtnUnselectedBg = themeMode === 'light' ? '#E8EAED' : SYS.BG_DARK_MIDNIGHT;
+  const themeBtnTextColor = themeMode === 'light' ? SYS.TEXT_DARK : SYS.TEXT_LIGHT;
   const inviteCode = useCoupleStore((s) => s.inviteCode);
   const setInviteCode = useCoupleStore((s) => s.setInviteCode);
   const setCoupleId = useCoupleStore((s) => s.setCoupleId);
@@ -212,25 +214,25 @@ export default function Settings() {
               <TouchableOpacity
                 style={[
                   styles.themeBtn,
-                  themeMode === 'sigma' ? styles.themeBtnSelected : styles.themeBtnUnselected,
+                  themeMode === 'sigma' ? styles.themeBtnSelected : { backgroundColor: themeBtnUnselectedBg },
                   !hasAuraVector && styles.themeBtnDisabled,
                 ]}
                 onPress={() => { if (hasAuraVector) setThemeMode('sigma'); }}
                 disabled={!hasAuraVector}
               >
-                <Text style={styles.themeBtnText}>✨ 6 Sigma</Text>
+                <Text style={[styles.themeBtnText, { color: themeBtnTextColor }]}>✨ 6 Sigma</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.themeBtn, themeMode === 'light' ? styles.themeBtnSelected : styles.themeBtnUnselected]}
+                style={[styles.themeBtn, themeMode === 'light' ? styles.themeBtnSelected : { backgroundColor: themeBtnUnselectedBg }]}
                 onPress={() => setThemeMode('light')}
               >
-                <Text style={styles.themeBtnText}>☀️ 라이트</Text>
+                <Text style={[styles.themeBtnText, { color: themeBtnTextColor }]}>☀️ 라이트</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.themeBtn, themeMode === 'dark' ? styles.themeBtnSelected : styles.themeBtnUnselected]}
+                style={[styles.themeBtn, themeMode === 'dark' ? styles.themeBtnSelected : { backgroundColor: themeBtnUnselectedBg }]}
                 onPress={() => setThemeMode('dark')}
               >
-                <Text style={styles.themeBtnText}>🌙 다크</Text>
+                <Text style={[styles.themeBtnText, { color: themeBtnTextColor }]}>🌙 다크</Text>
               </TouchableOpacity>
             </View>
             {!hasAuraVector && (
@@ -489,7 +491,7 @@ function makeStyles(theme: SigmaTheme) {
   section: { marginBottom: 28 },
   sectionHeader: {
     ...TYPOGRAPHY.caption,
-    color: '#555',
+    color: theme.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
     paddingHorizontal: 20,
@@ -513,8 +515,8 @@ function makeStyles(theme: SigmaTheme) {
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowIcon: { ...TYPOGRAPHY.body },
   rowText: { ...TYPOGRAPHY.body, color: theme.text },
-  rowSub: { ...TYPOGRAPHY.caption, color: '#666', marginTop: 2 },
-  rowValue: { ...TYPOGRAPHY.body, color: SYS.TEXT_MUTED },
+  rowSub: { ...TYPOGRAPHY.caption, color: theme.textMuted, marginTop: 2 },
+  rowValue: { ...TYPOGRAPHY.body, color: theme.textMuted },
   logoutText: { ...TYPOGRAPHY.bodyMedium, color: SYS.CRISIS_RED },
 
   profileRow: { gap: 16 },
@@ -529,14 +531,13 @@ function makeStyles(theme: SigmaTheme) {
   avatarText: { ...TYPOGRAPHY.heading, color: SYS.TEXT_LIGHT },
   profileInfo: { flex: 1, gap: 4 },
   profileName: { ...TYPOGRAPHY.heading, color: theme.text },
-  profileMbti: { ...TYPOGRAPHY.label, color: SYS.TEXT_MUTED },
+  profileMbti: { ...TYPOGRAPHY.label, color: theme.textMuted },
 
   themeBtnRow: { flexDirection: 'row', gap: 12, padding: 16 },
   themeBtn: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   themeBtnSelected: { backgroundColor: BRAND.CORAL },
-  themeBtnUnselected: { backgroundColor: SYS.BG_DARK_MIDNIGHT },
   themeBtnDisabled: { opacity: 0.4 },
-  themeBtnText: { ...TYPOGRAPHY.label, color: SYS.TEXT_LIGHT },
+  themeBtnText: { ...TYPOGRAPHY.label },
   themeHint: {
     ...TYPOGRAPHY.caption,
     color: theme.textMuted,
@@ -562,9 +563,9 @@ function makeStyles(theme: SigmaTheme) {
   privacyCard: { padding: 16, gap: 8 },
   levelBadge: { backgroundColor: BRAND.MINT, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   levelBadgeText: { ...TYPOGRAPHY.caption, color: SYS.TEXT_DARK },
-  privacyDesc: { ...TYPOGRAPHY.caption, color: SYS.TEXT_MUTED },
+  privacyDesc: { ...TYPOGRAPHY.caption, color: theme.textMuted },
   slider: { width: '100%', height: 32, marginTop: 4 },
-  privacyLevelText: { ...TYPOGRAPHY.label, color: SYS.TEXT_LIGHT, textAlign: 'center' },
+  privacyLevelText: { ...TYPOGRAPHY.label, color: theme.text, textAlign: 'center' },
 
   // Founding VIP 코드 입력 모달(§9-2)
   vipModalBackdrop: {

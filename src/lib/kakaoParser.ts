@@ -23,6 +23,10 @@ export interface DateCourse {
 // Security contract:
 //   1. All lines that begin with "[<partner name>]" are DROPPED before any
 //      analysis — partner's utterances never leave the device in raw form.
+//      This is enforced in parseKakaoExport (system/partner-line skip), and
+//      independently in both extractSweetSentences() and selectMemoryQuote()
+//      via a `speaker !== myName` guard — partner lines never become quote
+//      candidates in either pipeline.
 //   2. Phone numbers and account numbers are masked with "***".
 //   3. The raw file string is never stored; only the sanitised output is kept
 //      and only the extracted persona tokens are sent to the server.
@@ -505,9 +509,11 @@ export function selectMemoryQuote(rawText: string, myName: string): MemoryQuote 
 
 // ─── Memory Wall — Sweet Sentence Extraction (Step #24, relocated FUN-ONB-002) ─
 //
-// Scores every line (both speakers) against a valence-keyword table and
-// returns the top candidates. Relocated here (from useMemoryWall.ts) so it
-// has no dependency on React/AppContext — kakaoIngestPipeline.ts calls this
+// Scores each of the user's own lines (myName only — partner lines are
+// dropped via parseKakaoLine()'s speaker check before scoring, matching this
+// file's security contract) against a valence-keyword table and returns the
+// top candidates. Relocated here (from useMemoryWall.ts) so it has no
+// dependency on React/AppContext — kakaoIngestPipeline.ts calls this
 // directly, and useMemoryWall.ts re-exports it for its own hook's use.
 
 interface ValencePattern {
@@ -537,7 +543,6 @@ const VALENCE_PATTERNS: ValencePattern[] = [
 const MIN_VALENCE_SCORE = 5;
 
 const WALL_DATE_HEADER_RE = /(\d{4})년 (\d{1,2})월 (\d{1,2})일/;
-const WALL_MSG_RE = /^\[(.+?)\] \[(오전|오후) (\d{1,2}):(\d{2})\] (.+)$/;
 
 export interface MemoryNode {
   id: string;
@@ -608,18 +613,16 @@ export function extractSweetSentences(
       continue;
     }
 
-    const msgMatch = line.match(WALL_MSG_RE);
-    if (!msgMatch) continue;
+    const parsed = parseKakaoLine(lines[i]);
+    if (!parsed) continue;
+    if (parsed.speaker !== myName) continue; // 파트너 발화는 후보에서 제외 — 보안 계약
 
-    const [, speaker, , , , content] = msgMatch;
-    const isMine = speaker === myName;
-
+    const content = parsed.content.trim();
     const { score, tag } = scoreMessage(content);
     if (score < MIN_VALENCE_SCORE) continue;
 
-    const normalised = content.trim();
-    if (seenQuotes.has(normalised)) continue;
-    seenQuotes.add(normalised);
+    if (seenQuotes.has(content)) continue;
+    seenQuotes.add(content);
 
     const y    = String(currentDate.getFullYear());
     const mo   = String(currentDate.getMonth() + 1).padStart(2, '0');
@@ -629,9 +632,9 @@ export function extractSweetSentences(
       id: `mem-${i}`,
       date: `${y}.${mo}.${d}`,
       rawDate: new Date(currentDate),
-      quote: normalised,
+      quote: content,
       tag,
-      speaker: isMine ? 'me' : 'partner',
+      speaker: 'me',
       valenceScore: score,
       imageUri: findClosestImage(currentDate, courses),
     });

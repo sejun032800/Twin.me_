@@ -3,7 +3,8 @@
 // 실제 음성 STT/Realtime API는 TODO — 지금은 타이핑 입력을 답변 제출 수단으로 사용한다.
 
 import { useEffect, useState } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ClayTwinAvatar from '@/components/ClayTwinAvatar';
 import { useTheme } from '@/hooks/useTheme';
@@ -45,7 +46,13 @@ export default function InterviewCallModal({ visible, onClose, question, onSubmi
 
   return (
     <Modal visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onClose}>
-      <View style={styles.container}>
+      <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+        >
+        <View style={styles.container}>
         <View style={styles.callerInfo}>
           <ClayTwinAvatar size={100} auraVector={null} clayStage={3} />
           <Text style={styles.callerName}>트윈</Text>
@@ -101,19 +108,22 @@ export default function InterviewCallModal({ visible, onClose, question, onSubmi
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${Math.round(confidence * 100)}%` }]} />
         </View>
-      </View>
+        </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
-    container: {
+    safeArea: {
       flex: 1,
       backgroundColor: SYS.BG_DARK_MIDNIGHT,
+    },
+    container: {
+      flex: 1,
       paddingHorizontal: 24,
-      paddingTop: 64,
-      paddingBottom: 32,
       justifyContent: 'space-between',
     },
     callerInfo: {

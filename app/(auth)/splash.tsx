@@ -14,12 +14,12 @@ import { TYPOGRAPHY } from '@/constants/typography';
 
 export default function Splash() {
   const router = useRouter();
-  const isOnboardingComplete = useUserStore((s) => s.isOnboardingComplete);
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.9);
 
   function navigate() {
-    if (isOnboardingComplete) {
+    const isComplete = useUserStore.getState().isOnboardingComplete;
+    if (isComplete) {
       router.replace('/(tabs)');
     } else {
       router.replace('/(auth)/welcome');

@@ -5,7 +5,7 @@
 // archive의 실제 3D 나선 렌더러는 Expo Go 한계로 reanimated 기반 parallax
 // (좌우 교차 translateX + 중앙 확대/선명 효과)로 근사한다.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -216,17 +216,43 @@ function FeedTab() {
   const styles = makeStyles(theme);
   const themeMode = useSessionStore((s) => s.themeMode);
   const { hasReportAccess } = usePremiumGate();
+  const { location, requestLocation } = useGeoLocation();
   const [ootdOnly, setOotdOnly] = useState(false);
   const [filter, setFilter] = useState<FeedFilterKey>('rating');
   const [courses, setCourses] = useState<DateCourse[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getPublicCourses().then((data) => {
-      setCourses(data);
-      setLoading(false);
-    });
+    getPublicCourses()
+      .then((data) => {
+        setCourses(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
+
+  const filteredCourses = useMemo(() => {
+    let result = [...courses];
+
+    // OOTD 필터: 별점 4.5 이상만
+    if (ootdOnly) {
+      result = result.filter((c) => (c.myScore + c.partnerScore) / 2 >= 4.5);
+    }
+
+    // 정렬 필터
+    if (filter === 'rating') {
+      result.sort((a, b) => (b.myScore + b.partnerScore) - (a.myScore + a.partnerScore));
+    } else if (filter === 'recent') {
+      result.sort((a, b) => b.id.localeCompare(a.id));
+    } else if (filter === 'nearby') {
+      const city = location?.city ?? location?.district ?? null;
+      if (city) {
+        result = result.filter((c) => c.area.includes(city));
+      }
+    }
+
+    return result;
+  }, [courses, ootdOnly, filter, location]);
 
   return (
     <ScrollView
@@ -264,7 +290,12 @@ function FeedTab() {
                 { backgroundColor: themeMode === 'light' ? '#F5E8EC' : SYS.CARD_DARK },
                 selected && styles.filterChipActive,
               ]}
-              onPress={() => setFilter(f.key)}
+              onPress={async () => {
+                setFilter(f.key);
+                if (f.key === 'nearby' && !location) {
+                  await requestLocation();
+                }
+              }}
             >
               <Text
                 style={[
@@ -273,7 +304,7 @@ function FeedTab() {
                   selected && styles.filterChipTextActive,
                 ]}
               >
-                {f.label}
+                {f.key === 'nearby' && selected && !location ? '📍 위치 확인 중...' : f.label}
               </Text>
             </TouchableOpacity>
           );
@@ -284,8 +315,10 @@ function FeedTab() {
         <ActivityIndicator style={styles.feedLoading} color={BRAND.CORAL} />
       ) : courses.length === 0 ? (
         <Text style={styles.feedEmptyText}>아직 공유된 코스가 없어요</Text>
+      ) : filteredCourses.length === 0 ? (
+        <Text style={styles.feedFilterEmptyText}>현재 필터에 맞는 코스가 없어요</Text>
       ) : (
-        courses.map((course) => (
+        filteredCourses.map((course) => (
           <View
             key={course.id}
             style={[styles.courseCard, { backgroundColor: themeMode === 'light' ? SYS.CARD_LIGHT : SYS.CARD_DARK }]}
@@ -810,6 +843,7 @@ function makeStyles(theme: SigmaTheme) {
 
   feedLoading: { marginTop: 40 },
   feedEmptyText: { ...TYPOGRAPHY.body, color: theme.textMuted, textAlign: 'center', marginTop: 40 },
+  feedFilterEmptyText: { ...TYPOGRAPHY.caption, color: theme.textMuted, textAlign: 'center', marginTop: 40 },
 
   filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 16 },
   filterChip: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8 },
