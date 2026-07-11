@@ -647,3 +647,98 @@ export function extractSweetSentences(
     .sort((a, b) => b.valenceScore - a.valenceScore)
     .slice(0, maxCount);
 }
+
+// ─── FUN-ONB-003: D0 표층 즉시 분석 (MASTER.md §2) ────────────────────────────
+//
+// 업로드 직후 30초~1분 내 보여주는 "아하 모먼트" 화면용 지표. LLM 호출 없이
+// myLines/timestamps(둘 다 내 발화만, 같은 인덱스)만으로 순수 로컬 계산한다.
+
+export interface D0Analysis {
+  avgReplySpeedSec: number;
+  replySpeedPercentile: number;
+  emojiDensity: number;
+  laughPattern: 'ㅋㅋ' | 'ㅎㅎ' | 'mixed' | 'none';
+  avgMessageLength: number;
+  dominantEnding: string;
+  totalMessages: number;
+}
+
+const D0_EMOJI_RE = /[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}]/gu;
+const D0_ENDING_PATTERNS = ['ㅇㅇ', 'ㄷㄷ', 'ㄱㄱ', '~', '!', '...', 'ㅠ', 'ㅜ', 'ㄹㅇ', 'ㅋ', 'ㅎ'];
+
+function d0ReplySpeedPercentile(avgSec: number): number {
+  if (avgSec < 10) return 2;
+  if (avgSec < 30) return 8;
+  if (avgSec < 60) return 15;
+  if (avgSec < 180) return 35;
+  if (avgSec < 600) return 60;
+  return 80;
+}
+
+export function analyzeD0(myLines: string[], timestamps: number[]): D0Analysis {
+  const totalMessages = myLines.length;
+
+  // 답장 속도 — 연속 메시지 간 시간 차이 평균(초). myLines/timestamps는 이미
+  // 파트너 발화가 제외된 내 발화만 담고 있어, 남은 인접 쌍이 곧 "같은 발신자
+  // 연속 제외" 후의 비교 대상이다.
+  const gaps: number[] = [];
+  for (let i = 1; i < timestamps.length; i++) {
+    const diff = timestamps[i] - timestamps[i - 1];
+    if (diff > 0) gaps.push(diff);
+  }
+  const avgReplySpeedSec = gaps.length > 0
+    ? Math.round(gaps.reduce((sum, g) => sum + g, 0) / gaps.length)
+    : 0;
+  const replySpeedPercentile = d0ReplySpeedPercentile(avgReplySpeedSec);
+
+  // 이모지 밀도
+  let emojiCount = 0;
+  for (const line of myLines) {
+    emojiCount += (line.match(D0_EMOJI_RE) ?? []).length;
+  }
+  const emojiDensity = totalMessages > 0 ? emojiCount / totalMessages : 0;
+
+  // 웃음 패턴
+  const kkLineCount = myLines.filter((l) => l.includes('ㅋ')).length;
+  const hhLineCount = myLines.filter((l) => l.includes('ㅎ')).length;
+  let laughPattern: D0Analysis['laughPattern'];
+  if (kkLineCount === 0 && hhLineCount === 0) laughPattern = 'none';
+  else if (kkLineCount > hhLineCount * 1.5) laughPattern = 'ㅋㅋ';
+  else if (hhLineCount > kkLineCount * 1.5) laughPattern = 'ㅎㅎ';
+  else laughPattern = 'mixed';
+
+  // 평균 메시지 길이
+  const avgMessageLength = totalMessages > 0
+    ? myLines.reduce((sum, l) => sum + l.length, 0) / totalMessages
+    : 0;
+
+  // 시그니처 종결 — 각 메시지 마지막 2글자 기준 패턴 카운팅
+  const endingCounts = new Map<string, number>();
+  for (const line of myLines) {
+    const tail = line.trim().slice(-2);
+    for (const pattern of D0_ENDING_PATTERNS) {
+      if (tail.includes(pattern)) {
+        endingCounts.set(pattern, (endingCounts.get(pattern) ?? 0) + 1);
+      }
+    }
+  }
+  let dominantEnding = '';
+  let bestCount = 0;
+  for (const pattern of D0_ENDING_PATTERNS) {
+    const count = endingCounts.get(pattern) ?? 0;
+    if (count > bestCount) {
+      bestCount = count;
+      dominantEnding = pattern;
+    }
+  }
+
+  return {
+    avgReplySpeedSec,
+    replySpeedPercentile,
+    emojiDensity,
+    laughPattern,
+    avgMessageLength,
+    dominantEnding,
+    totalMessages,
+  };
+}

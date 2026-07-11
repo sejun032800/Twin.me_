@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { classifyMessage, type ClassifierMessage, type ClassifierContext } from '@/engine/eventClassifier';
-import { processTick, createFrequencyState, detectRapidSwing, coolingBleed, type ATick, type FrequencyState, type EventContext } from '@/engine/metrics';
+import { processTick, createFrequencyState, detectRapidSwing, detectCombos, coolingBleed, type ATick, type FrequencyState, type EventContext } from '@/engine/metrics';
 import { useScoreStore } from '@/store/scoreStore';
 import { evaluateGate, createGateState } from '@/engine/twinResponseEngine';
 import { useSessionStore } from '@/store/sessionStore';
@@ -23,6 +23,8 @@ export function useMatchEngine() {
   const freqStateRef = useRef<FrequencyState>(initialFreqState);
   // 마지막 메시지 처리 시각 — coolingBleed(§5.6)의 유휴 시간 계산용
   const lastMessageAt = useRef<number | null>(null);
+  // 이미 지급한 콤보를 "콤보코드:최신로그타임스탬프"로 기억해 같은 시퀀스에 중복 지급하지 않는다
+  const awardedCombosRef = useRef<Set<string>>(new Set());
 
   const processMessage = useCallback((
     text: string,
@@ -84,11 +86,25 @@ export function useMatchEngine() {
     // 최종 게이트 상태만 1회 저장 (루프 도중 매번 저장하지 않음)
     setGateState(runningGateState);
 
+    // rapidSwing/콤보 판정에 쓸 최신 이벤트 로그 (이번 메시지의 이벤트가 이미 append된 상태)
+    const recentLog = useScoreStore.getState().eventLog;
+
+    // 콤보 탐지 (부록A detectCombos, κ·γ 미적용 특례) — metrics.ts가 COMBO_REGISTRY 기준
+    // bonus를 이미 계산해서 반환하므로 여기선 grouping/타이밍을 재구현하지 않고 그대로 가산한다.
+    // latestLogTimestamp를 키에 포함해, 같은 시퀀스가 유지되는 동안 중복 지급되지 않게 한다.
+    const comboHits = detectCombos(recentLog);
+    const latestLogTimestamp = recentLog.length > 0 ? recentLog[recentLog.length - 1].t : 0;
+    for (const combo of comboHits) {
+      const awardKey = `${combo.code}:${latestLogTimestamp}`;
+      if (awardedCombosRef.current.has(awardKey)) continue;
+      awardedCombosRef.current.add(awardKey);
+      currentScore = Math.max(0, Math.min(100, currentScore + combo.bonus));
+    }
+
     // S_Current는 자정 정산(settleMidnight)에서만 갱신 — 실시간 변화는 S_Live만 반영한다(§5.1).
     setSLive(currentScore);
 
     // rapidSwing 감지 (§5.4 — 30분 윈도우 내 누적 하락 > 1.5)
-    const recentLog = useScoreStore.getState().eventLog;
     let cumulative = 0;
     const ticks: ATick[] = recentLog.map((e) => {
       cumulative += e.delta;

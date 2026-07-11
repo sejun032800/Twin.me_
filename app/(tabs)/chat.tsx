@@ -22,6 +22,7 @@ import { useCrisisIntelligence, type CrisisMessage } from '@/hooks/useCrisisInte
 import { callLLMStream } from '@/api/llm';
 import MagicMirrorModal from '@/components/MagicMirrorModal';
 import MuseSheet from '@/components/MuseSheet';
+import FeedbackSheet from '@/components/FeedbackSheet';
 import { scheduleLocalNotification } from '@/services/notificationService';
 import { detectSensitiveContent } from '@/services/partnerSensitiveService';
 import { generateWeeklyReport, getLastReport, type WeeklyReport } from '@/services/weeklyReportService';
@@ -81,6 +82,8 @@ export default function Chat() {
   const [inputText, setInputText] = useState('');
   const [sensitiveWarning, setSensitiveWarning] = useState<string | null>(null);
   const [museVisible, setMuseVisible] = useState(false);
+  const [feedbackTarget, setFeedbackTarget] = useState<string | null>(null);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const [lastReport, setLastReport] = useState<WeeklyReport | null>(null);
@@ -335,6 +338,64 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
     }
   }
 
+  // FUN-CHA-002 — AI 말풍선 롱프레스 → 말투 교정 피드백 시트 오픈
+  function handleBubbleLongPress(msg: ChatMessage) {
+    if (msg.role !== 'twin') return;
+    setFeedbackTarget(msg.id);
+    setFeedbackVisible(true);
+  }
+
+  async function handleFeedbackSelect(type: 'too_warm' | 'too_cold' | 'humor_mismatch') {
+    setFeedbackVisible(false);
+    if (!feedbackTarget || !currentRoom) return;
+
+    const feedbackInstruction: Record<string, string> = {
+      too_warm: '이전 답변이 너무 다정했어. 좀 더 담담하고 솔직하게 다시 말해줘. 1문장.',
+      too_cold: '이전 답변이 너무 딱딱했어. 좀 더 따뜻하고 친근하게 다시 말해줘. 1문장.',
+      humor_mismatch: '이전 답변의 유머가 안 맞았어. 유머 없이 진지하게 다시 말해줘. 1문장.',
+    };
+
+    const msgs = messagesByRoom[currentRoom];
+    const targetIdx = msgs.findIndex((m) => m.id === feedbackTarget);
+    const prevUserMsg = msgs.slice(0, targetIdx).filter((m) => m.role === 'me').at(-1);
+    if (!prevUserMsg) return;
+
+    setMessagesByRoom((prev) => ({
+      ...prev,
+      [currentRoom]: prev[currentRoom].map((m) =>
+        m.id === feedbackTarget ? { ...m, text: '✍️ 수정 중...' } : m
+      ),
+    }));
+
+    const { name, personaMatrix } = useUserStore.getState();
+    const systemPrompt = `너는 ${name ?? '사용자'}의 트윈 AI야. ${feedbackInstruction[type]} 에니어그램 유형: ${personaMatrix?.enneagramType ?? '미확정'} 반말로 1문장만.`;
+
+    let revised = '';
+    try {
+      await callLLMStream(
+        { systemPrompt, userMessage: prevUserMsg.text, maxTokens: 100 },
+        (chunk) => {
+          revised += chunk;
+          setMessagesByRoom((prev) => ({
+            ...prev,
+            [currentRoom]: prev[currentRoom].map((m) =>
+              m.id === feedbackTarget ? { ...m, text: revised } : m
+            ),
+          }));
+        },
+        () => {},
+      );
+    } catch {
+      setMessagesByRoom((prev) => ({
+        ...prev,
+        [currentRoom]: prev[currentRoom].map((m) =>
+          m.id === feedbackTarget ? { ...m, text: '다시 시도해줘 😅' } : m
+        ),
+      }));
+    }
+    setFeedbackTarget(null);
+  }
+
   function renderPlaceholder() {
     if (currentRoom === 'lover' && isLoverLocked) {
       return (
@@ -565,9 +626,14 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
                       </View>
                     )}
                     <View>
-                      <View style={[styles.bubble, msg.role === 'me' ? styles.bubbleMe : styles.bubbleTwin]}>
+                      <TouchableOpacity
+                        activeOpacity={msg.role === 'me' ? 1 : 0.7}
+                        onLongPress={msg.role === 'me' ? undefined : () => handleBubbleLongPress(msg)}
+                        delayLongPress={400}
+                        style={[styles.bubble, msg.role === 'me' ? styles.bubbleMe : styles.bubbleTwin]}
+                      >
                         <Text style={[styles.bubbleText, msg.role !== 'me' && { color: theme.text }]}>{msg.text}</Text>
-                      </View>
+                      </TouchableOpacity>
                       <Text style={[styles.msgTime, msg.role === 'me' && { textAlign: 'right' }]}>
                         {formatTime(msg.timestamp)}
                       </Text>
@@ -667,6 +733,12 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
           setShowMirrorModal(false);
         }}
         onDecline={() => setShowMirrorModal(false)}
+      />
+
+      <FeedbackSheet
+        visible={feedbackVisible}
+        onClose={() => { setFeedbackVisible(false); setFeedbackTarget(null); }}
+        onSelect={handleFeedbackSelect}
       />
     </SafeAreaView>
   );

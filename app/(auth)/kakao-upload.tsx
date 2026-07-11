@@ -8,16 +8,22 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import JSZip from 'jszip';
 import { runKakaoIngestPipeline } from '@/services/kakaoIngestPipeline';
+import { parseKakaoLine, analyzeD0, type D0Analysis } from '@/lib/kakaoParser';
+import D0ResultScreen from '@/components/D0ResultScreen';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { BRAND, SYS } from '@/constants/colors';
+
+const D0_DATE_HEADER_RE = /(\d{4})년 (\d{1,2})월 (\d{1,2})일/;
 
 export default function KakaoUpload() {
   const router = useRouter();
   const [uploaded, setUploaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rawText, setRawText] = useState<string | null>(null);
+  const [d0Analysis, setD0Analysis] = useState<D0Analysis | null>(null);
+  const [showD0, setShowD0] = useState(false);
 
   const name = useUserStore((s) => s.name);
   const mbti = useUserStore((s) => s.mbti);
@@ -98,10 +104,43 @@ export default function KakaoUpload() {
         console.warn('카카오 파이프라인 오류:', e);
       }
       // 스텁 에러는 정상, 그 외 오류도 계속 진행
-    } finally {
-      setLoading(false);
-      router.replace('/(auth)/genesis');
     }
+
+    // FUN-ONB-003 — D0 표층 즉시 분석: 내 발화 + 타임스탬프 추출 후 로컬 계산
+    const myName = name ?? '나';
+    const myLines: string[] = [];
+    const timestamps: number[] = [];
+    let currentDate = new Date();
+
+    for (const raw of rawText.split('\n')) {
+      const dateMatch = raw.match(D0_DATE_HEADER_RE);
+      if (dateMatch) {
+        const [, y, m, d] = dateMatch;
+        currentDate = new Date(Number(y), Number(m) - 1, Number(d));
+        continue;
+      }
+
+      const parsed = parseKakaoLine(raw);
+      if (!parsed || parsed.speaker !== myName) continue;
+
+      const ts = new Date(currentDate);
+      ts.setHours(parsed.hour, parsed.minute, 0, 0);
+      myLines.push(parsed.content);
+      timestamps.push(Math.floor(ts.getTime() / 1000));
+    }
+
+    setLoading(false);
+    setD0Analysis(analyzeD0(myLines, timestamps));
+    setShowD0(true);
+  }
+
+  if (showD0 && d0Analysis) {
+    return (
+      <D0ResultScreen
+        analysis={d0Analysis}
+        onContinue={() => router.replace('/(auth)/genesis')}
+      />
+    );
   }
 
   return (
