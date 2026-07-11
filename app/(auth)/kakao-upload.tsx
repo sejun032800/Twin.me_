@@ -1,3 +1,6 @@
+// auth 화면군(login, signup, join, kakao-upload)은 브랜드 일관성을 위해
+// 항상-다크 크롬을 유지합니다. useTheme() 미적용 의도적.
+
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';

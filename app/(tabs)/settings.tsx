@@ -12,6 +12,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { supabase } from '@/lib/supabaseClient';
+import { runSchemaHealthCheck } from '@/lib/schemaHealthCheck';
 import { createCouple } from '@/services/coupleService';
 import { redeemVipCode } from '@/services/vipPromotionService';
 import { purchaseSubscription } from '@/services/iapService';
@@ -21,7 +22,7 @@ import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
-import { BRAND, SYS } from '@/constants/colors';
+import { BRAND, SYS, MODAL_BACKDROP_LIGHT } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -99,8 +100,6 @@ export default function Settings() {
   const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
   const setReduceAuraMotion = useSessionStore((s) => s.setReduceAuraMotion);
   const hasAuraVector = !!personaMatrix?.auraVector;
-  const themeBtnUnselectedBg = themeMode === 'light' ? '#E8EAED' : SYS.BG_DARK_MIDNIGHT;
-  const themeBtnTextColor = themeMode === 'light' ? SYS.TEXT_DARK : SYS.TEXT_LIGHT;
   const inviteCode = useCoupleStore((s) => s.inviteCode);
   const setInviteCode = useCoupleStore((s) => s.setInviteCode);
   const setCoupleId = useCoupleStore((s) => s.setCoupleId);
@@ -182,6 +181,18 @@ export default function Settings() {
     );
   }
 
+  async function handleSchemaHealthCheck() {
+    const results = await runSchemaHealthCheck();
+    const failed = results.filter((r) => r.status === 'error');
+
+    if (failed.length === 0) {
+      Alert.alert('✅ 모든 테이블 연결 정상', 'couples / date_courses / partner_moods');
+    } else {
+      const detail = failed.map((r) => `${r.table}: ${r.detail}`).join('\n');
+      Alert.alert('⚠️ 연결 실패', detail);
+    }
+  }
+
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -221,25 +232,25 @@ export default function Settings() {
               <TouchableOpacity
                 style={[
                   styles.themeBtn,
-                  themeMode === 'sigma' ? styles.themeBtnSelected : { backgroundColor: themeBtnUnselectedBg },
+                  themeMode === 'sigma' ? styles.themeBtnSelected : { backgroundColor: theme.card },
                   !hasAuraVector && styles.themeBtnDisabled,
                 ]}
                 onPress={() => { if (hasAuraVector) setThemeMode('sigma'); }}
                 disabled={!hasAuraVector}
               >
-                <Text style={[styles.themeBtnText, { color: themeBtnTextColor }]}>✨ 6 Sigma</Text>
+                <Text style={[styles.themeBtnText, { color: theme.text }]}>✨ 6 Sigma</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.themeBtn, themeMode === 'light' ? styles.themeBtnSelected : { backgroundColor: themeBtnUnselectedBg }]}
+                style={[styles.themeBtn, themeMode === 'light' ? styles.themeBtnSelected : { backgroundColor: theme.card }]}
                 onPress={() => setThemeMode('light')}
               >
-                <Text style={[styles.themeBtnText, { color: themeBtnTextColor }]}>☀️ 라이트</Text>
+                <Text style={[styles.themeBtnText, { color: theme.text }]}>☀️ 라이트</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.themeBtn, themeMode === 'dark' ? styles.themeBtnSelected : { backgroundColor: themeBtnUnselectedBg }]}
+                style={[styles.themeBtn, themeMode === 'dark' ? styles.themeBtnSelected : { backgroundColor: theme.card }]}
                 onPress={() => setThemeMode('dark')}
               >
-                <Text style={[styles.themeBtnText, { color: themeBtnTextColor }]}>🌙 다크</Text>
+                <Text style={[styles.themeBtnText, { color: theme.text }]}>🌙 다크</Text>
               </TouchableOpacity>
             </View>
             {!hasAuraVector && (
@@ -284,7 +295,7 @@ export default function Settings() {
                 value={privacyLevel}
                 onValueChange={(v) => setPrivacyLevel(Math.round(v) as 0 | 1 | 2)}
                 minimumTrackTintColor={BRAND.CORAL}
-                maximumTrackTintColor={themeMode === 'light' ? '#D0D0D0' : SYS.BG_DARK_MIDNIGHT}
+                maximumTrackTintColor={theme.border}
                 thumbTintColor={BRAND.CORAL}
                 style={styles.slider}
               />
@@ -456,6 +467,13 @@ export default function Settings() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* 개발 전용 — DB 연결 검증 */}
+        {__DEV__ && (
+          <TouchableOpacity style={styles.devBtn} onPress={handleSchemaHealthCheck}>
+            <Text style={styles.devBtnText}>🔧 DB 연결 검증</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <Modal
@@ -594,7 +612,7 @@ function makeStyles(theme: SigmaTheme) {
   // Founding VIP 코드 입력 모달(§9-2)
   vipModalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: MODAL_BACKDROP_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
@@ -643,5 +661,15 @@ function makeStyles(theme: SigmaTheme) {
     marginHorizontal: 20,
   },
   upgradeBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
+
+  devBtn: {
+    marginTop: 8,
+    marginHorizontal: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: theme.textMuted,
+    borderRadius: 8,
+  },
+  devBtnText: { fontSize: 12, color: theme.textMuted, textAlign: 'center' },
   });
 }

@@ -8,7 +8,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { usePhotoMetadata } from '@/hooks/usePhotoMetadata';
 import { saveOOTDEntry } from '@/services/ootdService';
 import type { OOTDEntry } from '@/types/ootd';
-import { BRAND, SYS } from '@/constants/colors';
+import { BRAND, SYS, MODAL_BACKDROP_LIGHT } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -186,7 +186,7 @@ function makeStyles(theme: SigmaTheme) {
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: MODAL_BACKDROP_LIGHT,
     },
     sheet: {
       backgroundColor: theme.card,

@@ -495,12 +495,12 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
 
             <View style={styles.dmContent}>
               <View style={styles.dmTop}>
-                <Text style={[styles.dmName, room.locked && { color: '#555' }]}>
+                <Text style={[styles.dmName, room.locked && { color: theme.textMuted }]}>
                   {room.label}
                 </Text>
                 {room.locked && <Text style={styles.dmTime}>초대 필요</Text>}
               </View>
-              <Text style={[styles.dmPreview, room.locked && { color: '#333' }]} numberOfLines={1}>
+              <Text style={[styles.dmPreview, room.locked && { color: theme.textMuted }]} numberOfLines={1}>
                 {room.subtitle}
               </Text>
             </View>
@@ -691,7 +691,12 @@ function makeStyles(theme: SigmaTheme) {
     gap: 8,
   },
   crisisTitle: { ...TYPOGRAPHY.bodyMedium, color: SYS.CRISIS_RED },
-  crisisDesc: { ...TYPOGRAPHY.caption, color: SYS.TEXT_LIGHT, lineHeight: 20 },
+  // crisisOverlay는 15% 반투명 CRISIS_RED가 theme.bg 위에 얹히는 구조라 실제 배경은
+  // 테마별로 크게 다르다(라이트: 거의 흰색, 다크: 거의 검정에 가까운 진한 색).
+  // theme.text 대비 WCAG AA(4.5:1) 검증: 라이트 ≈13.6:1, 다크 ≈16.9:1 — 모두 통과.
+  // SYS.TEXT_LIGHT(항상 흰색) 사용 시 라이트 테마에서 ≈1.3:1로 실패했던 지점.
+  // SYS.CRISIS_RED도 라이트 테마에서 ≈2.9:1로 AA 기준 미달이라 제외.
+  crisisDesc: { ...TYPOGRAPHY.caption, color: theme.text, lineHeight: 20 },
   crisisDismiss: {
     alignSelf: 'flex-end',
     backgroundColor: SYS.CRISIS_RED,

@@ -1,29 +1,6 @@
 // ─── FUN-HOM-002 — 파트너 무드 서비스 (MASTER.md §3, 구버전 partnerMoodService.ts 이식) ─
 // 연인이 앱에서 설정한 현재 무드를 Supabase partner_moods 테이블에 기록/조회한다.
-// 아래 SQL을 Supabase 콘솔(SQL Editor)에서 먼저 실행해야 실제 데이터가 동작한다.
-//
-// CREATE TABLE partner_moods (
-//   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-//   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-//   couple_id UUID REFERENCES couples(id) ON DELETE CASCADE,
-//   mood_emoji TEXT NOT NULL,
-//   mood_text TEXT NOT NULL,
-//   created_at TIMESTAMPTZ DEFAULT NOW(),
-//   expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '24 hours')
-// );
-//
-// ALTER TABLE partner_moods ENABLE ROW LEVEL SECURITY;
-//
-// CREATE POLICY "커플 멤버만 조회" ON partner_moods
-//   FOR SELECT USING (
-//     couple_id IN (
-//       SELECT id FROM couples
-//       WHERE creator_id = auth.uid() OR partner_id = auth.uid()
-//     )
-//   );
-//
-// CREATE POLICY "본인 무드만 등록" ON partner_moods
-//   FOR INSERT WITH CHECK (auth.uid() = user_id);
+// 스키마: supabase/migrations/20260711000000_initial_schema.sql — partner_moods 테이블
 
 import { supabase } from '@/lib/supabaseClient';
 

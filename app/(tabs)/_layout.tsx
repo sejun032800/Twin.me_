@@ -1,12 +1,9 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
-import { useSessionStore } from '@/store/sessionStore';
-import { SYS } from '@/constants/colors';
 
 export default function TabsLayout() {
   const theme = useTheme();
-  const themeMode = useSessionStore((s) => s.themeMode);
 
   return (
     <Tabs
@@ -21,7 +18,7 @@ export default function TabsLayout() {
           paddingTop: 4,
         },
         tabBarActiveTintColor: theme.accent,
-        tabBarInactiveTintColor: themeMode === 'light' ? SYS.TEXT_MUTED : '#555',
+        tabBarInactiveTintColor: theme.textMuted,
         tabBarLabelStyle: {
           fontSize: 11,
           marginTop: 2,

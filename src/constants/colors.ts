@@ -22,6 +22,11 @@ export const SYS = {
   TEXT_MUTED:       '#888888',   // 보조 텍스트 (라벨/캡션 회색조)
 } as const;
 
+// ── 모달 백드롭 — 테마 무관 고정 딤 배경 (스크림은 관례적으로 항상 검정 계열) ──────
+export const MODAL_BACKDROP_LIGHT = 'rgba(0,0,0,0.5)';
+export const MODAL_BACKDROP = 'rgba(0,0,0,0.6)';
+export const MODAL_BACKDROP_HEAVY = 'rgba(0,0,0,0.8)';
+
 // ── Layer 2: 오라 시스템 — 기준 hue 상수만 노출, 실제 색상은 auraEngine이 계산 ──
 export const AURA_BASE_HUE = {
   attachmentSecurity: 210,

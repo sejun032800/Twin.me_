@@ -1,3 +1,6 @@
+// welcome은 항상-다크 의도 화면. themeMode 리셋('dark')과 고정값이 일치하도록
+// resetSession()의 기본값 유지 필요.
+
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -56,7 +59,7 @@ const styles = StyleSheet.create({
   btn: { width: '100%', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
   btnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
   link: { ...TYPOGRAPHY.caption, color: BRAND.MINT, marginTop: 8 },
-  guest: { fontSize: 13, color: '#555', marginTop: 8 },
-  devBtn: { marginTop: 24, padding: 12, borderWidth: 1, borderColor: '#333', borderRadius: 8 },
-  devBtnText: { fontSize: 12, color: '#555', textAlign: 'center' },
+  guest: { fontSize: 13, color: SYS.TEXT_MUTED, marginTop: 8 },
+  devBtn: { marginTop: 24, padding: 12, borderWidth: 1, borderColor: SYS.TEXT_MUTED, borderRadius: 8 },
+  devBtnText: { fontSize: 12, color: SYS.TEXT_MUTED, textAlign: 'center' },
 });

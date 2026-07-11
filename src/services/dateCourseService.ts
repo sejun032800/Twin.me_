@@ -1,37 +1,6 @@
 // ─── FUN-HIS-002 — 인기 데이트코스 피드 (MASTER.md §7) ────────────────────────
-// Supabase date_courses 테이블에서 공개 코스를 가져온다. 아래 SQL을 Supabase 콘솔
-// (SQL Editor)에서 먼저 실행해야 실제 데이터가 조회된다 — 실행 전까지, 혹은 조회
-// 실패 시에는 MOCK_COURSES로 폴백한다.
-//
-// CREATE TABLE date_courses (
-//   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-//   couple_id UUID REFERENCES couples(id) ON DELETE CASCADE,
-//   title TEXT NOT NULL,
-//   area TEXT,
-//   places JSONB DEFAULT '[]',
-//   tags TEXT[] DEFAULT '{}',
-//   my_score DECIMAL(2,1),
-//   partner_score DECIMAL(2,1),
-//   review TEXT,
-//   is_public BOOLEAN DEFAULT false,
-//   likes INTEGER DEFAULT 0,
-//   tier_emoji TEXT,
-//   tier_name TEXT,
-//   created_at TIMESTAMPTZ DEFAULT NOW()
-// );
-//
-// ALTER TABLE date_courses ENABLE ROW LEVEL SECURITY;
-//
-// CREATE POLICY "공개 코스 전체 조회" ON date_courses
-//   FOR SELECT USING (is_public = true);
-//
-// CREATE POLICY "본인 코스 관리" ON date_courses
-//   FOR ALL USING (
-//     couple_id IN (
-//       SELECT id FROM couples
-//       WHERE creator_id = auth.uid() OR partner_id = auth.uid()
-//     )
-//   );
+// 조회 실패 시에는 MOCK_COURSES로 폴백한다.
+// 스키마: supabase/migrations/20260711000000_initial_schema.sql — date_courses 테이블
 
 import { supabase } from '@/lib/supabaseClient';
 

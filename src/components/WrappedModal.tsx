@@ -8,7 +8,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
 import { generateWrapped, type WrappedData } from '@/services/wrappedService';
 import { formatScore } from '@/engine/scoreCalculator';
-import { BRAND, SYS } from '@/constants/colors';
+import { BRAND, SYS, MODAL_BACKDROP } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -99,7 +99,7 @@ function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
     backdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.6)',
+      backgroundColor: MODAL_BACKDROP,
       justifyContent: 'flex-end',
     },
     sheet: {

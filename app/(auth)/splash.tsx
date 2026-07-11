@@ -1,3 +1,5 @@
+// 스플래시는 테마 초기화 이전 시점에 렌더링되므로 고정 다크 배경 유지.
+
 import { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';

@@ -6,7 +6,7 @@
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import type { MasterQuestion } from '@/services/masterQuestionService';
-import { BRAND, SYS } from '@/constants/colors';
+import { BRAND, SYS, MODAL_BACKDROP } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -60,7 +60,7 @@ function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      backgroundColor: MODAL_BACKDROP,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 24,

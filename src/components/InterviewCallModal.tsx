@@ -1,6 +1,8 @@
 // ─── FUN-ONB — 인터뷰 콜 모달 (MASTER.md §2, 부록G, 구버전 InterviewCallModal.tsx 이식) ──
 // 제네시스 인터뷰(부록G) 질문을 "전화 수신" UI로 감싸 몰입감을 높인다.
 // 실제 음성 STT/Realtime API는 TODO — 지금은 타이핑 입력을 답변 제출 수단으로 사용한다.
+// InterviewCallModal은 의도적으로 항상-다크 UI를 유지합니다.
+// themeMode와 무관하게 SYS.BG_DARK_MIDNIGHT / SYS.CARD_DARK / SYS.TEXT_LIGHT 고정.
 
 import { useEffect, useState } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
@@ -191,17 +193,17 @@ function makeStyles(theme: SigmaTheme) {
       borderBottomWidth: 10,
       borderLeftColor: 'transparent',
       borderRightColor: 'transparent',
-      borderBottomColor: theme.card,
+      borderBottomColor: SYS.CARD_DARK,
     },
     questionCard: {
-      backgroundColor: theme.card,
+      backgroundColor: SYS.CARD_DARK,
       borderRadius: 16,
       padding: 20,
       width: '100%',
     },
     questionText: {
       ...TYPOGRAPHY.body,
-      color: theme.text,
+      color: SYS.TEXT_LIGHT,
       textAlign: 'center',
       lineHeight: 24,
     },

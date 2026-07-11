@@ -1,6 +1,7 @@
 // ─── Couple Service — 초대 코드 생성/검증 (Supabase couples 테이블) ─────────────
 // docs/Twin_me_MASTER_v2.6.md §3 커플 연동. 테이블 스키마/RLS 정책은 Supabase
 // 콘솔에서 별도 실행이 필요하다 — 이 파일의 함수들은 couples 테이블이 존재해야 동작한다.
+// 스키마: supabase/migrations/20260711000000_initial_schema.sql — couples 테이블
 
 import { supabase } from '@/lib/supabaseClient';
 

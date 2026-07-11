@@ -12,7 +12,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { getPartnerMood, setMyMood, MOOD_OPTIONS, type PartnerMood } from '@/services/partnerMoodService';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
-import { BRAND, SYS } from '@/constants/colors';
+import { BRAND, SYS, MODAL_BACKDROP_LIGHT } from '@/constants/colors';
 
 function statusTagsFor(sLive: number): string[] {
   if (sLive >= 70) return ['💚 안정적', '☀️ 평온함'];
@@ -195,7 +195,7 @@ function makeStyles(theme: SigmaTheme) {
     },
     moodBackdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: MODAL_BACKDROP_LIGHT,
     },
     moodSheet: {
       backgroundColor: theme.card,

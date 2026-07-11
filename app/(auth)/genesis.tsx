@@ -1,6 +1,7 @@
 // ─── FUN-HOM-001 Override — 트윈 제네시스 인터뷰 (MASTER.md §2, 부록G) ──────────
 // useGenesisInterview 상태 머신을 phase별로 렌더링만 담당한다.
 // phase: idle → asking/act-transition → confirming → ceremony → done.
+// genesis 화면은 아우라/테마 생성 이전 온보딩 단계이므로 항상-다크 고정.
 
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';

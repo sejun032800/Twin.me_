@@ -46,7 +46,7 @@ import WrappedModal from '@/components/WrappedModal';
 import OOTDArchiveGrid from '@/components/OOTDArchiveGrid';
 import HighlightGallery from '@/components/HighlightGallery';
 import { formatScore } from '@/engine/scoreCalculator';
-import { BRAND, SYS } from '@/constants/colors';
+import { BRAND, SYS, MODAL_BACKDROP_LIGHT } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -796,7 +796,7 @@ function makeStyles(theme: SigmaTheme) {
 
   // 장소 추가 모달
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.5)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: MODAL_BACKDROP_LIGHT },
   sheet: {
     backgroundColor: theme.card,
     borderTopLeftRadius: 24,

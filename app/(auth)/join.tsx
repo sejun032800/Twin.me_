@@ -1,6 +1,8 @@
 // ─── FUN-CPL — 연인 초대 코드 입력 (MASTER.md §3 커플 연동) ───────────────────
 // 설정 탭 "연인 코드 입력"에서 진입. couples 테이블에서 코드를 조회해 partner_id를
 // 채워 넣는 joinCouple()을 호출한다.
+// auth 화면군(login, signup, join, kakao-upload)은 브랜드 일관성을 위해
+// 항상-다크 크롬을 유지합니다. useTheme() 미적용 의도적.
 
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';

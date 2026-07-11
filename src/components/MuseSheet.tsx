@@ -9,7 +9,7 @@ import { useScoreStore } from '@/store/scoreStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useTheme } from '@/hooks/useTheme';
 import { generateMuseSuggestions, type MuseSuggestion } from '@/services/aiMuseService';
-import { BRAND } from '@/constants/colors';
+import { BRAND, MODAL_BACKDROP_LIGHT } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -97,7 +97,7 @@ function makeStyles(theme: SigmaTheme) {
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: MODAL_BACKDROP_LIGHT,
     },
     sheet: {
       backgroundColor: theme.card,

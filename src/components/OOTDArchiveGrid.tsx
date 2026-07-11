@@ -10,7 +10,7 @@ import type { OOTDEntry } from '@/types/ootd';
 import OOTDUploadSheet from '@/components/OOTDUploadSheet';
 import StoryViewer from '@/components/StoryViewer';
 import { useTheme } from '@/hooks/useTheme';
-import { BRAND, SYS } from '@/constants/colors';
+import { BRAND, SYS, MODAL_BACKDROP_LIGHT, MODAL_BACKDROP_HEAVY } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -150,7 +150,7 @@ function makeStyles(theme: SigmaTheme) {
       left: 4,
       ...TYPOGRAPHY.caption,
       color: SYS.TEXT_LIGHT,
-      textShadowColor: 'rgba(0, 0, 0, 0.8)',
+      textShadowColor: MODAL_BACKDROP_HEAVY,
       textShadowOffset: { width: 0, height: 1 },
       textShadowRadius: 3,
     },
@@ -158,7 +158,7 @@ function makeStyles(theme: SigmaTheme) {
       position: 'absolute',
       top: 4,
       right: 4,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: MODAL_BACKDROP_LIGHT,
       borderRadius: 6,
       paddingHorizontal: 6,
       paddingVertical: 2,
