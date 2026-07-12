@@ -33,7 +33,7 @@ import { pickFewShotAnchors } from '@/engine/userToneVectorBuilder';
 import { formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
-import { TYPOGRAPHY } from '@/constants/typography';
+import { FONTS, TYPOGRAPHY } from '@/constants/typography';
 
 const FREE_MONTHLY_LIMIT = 4;
 
@@ -161,6 +161,7 @@ export default function Chat() {
       subtitle: '연인을 초대하면 함께할 수 있어요',
       icon: '🔒',
       color: BRAND.PINK,
+      cardBg: 'rgba(255, 189, 189, 0.08)',
       locked: !isPartnerConnected,
     },
     {
@@ -169,6 +170,7 @@ export default function Chat() {
       subtitle: '나를 닮은 AI와 솔직하게 대화해요',
       icon: name ? name[0] : 'T',
       color: BRAND.MINT,
+      cardBg: 'rgba(186, 223, 219, 0.10)',
       locked: false,
     },
     {
@@ -177,6 +179,7 @@ export default function Chat() {
       subtitle: '우리 대화 패턴을 함께 들여다봐요',
       icon: '📊',
       color: BRAND.CORAL,
+      cardBg: 'rgba(255, 164, 164, 0.07)',
       locked: false,
     },
   ];
@@ -545,7 +548,7 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
         {ROOMS.map((room) => (
           <TouchableOpacity
             key={room.key}
-            style={styles.dmItem}
+            style={[styles.dmItem, { backgroundColor: room.cardBg }]}
             onPress={() => !room.locked && setActiveChatRoom(room.key)}
             activeOpacity={room.locked ? 1 : 0.7}
           >
@@ -784,10 +787,15 @@ function makeStyles(theme: SigmaTheme) {
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 12,
+    paddingBottom: 20,
   },
-  dmHeaderTitle: { ...TYPOGRAPHY.title, color: theme.text },
+  dmHeaderTitle: {
+    fontFamily: FONTS.serifBold,
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.text,
+  },
   dmHeaderIcons: { flexDirection: 'row', gap: 4 },
   dmHeaderBtn: { padding: 8 },
 
@@ -800,13 +808,16 @@ function makeStyles(theme: SigmaTheme) {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 16,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 16,
     gap: 14,
   },
   dmAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -824,9 +835,9 @@ function makeStyles(theme: SigmaTheme) {
   },
   dmContent: { flex: 1, gap: 4 },
   dmTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dmName: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
+  dmName: { fontSize: 15, fontWeight: '600', color: theme.text },
   dmTime: { ...TYPOGRAPHY.caption, color: theme.textMuted },
-  dmPreview: { ...TYPOGRAPHY.caption, color: theme.textMuted },
+  dmPreview: { fontSize: 12, color: theme.textMuted, marginTop: 2 },
 
   // 룸 안 채팅 화면 헤더 (뒤로가기 + 룸 아바타/이름)
   chatHeader: {
@@ -834,15 +845,16 @@ function makeStyles(theme: SigmaTheme) {
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+    backgroundColor: '#FBF8F3',
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   chatHeaderCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   chatHeaderAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   chatHeaderAvatarText: { fontSize: 16 },
-  chatHeaderName: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
-  chatHeaderSub: { ...TYPOGRAPHY.caption, color: theme.textMuted },
+  chatHeaderName: { fontSize: 16, fontWeight: '600', color: theme.text },
+  chatHeaderSub: { fontSize: 11, color: theme.textMuted, marginTop: 1 },
 
   placeholder: {
     flex: 1,
@@ -909,9 +921,25 @@ function makeStyles(theme: SigmaTheme) {
   msgRowTwin: { justifyContent: 'flex-start' },
   msgAvatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   bubble: { maxWidth: 280, padding: 12, paddingHorizontal: 16 },
-  bubbleMe: { backgroundColor: BRAND.CORAL, borderRadius: 20, borderBottomRightRadius: 4 },
-  bubbleTwin: { backgroundColor: theme.card, borderRadius: 20, borderBottomLeftRadius: 4 },
-  bubbleText: { ...TYPOGRAPHY.body, color: SYS.TEXT_LIGHT },
+  bubbleMe: {
+    backgroundColor: BRAND.CORAL,
+    borderRadius: 18,
+    borderBottomRightRadius: 4,
+    padding: 11,
+    paddingHorizontal: 15,
+    maxWidth: 280,
+  },
+  bubbleTwin: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    padding: 11,
+    paddingHorizontal: 15,
+    maxWidth: 280,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  bubbleText: { fontSize: 14, lineHeight: 21, color: '#FFFFFF' },
   msgTime: { ...TYPOGRAPHY.caption, color: theme.textMuted, marginTop: 4, paddingHorizontal: 4 },
 
   sensitiveWarning: {
@@ -930,11 +958,12 @@ function makeStyles(theme: SigmaTheme) {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingBottom: 8,
+    paddingVertical: 10,
+    paddingBottom: 10,
     gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(0, 0, 0, 0.06)',
+    backgroundColor: '#FBF8F3',
   },
   museBtn: {
     width: 40,
@@ -949,11 +978,13 @@ function makeStyles(theme: SigmaTheme) {
   },
   inputWrapper: {
     flex: 1,
-    backgroundColor: theme.card,
-    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    minHeight: 44,
+    minHeight: 42,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
   },
   input: {
     ...TYPOGRAPHY.body,
@@ -961,13 +992,13 @@ function makeStyles(theme: SigmaTheme) {
     maxHeight: 120,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: BRAND.CORAL,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnDisabled: { backgroundColor: theme.card },
+  sendBtnDisabled: { backgroundColor: 'rgba(255, 164, 164, 0.25)' },
   });
 }

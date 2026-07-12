@@ -84,7 +84,7 @@ export default function Genesis() {
 
   useEffect(() => {
     if (phase === 'done') {
-      router.replace('/(tabs)');
+      router.replace('/(auth)/invite-hook');
     }
   }, [phase, router]);
 
@@ -108,7 +108,7 @@ export default function Genesis() {
     // 앱 첫 실행 시 S_Current를 S_Base로 초기화 — 이후로는 settleMidnight()만이 갱신한다(§5.1).
     setSCurrent(baseScore);
     completeOnboarding();
-    router.replace('/(tabs)');
+    router.replace('/(auth)/invite-hook');
   }
 
   if (phase === 'idle') {
@@ -237,55 +237,64 @@ export default function Genesis() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: SYS.BG_DARK_MIDNIGHT,
+    backgroundColor: '#0A0D1A',
   },
   scrollContent: {
-    padding: 32,
+    padding: 28,
     justifyContent: 'center',
     flexGrow: 1,
-    gap: 20,
+    gap: 24,
   },
   idleDesc: {
     fontSize: 18,
-    color: SYS.TEXT_LIGHT,
+    color: '#E8E4DC',
     textAlign: 'center',
-    lineHeight: 26,
+    lineHeight: 28,
   },
   progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: SYS.CARD_DARK,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#131726',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: BRAND.CORAL,
-    borderRadius: 3,
+    backgroundColor: '#FFA4A4',
+    borderRadius: 1,
   },
   clayEmoji: {
-    fontSize: 64,
+    fontSize: 72,
     textAlign: 'center',
   },
   actLabel: {
-    fontSize: 14,
-    color: SYS.TEXT_MUTED,
+    fontSize: 12,
+    color: '#5A6480',
     textAlign: 'center',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   questionText: {
-    fontSize: 20,
-    color: SYS.TEXT_LIGHT,
+    fontSize: 22,
+    color: '#E8E4DC',
     textAlign: 'center',
+    lineHeight: 34,
+    fontWeight: '600',
   },
   input: {
-    backgroundColor: SYS.CARD_DARK,
-    borderRadius: 12,
-    padding: 16,
-    color: SYS.TEXT_LIGHT,
+    backgroundColor: '#131726',
+    borderRadius: 14,
+    padding: 18,
+    color: '#E8E4DC',
     fontSize: 16,
+    lineHeight: 24,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   linkText: {
-    fontSize: 14,
-    color: BRAND.MINT,
+    fontSize: 13,
+    color: '#BADFDB',
     textAlign: 'center',
   },
   confirmTitle: {
@@ -301,63 +310,66 @@ const styles = StyleSheet.create({
   },
   ceremonyContent: {
     alignItems: 'center',
-    gap: 16,
+    gap: 18,
   },
   auraPreview: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
     alignItems: 'center',
     justifyContent: 'center',
   },
   auraPreviewEmoji: {
-    fontSize: 48,
+    fontSize: 52,
   },
   ceremonyTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: BRAND.CORAL,
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#FFA4A4',
     textAlign: 'center',
   },
   ceremonyAxis: {
     fontSize: 15,
-    color: SYS.TEXT_LIGHT,
+    color: '#5A6480',
     textAlign: 'center',
   },
   ceremonyType: {
     fontSize: 18,
-    color: SYS.TEXT_LIGHT,
+    fontWeight: '600',
+    color: '#E8E4DC',
     textAlign: 'center',
   },
   ceremonyDirection: {
     fontSize: 15,
-    color: SYS.TEXT_LIGHT,
+    color: '#E8E4DC',
     textAlign: 'center',
   },
   ceremonyStory: {
     fontSize: 13,
-    color: SYS.TEXT_MUTED,
+    color: '#5A6480',
     textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 20,
   },
   primaryBtn: {
-    backgroundColor: BRAND.CORAL,
+    backgroundColor: '#FFA4A4',
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 18,
     alignItems: 'center',
   },
   primaryBtnText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: SYS.TEXT_LIGHT,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   secondaryBtn: {
-    backgroundColor: SYS.CARD_DARK,
+    backgroundColor: '#131726',
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 18,
     alignItems: 'center',
   },
   secondaryBtnText: {
     fontSize: 16,
-    color: SYS.TEXT_LIGHT,
+    color: '#E8E4DC',
   },
 });

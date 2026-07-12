@@ -68,12 +68,12 @@ const ITEM_HEIGHT = CARD_HEIGHT + ITEM_MARGIN * 2;
 const PARALLAX_RANGE = 260; // 이 거리(px) 이상 멀어지면 최소 scale/opacity에 도달
 
 const HELIX_CARDS = [
-  { id: '1', emoji: '💌', label: '첫 만남', date: '2025.01.15', tags: ['#설렘', '#시작'] },
-  { id: '2', emoji: '🍽️', label: '첫 데이트', date: '2025.01.22', tags: ['#맛집', '#떨림'] },
-  { id: '3', emoji: '✈️', label: '첫 여행', date: '2025.03.10', tags: ['#여행', '#추억'] },
-  { id: '4', emoji: '🎉', label: '100일', date: '2025.04.25', tags: ['#기념일', '#축하'] },
-  { id: '5', emoji: '🌙', label: '야경', date: '2025.05.30', tags: ['#야경', '#로맨틱'] },
-  { id: '6', emoji: '☕', label: '카페투어', date: '2025.06.14', tags: ['#카페', '#힐링'] },
+  { id: '1', emoji: '💌', label: '첫 만남', date: '2025.01.15', tags: ['#설렘', '#시작'], cardBg: 'rgba(255, 164, 164, 0.08)' },
+  { id: '2', emoji: '🍽️', label: '첫 데이트', date: '2025.01.22', tags: ['#맛집', '#떨림'], cardBg: 'rgba(255, 189, 189, 0.08)' },
+  { id: '3', emoji: '✈️', label: '첫 여행', date: '2025.03.10', tags: ['#여행', '#추억'], cardBg: 'rgba(186, 223, 219, 0.10)' },
+  { id: '4', emoji: '🎉', label: '100일', date: '2025.04.25', tags: ['#기념일', '#축하'], cardBg: 'rgba(255, 164, 164, 0.10)' },
+  { id: '5', emoji: '🌙', label: '야경', date: '2025.05.30', tags: ['#야경', '#로맨틱'], cardBg: 'rgba(125, 224, 200, 0.08)' },
+  { id: '6', emoji: '☕', label: '카페투어', date: '2025.06.14', tags: ['#카페', '#힐링'], cardBg: 'rgba(252, 249, 234, 0.40)' },
 ];
 
 // TODO: 실제 장소 데이터(kakaoParser 연동) 반영 전까지는 임시 표시값
@@ -96,6 +96,7 @@ interface HelixCardData {
   label: string;
   date: string;
   tags: string[];
+  cardBg: string;
 }
 
 type HistoryStyles = ReturnType<typeof makeStyles>;
@@ -136,7 +137,7 @@ function HelixCard({
   });
 
   return (
-    <Animated.View style={[styles.helixItem, animatedStyle]}>
+    <Animated.View style={[styles.helixItem, { backgroundColor: card.cardBg }, animatedStyle]}>
       <Text style={styles.helixEmoji}>{card.emoji}</Text>
       <Text style={styles.helixLabel}>{card.label}</Text>
       <Text style={styles.helixDate}>{card.date}</Text>
@@ -216,7 +217,7 @@ const FEED_FILTERS: Array<{ key: FeedFilterKey; label: string }> = [
   { key: 'nearby', label: '📍 내 지역' },
 ];
 
-function FeedTab() {
+function FeedTab({ onAddToMap }: { onAddToMap: (course: DateCourse) => void }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { hasReportAccess } = usePremiumGate();
@@ -281,7 +282,7 @@ function FeedTab() {
         </View>
       )}
 
-      <View style={[styles.ootdBar, { backgroundColor: theme.card }]}>
+      <View style={styles.ootdBar}>
         <Text style={styles.ootdText}>✨ 내 현재 OOTD & 무드 코스만 보기</Text>
         <Switch
           value={ootdOnly}
@@ -299,7 +300,6 @@ function FeedTab() {
               key={f.key}
               style={[
                 styles.filterChip,
-                { backgroundColor: theme.card },
                 selected && styles.filterChipActive,
               ]}
               onPress={async () => {
@@ -312,7 +312,6 @@ function FeedTab() {
               <Text
                 style={[
                   styles.filterChipText,
-                  { color: theme.textMuted },
                   selected && styles.filterChipTextActive,
                 ]}
               >
@@ -333,19 +332,14 @@ function FeedTab() {
         filteredCourses.map((course) => (
           <View
             key={course.id}
-            style={[styles.courseCard, { backgroundColor: theme.card }]}
+            style={styles.courseCard}
           >
             <View style={styles.courseHeader}>
               <Text style={styles.courseCoupleLabel}>
                 익명의 [{course.tierEmoji} {course.tierName}] 커플
               </Text>
-              <View
-                style={[
-                  styles.courseRegionBadge,
-                  { backgroundColor: theme.accentSoft },
-                ]}
-              >
-                <Text style={[styles.courseRegionText, { color: BRAND.CORAL }]}>📍 {course.area}</Text>
+              <View style={styles.courseRegionBadge}>
+                <Text style={styles.courseRegionText}>📍 {course.area}</Text>
               </View>
             </View>
 
@@ -389,8 +383,11 @@ function FeedTab() {
 
             <Text style={[styles.courseReview, { color: theme.textMuted }]}>"{course.review}"</Text>
 
-            <TouchableOpacity style={[styles.courseMapBtn, styles.courseMapBtnSolid]}>
-              <Text style={styles.courseMapBtnText}>🗺️ 이 코스 내 지도에 담기</Text>
+            <TouchableOpacity
+              style={[styles.courseMapBtn, styles.courseMapBtnSolid]}
+              onPress={() => onAddToMap(course)}
+            >
+              <Text style={styles.courseMapBtnText}>📍 이 코스 내 지도에 담기</Text>
             </TouchableOpacity>
           </View>
         ))
@@ -559,6 +556,42 @@ export default function History() {
     }
   }
 
+  function handleAddCourseToMap(course: DateCourse) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const newPlaces: DatePlace[] = course.places
+      .filter((p) => !places.find((existing) => existing.name === p.name))
+      .map((p, i) => ({
+        id: `${course.id}_${i}_${Date.now()}`,
+        name: p.name,
+        area: course.area,
+        date: todayStr,
+        memo: `${course.title} 코스`,
+      }));
+
+    if (newPlaces.length === 0) {
+      setSubTab('map');
+      Alert.alert('이미 담겨 있어요', `${course.title} 코스의 장소가 이미 내 지도에 있어요.`);
+      return;
+    }
+
+    (async () => {
+      try {
+        for (const p of newPlaces) {
+          await saveDatePlace(p);
+        }
+        setPlaces((prev) => [...newPlaces, ...prev]);
+        setSubTab('map');
+        Alert.alert(
+          '📍 지도에 담았어요',
+          `${course.title} 코스의 장소 ${newPlaces.length}개가\n내 지도에 추가됐어요.`,
+          [{ text: '확인' }],
+        );
+      } catch {
+        Alert.alert('오류', '장소를 지도에 담지 못했어요.');
+      }
+    })();
+  }
+
   async function handleAIRecommend() {
     setAiLoading(true);
     try {
@@ -598,14 +631,12 @@ export default function History() {
         <View style={styles.mapPlaceholder}>
           <Text style={styles.mapPlaceholderEmoji}>🗺️</Text>
           <Text style={styles.mapPlaceholderTitle}>지도 기능 준비 중</Text>
-          <Text style={[styles.mapPlaceholderDesc, { color: theme.textMuted }]}>
+          <Text style={styles.mapPlaceholderDesc}>
             .env 파일에 EXPO_PUBLIC_KAKAO_MAP_API_KEY를{'\n'}
             입력하면 바로 활성화돼요
           </Text>
 
-          <View
-            style={[styles.mapPinList, { backgroundColor: theme.card }]}
-          >
+          <View style={styles.mapPinList}>
             <Text style={styles.mapPinListTitle}>📍 등록된 장소</Text>
             {places.length === 0 ? (
               <Text style={[styles.mapPinEmpty, { color: theme.textMuted }]}>아직 기록된 장소가 없어요</Text>
@@ -614,10 +645,10 @@ export default function History() {
                 {places.map((place) => (
                   <View key={place.id} style={styles.placeRow}>
                     <View style={styles.placeRowInfo}>
-                      <Text style={[styles.placeRowName, { color: theme.text }]} numberOfLines={1}>
+                      <Text style={styles.placeRowName} numberOfLines={1}>
                         📍 {place.name}
                       </Text>
-                      <Text style={[styles.placeRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                      <Text style={styles.placeRowMeta} numberOfLines={1}>
                         {[place.area, place.date, place.rating ? `⭐${place.rating}` : null]
                           .filter(Boolean)
                           .join(' · ')}
@@ -693,7 +724,7 @@ export default function History() {
 
         {subTab === 'archive' && <ArchiveTab />}
         {subTab === 'map' && renderMap()}
-        {subTab === 'feed' && <FeedTab />}
+        {subTab === 'feed' && <FeedTab onAddToMap={handleAddCourseToMap} />}
       </View>
     </SafeAreaView>
   );
@@ -701,26 +732,28 @@ export default function History() {
 
 function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: theme.bg },
-  container: { flex: 1, backgroundColor: theme.bg },
+  safeArea: { flex: 1, backgroundColor: '#FBF8F3' },
+  container: { flex: 1, backgroundColor: '#FBF8F3' },
 
   tabBar: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: SYS.CARD_DARK,
+    backgroundColor: '#FBF8F3',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+    paddingHorizontal: 4,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
-  tabLabel: { fontSize: 15, color: SYS.TEXT_MUTED },
-  tabLabelActive: { color: BRAND.CORAL, fontWeight: 'bold' },
+  tabLabel: { fontSize: 14, color: '#C0C0C0', fontWeight: '500' },
+  tabLabelActive: { color: '#FFA4A4', fontWeight: '700' },
   tabUnderline: {
-    marginTop: 8,
+    marginTop: 6,
     height: 2,
-    width: 24,
-    backgroundColor: BRAND.CORAL,
+    width: 20,
+    backgroundColor: '#FFA4A4',
     borderRadius: 1,
   },
 
@@ -728,90 +761,114 @@ function makeStyles(theme: SigmaTheme) {
   helixHeader: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 12,
+    paddingBottom: 8,
     alignItems: 'center',
   },
-  helixTitle: { ...TYPOGRAPHY.heading, color: theme.text },
-  helixSub: { ...TYPOGRAPHY.caption, color: SYS.TEXT_MUTED, marginTop: 4 },
+  helixTitle: { fontSize: 20, fontWeight: '700', color: '#1A1A1A' },
+  helixSub: { fontSize: 12, color: '#AAAAAA', marginTop: 4 },
   helixContent: { paddingVertical: 20 },
   helixItem: {
     width: CARD_WIDTH,
     minHeight: CARD_HEIGHT,
     marginVertical: ITEM_MARGIN,
     alignSelf: 'center',
-    backgroundColor: theme.card,
-    borderRadius: 24,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: 18,
     gap: 8,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
   },
-  helixEmoji: { fontSize: 48 },
-  helixLabel: { ...TYPOGRAPHY.label, color: theme.text },
-  helixDate: { ...TYPOGRAPHY.caption, color: theme.textMuted },
+  helixEmoji: { fontSize: 44 },
+  helixLabel: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
+  helixDate: { fontSize: 11, color: '#AAAAAA' },
   helixTags: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 4 },
-  helixTag: { backgroundColor: theme.card, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
-  helixTagText: { ...TYPOGRAPHY.caption, color: BRAND.MINT },
+  helixTag: { backgroundColor: 'rgba(255, 255, 255, 0.6)', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3 },
+  helixTagText: { fontSize: 10, color: '#3A8C85' },
   helixStatsBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: SYS.CARD_DARK,
+    paddingVertical: 14,
+    marginHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    marginBottom: 12,
   },
-  helixStatItem: { ...TYPOGRAPHY.label, color: theme.text },
+  helixStatItem: { fontSize: 13, fontWeight: '500', color: '#1A1A1A' },
 
   // 커플 Wrapped(§11) 진입 버튼
-  wrappedBtn: { marginHorizontal: 20, marginBottom: 16, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  wrappedBtn: { marginHorizontal: 20, marginBottom: 16, borderRadius: 14, paddingVertical: 15, alignItems: 'center', backgroundColor: '#FFA4A4' },
   wrappedBtnSolid: { backgroundColor: BRAND.CORAL },
-  wrappedBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
+  wrappedBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 
   // 지도 — 카카오맵 연동 전 플레이스홀더. "등록된 장소" 섹션은 memoryMapService 연동
-  mapPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  mapPlaceholderEmoji: { fontSize: 64 },
-  mapPlaceholderTitle: { ...TYPOGRAPHY.heading, color: theme.text },
-  mapPlaceholderDesc: { ...TYPOGRAPHY.body, textAlign: 'center', lineHeight: 24 },
-  mapPinList: { width: '100%', borderRadius: 16, padding: 20, gap: 8, marginTop: 8 },
-  mapPinListTitle: { ...TYPOGRAPHY.label, color: SYS.TEXT_MUTED },
+  mapPlaceholder: { flex: 1, alignItems: 'center', padding: 28, gap: 12 },
+  mapPlaceholderEmoji: { fontSize: 56 },
+  mapPlaceholderTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
+  mapPlaceholderDesc: { fontSize: 13, color: '#AAAAAA', textAlign: 'center', lineHeight: 20 },
+  mapPinList: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    gap: 10,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    marginTop: 4,
+  },
+  mapPinListTitle: { fontSize: 12, color: '#AAAAAA', fontWeight: '600', letterSpacing: 0.5 },
   mapPinEmpty: { ...TYPOGRAPHY.caption },
   placeList: { gap: 10, marginTop: 4 },
-  placeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  placeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    gap: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0, 0, 0, 0.04)',
+  },
   placeRowInfo: { flex: 1, gap: 2 },
-  placeRowName: { ...TYPOGRAPHY.bodyMedium },
-  placeRowMeta: { ...TYPOGRAPHY.caption },
+  placeRowName: { fontSize: 14, fontWeight: '500', color: '#1A1A1A' },
+  placeRowMeta: { fontSize: 11, color: '#AAAAAA', marginTop: 2 },
   addPlaceBtn: {
-    marginTop: 8,
+    marginTop: 6,
     alignSelf: 'flex-start',
-    backgroundColor: BRAND.CORAL,
-    borderRadius: 12,
+    backgroundColor: '#FFA4A4',
+    borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  addPlaceBtnText: { ...TYPOGRAPHY.caption, color: SYS.TEXT_LIGHT },
+  addPlaceBtnText: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
   aiRecommendBtn: { width: '100%', marginTop: 8 },
-  aiRecommendSolid: { backgroundColor: BRAND.CORAL, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  optimizeBtnSolid: { backgroundColor: BRAND.MINT, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  aiRecommendSolid: { backgroundColor: '#FFA4A4', borderRadius: 14, padding: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%' },
+  optimizeBtnSolid: { backgroundColor: '#BADFDB', borderRadius: 14, padding: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginBottom: 8 },
   disabledBtn: { opacity: 0.4 },
-  aiRecommendText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
+  aiRecommendText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 
   // 장소 추가 모달
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: MODAL_BACKDROP_LIGHT },
   sheet: {
-    backgroundColor: theme.card,
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    gap: 16,
+    gap: 14,
   },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.border, alignSelf: 'center' },
   title: { ...TYPOGRAPHY.title, color: theme.text, textAlign: 'center' },
   placeInput: {
-    backgroundColor: theme.bgSecondary,
-    borderRadius: 14,
+    backgroundColor: '#FBF8F3',
+    borderRadius: 12,
     padding: 14,
-    color: theme.text,
-    ...TYPOGRAPHY.body,
+    color: '#1A1A1A',
+    fontSize: 14,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
   },
   ratingRow: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
   ratingBtn: {
@@ -826,18 +883,18 @@ function makeStyles(theme: SigmaTheme) {
   placeModalActions: { flexDirection: 'row', gap: 12 },
   placeCancelBtn: {
     flex: 1,
-    borderRadius: 14,
-    paddingVertical: 16,
+    borderRadius: 12,
+    paddingVertical: 15,
     alignItems: 'center',
-    backgroundColor: theme.bgSecondary,
+    backgroundColor: '#F5F5F5',
   },
-  placeCancelBtnText: { ...TYPOGRAPHY.button, color: theme.textMuted },
+  placeCancelBtnText: { fontSize: 14, fontWeight: '600', color: '#AAAAAA' },
   placeSaveBtn: {
     flex: 1,
-    borderRadius: 14,
-    paddingVertical: 16,
+    borderRadius: 12,
+    paddingVertical: 15,
     alignItems: 'center',
-    backgroundColor: BRAND.CORAL,
+    backgroundColor: '#FFA4A4',
   },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
@@ -867,35 +924,47 @@ function makeStyles(theme: SigmaTheme) {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    padding: 16,
+    padding: 14,
     marginHorizontal: 20,
     marginBottom: 12,
-    gap: 12,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
-  ootdText: { ...TYPOGRAPHY.bodyMedium, color: theme.text, flex: 1 },
+  ootdText: { fontSize: 13, fontWeight: '500', color: '#1A1A1A', flex: 1 },
 
   feedLoading: { marginTop: 40 },
   feedEmptyText: { ...TYPOGRAPHY.body, color: theme.textMuted, textAlign: 'center', marginTop: 40 },
   feedFilterEmptyText: { ...TYPOGRAPHY.caption, color: theme.textMuted, textAlign: 'center', marginTop: 40 },
 
   filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 16 },
-  filterChip: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8 },
-  filterChipActive: { backgroundColor: BRAND.CORAL },
-  filterChipText: { ...TYPOGRAPHY.caption },
-  filterChipTextActive: { color: SYS.TEXT_LIGHT },
+  filterChip: {
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  filterChipActive: { backgroundColor: '#FFA4A4', borderColor: '#FFA4A4' },
+  filterChipText: { fontSize: 12, color: '#AAAAAA', fontWeight: '500' },
+  filterChipTextActive: { color: '#FFFFFF', fontWeight: '700' },
 
   courseCard: {
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 18,
     marginHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 14,
     gap: 12,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   courseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   courseCoupleLabel: { ...TYPOGRAPHY.bodyMedium, color: theme.text, flex: 1 },
-  courseRegionBadge: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
-  courseRegionText: { ...TYPOGRAPHY.caption },
+  courseRegionBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: 'rgba(186, 223, 219, 0.20)' },
+  courseRegionText: { fontSize: 11, color: '#3A8C85', fontWeight: '500' },
 
   coursePlaces: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   coursePlaceRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -915,12 +984,12 @@ function makeStyles(theme: SigmaTheme) {
 
   courseMapBtn: { marginTop: 4 },
   courseMapBtnSolid: {
-    backgroundColor: BRAND.CORAL,
-    borderRadius: 14,
-    paddingVertical: 14,
+    backgroundColor: '#FFA4A4',
+    borderRadius: 12,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  courseMapBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
+  courseMapBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   });
 }

@@ -13,7 +13,7 @@ import D0ResultScreen from '@/components/D0ResultScreen';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
-import { BRAND, SYS } from '@/constants/colors';
+import { SYS } from '@/constants/colors';
 
 const D0_DATE_HEADER_RE = /(\d{4})년 (\d{1,2})월 (\d{1,2})일/;
 
@@ -145,44 +145,128 @@ export default function KakaoUpload() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>카카오톡 대화 가져오기</Text>
-      <Text style={styles.desc}>
-        카카오톡 대화 내보내기(.txt)를 업로드하면{'\n'}
-        나를 닮은 트윈 AI가 만들어져요.
-      </Text>
+      <View>
+        <View style={styles.progressBar} />
 
-      <TouchableOpacity style={styles.uploadBtn} onPress={handlePick}>
-        <Text style={styles.uploadBtnText}>
-          {uploaded ? '✅ 파일 선택됨' : '📂 파일 선택'}
+        <Text style={styles.heading}>카카오톡 대화 가져오기</Text>
+        <Text style={styles.desc}>
+          카카오톡 대화 내보내기(.txt)를 업로드하면{'\n'}
+          나를 닮은 트윈 AI가 만들어져요.
         </Text>
-      </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.nextBtn, !uploaded && styles.nextBtnDisabled]}
-        onPress={handleNext}
-        disabled={!uploaded || loading}
-      >
-        {loading
-          ? <ActivityIndicator color={SYS.TEXT_LIGHT} />
-          : <Text style={styles.nextBtnText}>시작하기</Text>
-        }
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.uploadBtn} onPress={handlePick}>
+          <Text style={styles.uploadIcon}>
+            {uploaded ? '✅' : '📂'}
+          </Text>
+          <Text style={styles.uploadBtnText}>
+            {uploaded ? '파일 선택됨' : '파일 선택하기'}
+          </Text>
+          <Text style={styles.uploadBtnSub}>
+            {uploaded ? '다시 선택하려면 탭하세요' : '.txt 또는 .zip 파일'}
+          </Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity onPress={handleSkip}>
-        <Text style={styles.skipText}>나중에 할게요</Text>
-      </TouchableOpacity>
+        <Text style={styles.privacyNote}>
+          🔒 상대방 대화는 업로드 즉시 파기됩니다{'\n'}
+          원본 파일은 기기에 저장되지 않아요
+        </Text>
+      </View>
+
+      <View>
+        <TouchableOpacity
+          style={[styles.nextBtn, !uploaded && styles.nextBtnDisabled]}
+          onPress={handleNext}
+          disabled={!uploaded || loading}
+        >
+          {loading
+            ? <ActivityIndicator color={SYS.TEXT_LIGHT} />
+            : <Text style={styles.nextBtnText}>시작하기</Text>
+          }
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleSkip}>
+          <Text style={styles.skipText}>나중에 할게요</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT, padding: 32, justifyContent: 'center', gap: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', color: BRAND.CORAL },
-  desc: { fontSize: 16, color: SYS.TEXT_LIGHT, lineHeight: 24 },
-  uploadBtn: { backgroundColor: SYS.CARD_DARK, borderRadius: 14, paddingVertical: 20, alignItems: 'center', borderWidth: 1, borderColor: BRAND.CORAL, borderStyle: 'dashed' },
-  uploadBtnText: { fontSize: 16, color: BRAND.CORAL },
-  nextBtn: { backgroundColor: BRAND.CORAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  nextBtnDisabled: { backgroundColor: SYS.CARD_DARK },
-  nextBtnText: { fontSize: 16, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
-  skipText: { fontSize: 14, color: SYS.TEXT_MUTED, textAlign: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0D1A',
+    padding: 28,
+    justifyContent: 'space-between',
+  },
+  progressBar: {
+    height: 2,
+    width: '75%',
+    backgroundColor: '#FFA4A4',
+    borderRadius: 1,
+    marginBottom: 40,
+  },
+  heading: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#E8E4DC',
+    lineHeight: 34,
+    marginBottom: 8,
+  },
+  desc: {
+    fontSize: 14,
+    color: '#5A6480',
+    lineHeight: 22,
+    marginBottom: 36,
+  },
+  uploadBtn: {
+    backgroundColor: '#131726',
+    borderRadius: 16,
+    paddingVertical: 28,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 164, 164, 0.30)',
+    borderStyle: 'dashed',
+    gap: 10,
+    marginBottom: 16,
+  },
+  uploadIcon: {
+    fontSize: 36,
+  },
+  uploadBtnText: {
+    fontSize: 15,
+    color: '#FFA4A4',
+    fontWeight: '600',
+  },
+  uploadBtnSub: {
+    fontSize: 12,
+    color: '#3A4055',
+  },
+  privacyNote: {
+    fontSize: 11,
+    color: '#3A4055',
+    textAlign: 'center',
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+  nextBtn: {
+    backgroundColor: '#FFA4A4',
+    borderRadius: 14,
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+  nextBtnDisabled: {
+    backgroundColor: 'rgba(255, 164, 164, 0.20)',
+  },
+  nextBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  skipText: {
+    fontSize: 13,
+    color: '#3A4055',
+    textAlign: 'center',
+    marginTop: 16,
+  },
 });

@@ -22,7 +22,7 @@ import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
-import { BRAND, SYS, MODAL_BACKDROP_LIGHT } from '@/constants/colors';
+import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -232,25 +232,25 @@ export default function Settings() {
               <TouchableOpacity
                 style={[
                   styles.themeBtn,
-                  themeMode === 'sigma' ? styles.themeBtnSelected : { backgroundColor: theme.card },
+                  themeMode === 'sigma' && styles.themeBtnSelected,
                   !hasAuraVector && styles.themeBtnDisabled,
                 ]}
                 onPress={() => { if (hasAuraVector) setThemeMode('sigma'); }}
                 disabled={!hasAuraVector}
               >
-                <Text style={[styles.themeBtnText, { color: theme.text }]}>✨ 6 Sigma</Text>
+                <Text style={[styles.themeBtnText, { color: themeMode === 'sigma' ? '#FFFFFF' : '#1A1A1A' }]}>✨ 6 Sigma</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.themeBtn, themeMode === 'light' ? styles.themeBtnSelected : { backgroundColor: theme.card }]}
+                style={[styles.themeBtn, themeMode === 'light' && styles.themeBtnSelected]}
                 onPress={() => setThemeMode('light')}
               >
-                <Text style={[styles.themeBtnText, { color: theme.text }]}>☀️ 라이트</Text>
+                <Text style={[styles.themeBtnText, { color: themeMode === 'light' ? '#FFFFFF' : '#1A1A1A' }]}>☀️ 라이트</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.themeBtn, themeMode === 'dark' ? styles.themeBtnSelected : { backgroundColor: theme.card }]}
+                style={[styles.themeBtn, themeMode === 'dark' && styles.themeBtnSelected]}
                 onPress={() => setThemeMode('dark')}
               >
-                <Text style={[styles.themeBtnText, { color: theme.text }]}>🌙 다크</Text>
+                <Text style={[styles.themeBtnText, { color: themeMode === 'dark' ? '#FFFFFF' : '#1A1A1A' }]}>🌙 다크</Text>
               </TouchableOpacity>
             </View>
             {!hasAuraVector && (
@@ -294,9 +294,9 @@ export default function Settings() {
                 step={1}
                 value={privacyLevel}
                 onValueChange={(v) => setPrivacyLevel(Math.round(v) as 0 | 1 | 2)}
-                minimumTrackTintColor={BRAND.CORAL}
-                maximumTrackTintColor={theme.border}
-                thumbTintColor={BRAND.CORAL}
+                minimumTrackTintColor="#FFA4A4"
+                maximumTrackTintColor="rgba(0,0,0,0.10)"
+                thumbTintColor="#FFA4A4"
                 style={styles.slider}
               />
               <Text style={styles.privacyLevelText}>
@@ -360,7 +360,19 @@ export default function Settings() {
             <View style={styles.divider} />
             <View style={styles.row}>
               <Text style={styles.rowText}>연동 상태</Text>
-              <Text style={styles.rowValue}>{isPartnerConnected ? '연동됨' : '미연동'}</Text>
+              <View style={[
+                styles.statusBadge,
+                isPartnerConnected
+                  ? styles.statusBadgeConnected
+                  : styles.statusBadgeDisconnected
+              ]}>
+                <Text style={[
+                  styles.statusBadgeText,
+                  { color: isPartnerConnected ? '#3A8C85' : '#E07A82' }
+                ]}>
+                  {isPartnerConnected ? '연동됨' : '미연동'}
+                </Text>
+              </View>
             </View>
             <View style={styles.divider} />
             <TouchableOpacity
@@ -378,7 +390,7 @@ export default function Settings() {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>구독 관리</Text>
           <TouchableOpacity
-            style={styles.upgradeBtn}
+            style={styles.upgradeCard}
             onPress={async () => {
               try {
                 await purchaseSubscription('coffee');
@@ -387,7 +399,18 @@ export default function Settings() {
               }
             }}
           >
-            <Text style={styles.upgradeBtnText}>☕ Coffee Talk 구독하기</Text>
+            <View style={styles.upgradeCardInner}>
+              <View>
+                <Text style={styles.upgradeCardTitle}>☕ Coffee Talk</Text>
+                <Text style={styles.upgradeCardPrice}>₩4,900 / 월</Text>
+              </View>
+              <View style={styles.upgradeCardBadge}>
+                <Text style={styles.upgradeCardBadgeText}>구독하기 →</Text>
+              </View>
+            </View>
+            <Text style={styles.upgradeCardDesc}>
+              주간 리포트 · 월 30회 대화 · AI 감성 요약 카드
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -524,31 +547,34 @@ export default function Settings() {
 
 function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: theme.bg },
+  safeArea: { flex: 1, backgroundColor: '#FBF8F3' },
   scrollContent: {
-    paddingTop: 24,
-    paddingBottom: 48,
+    paddingTop: 28,
+    paddingBottom: 56,
   },
 
   section: { marginBottom: 28 },
   sectionHeader: {
-    ...TYPOGRAPHY.caption,
-    color: theme.textMuted,
+    fontSize: 11,
+    color: '#BBBBBB',
     letterSpacing: 1,
     textTransform: 'uppercase',
     paddingHorizontal: 20,
     marginBottom: 8,
+    fontWeight: '600',
   },
 
   rowGroup: {
-    backgroundColor: theme.card,
-    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     marginHorizontal: 20,
     overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
-  divider: { height: 1, backgroundColor: theme.border },
+  divider: { height: 0.5, backgroundColor: 'rgba(0, 0, 0, 0.05)', marginHorizontal: 16 },
   row: {
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -556,120 +582,157 @@ function makeStyles(theme: SigmaTheme) {
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowIcon: { ...TYPOGRAPHY.body },
-  rowText: { ...TYPOGRAPHY.body, color: theme.text },
-  rowSub: { ...TYPOGRAPHY.caption, color: theme.textMuted, marginTop: 2 },
-  rowValue: { ...TYPOGRAPHY.body, color: theme.textMuted },
-  logoutText: { ...TYPOGRAPHY.bodyMedium, color: SYS.CRISIS_RED },
+  rowText: { fontSize: 15, color: '#1A1A1A' },
+  rowSub: { fontSize: 12, color: '#AAAAAA', marginTop: 2 },
+  rowValue: { fontSize: 14, color: '#AAAAAA' },
+  logoutText: { fontSize: 15, fontWeight: '500', color: '#EF4444' },
 
   profileRow: { gap: 16 },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: BRAND.CORAL,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFA4A4',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { ...TYPOGRAPHY.heading, color: SYS.TEXT_LIGHT },
+  avatarText: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
   profileInfo: { flex: 1, gap: 4 },
-  profileName: { ...TYPOGRAPHY.heading, color: theme.text },
-  profileMbti: { ...TYPOGRAPHY.label, color: theme.textMuted },
+  profileName: { fontSize: 17, fontWeight: '700', color: '#1A1A1A' },
+  profileMbti: { fontSize: 12, color: '#AAAAAA', marginTop: 3 },
 
-  themeBtnRow: { flexDirection: 'row', gap: 12, padding: 16 },
-  themeBtn: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  themeBtnSelected: { backgroundColor: BRAND.CORAL },
-  themeBtnDisabled: { opacity: 0.4 },
-  themeBtnText: { ...TYPOGRAPHY.label },
+  themeBtnRow: { flexDirection: 'row', gap: 10, padding: 14 },
+  themeBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: '#F5F5F5' },
+  themeBtnSelected: { backgroundColor: '#FFA4A4' },
+  themeBtnDisabled: { opacity: 0.35 },
+  themeBtnText: { fontSize: 12, fontWeight: '600', color: '#1A1A1A' },
   themeHint: {
-    ...TYPOGRAPHY.caption,
-    color: theme.textMuted,
+    fontSize: 11,
+    color: '#AAAAAA',
     textAlign: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 14,
   },
 
   themeShopCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: theme.card,
-    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 16,
     marginHorizontal: 20,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   themeShopIcon: { ...TYPOGRAPHY.heading },
   themeShopInfo: { flex: 1, gap: 2 },
-  themeShopTitle: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
-  themeShopSub: { ...TYPOGRAPHY.caption, color: theme.textMuted },
+  themeShopTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A1A' },
+  themeShopSub: { fontSize: 12, color: '#AAAAAA', marginTop: 2 },
 
-  privacyCard: { padding: 16, gap: 8 },
-  levelBadge: { backgroundColor: BRAND.MINT, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
-  levelBadgeText: { ...TYPOGRAPHY.caption, color: SYS.TEXT_DARK },
-  privacyDesc: { ...TYPOGRAPHY.caption, color: theme.textMuted },
+  privacyCard: { padding: 16, gap: 10 },
+  levelBadge: { backgroundColor: 'rgba(186, 223, 219, 0.25)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  levelBadgeText: { fontSize: 11, color: '#3A8C85', fontWeight: '700' },
+  privacyDesc: { fontSize: 12, color: '#AAAAAA', lineHeight: 18 },
   slider: { width: '100%', height: 32, marginTop: 4 },
-  privacyLevelText: { ...TYPOGRAPHY.label, color: theme.text, textAlign: 'center' },
+  privacyLevelText: { fontSize: 13, fontWeight: '500', color: '#1A1A1A', textAlign: 'center' },
+
+  statusBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  statusBadgeConnected: {
+    backgroundColor: 'rgba(186, 223, 219, 0.20)',
+  },
+  statusBadgeDisconnected: {
+    backgroundColor: 'rgba(255, 164, 164, 0.12)',
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
 
   // Founding VIP 코드 입력 모달(§9-2)
   vipModalBackdrop: {
     flex: 1,
-    backgroundColor: MODAL_BACKDROP_LIGHT,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
+    padding: 28,
   },
   vipModalCard: {
     width: '100%',
-    backgroundColor: theme.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
-    gap: 12,
+    gap: 14,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
   },
-  vipModalTitle: { ...TYPOGRAPHY.heading, color: theme.text, textAlign: 'center' },
-  vipModalDesc: { ...TYPOGRAPHY.caption, color: theme.textMuted, textAlign: 'center', lineHeight: 18 },
+  vipModalTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A', textAlign: 'center' },
+  vipModalDesc: { fontSize: 13, color: '#AAAAAA', textAlign: 'center', lineHeight: 20 },
   vipModalInput: {
-    backgroundColor: theme.bg,
+    backgroundColor: '#FBF8F3',
     borderRadius: 12,
     padding: 14,
-    color: theme.text,
+    color: '#1A1A1A',
     fontSize: 16,
-    letterSpacing: 2,
+    letterSpacing: 3,
     textAlign: 'center',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
   },
   vipModalActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   vipModalCancelBtn: {
     flex: 1,
-    backgroundColor: theme.bg,
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  vipModalCancelText: { ...TYPOGRAPHY.label, color: theme.text },
+  vipModalCancelText: { fontSize: 14, fontWeight: '600', color: '#AAAAAA' },
   vipModalConfirmBtn: {
     flex: 1,
-    backgroundColor: BRAND.CORAL,
+    backgroundColor: '#FFA4A4',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  vipModalConfirmText: { ...TYPOGRAPHY.label, color: SYS.TEXT_LIGHT },
+  vipModalConfirmText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 
-  upgradeBtn: {
-    backgroundColor: BRAND.CORAL,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
+  upgradeCard: {
     marginHorizontal: 20,
+    backgroundColor: '#FFA4A4',
+    borderRadius: 16,
+    padding: 18,
+    gap: 10,
   },
-  upgradeBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
+  upgradeCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  upgradeCardTitle: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
+  upgradeCardPrice: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 3 },
+  upgradeCardBadge: {
+    backgroundColor: 'rgba(255,255,255,0.20)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  upgradeCardBadgeText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  upgradeCardDesc: { fontSize: 12, color: 'rgba(255,255,255,0.70)', lineHeight: 18 },
 
   devBtn: {
-    marginTop: 8,
+    marginTop: 10,
     marginHorizontal: 20,
     padding: 12,
-    borderWidth: 1,
-    borderColor: theme.textMuted,
-    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.12)',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
   },
-  devBtnText: { fontSize: 12, color: theme.textMuted, textAlign: 'center' },
+  devBtnText: { fontSize: 12, color: '#AAAAAA', textAlign: 'center' },
   });
 }

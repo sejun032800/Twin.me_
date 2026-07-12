@@ -29,7 +29,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useWeather } from '@/hooks/useWeather';
 import { getTierFromScore, formatScore } from '@/engine/scoreCalculator';
 import { shouldShowMasterQuestion, markShownToday, type MasterQuestion } from '@/services/masterQuestionService';
-import { BRAND, SYS, GRADIENT } from '@/constants/colors';
+import { GRADIENT } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -44,12 +44,6 @@ function computeDDay(relationshipStartDate: string | null): number | null {
   return diffDays + 1; // 시작일을 1일째로 카운트
 }
 
-function statusEmoji(score: number): string {
-  if (score >= 70) return '💚';
-  if (score >= 40) return '🌤️';
-  return '🌧️';
-}
-
 export default function Home() {
   const router = useRouter();
   const theme = useTheme();
@@ -62,6 +56,8 @@ export default function Home() {
   const sBase = useScoreStore((s) => s.sBase);
   const { weather, loading: weatherLoading } = useWeather();
   const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
+  const themeMode = useSessionStore((s) => s.themeMode);
+  const setActiveChatRoom = useSessionStore((s) => s.setActiveChatRoom);
 
   useFocusEffect(useCallback(() => {
     setAuraScreenKey('main');
@@ -112,10 +108,11 @@ export default function Home() {
     }
   }
 
-  const statusMessage =
-    displayScore >= 70 ? '오늘도 잘 하고 있어요' :
-    displayScore >= 40 ? '평범한 하루예요' :
-    '조금 더 신경 써볼까요';
+  const dDayText = dDay !== null ? `연애 ${dDay}일째` : null;
+  const weatherText = !weatherLoading && weather && weather.temperature > -999
+    ? `${weather.emoji} ${weather.temperature}°`
+    : null;
+  const headerSubText = [dDayText, weatherText].filter(Boolean).join(' · ');
 
   const moodTags = displayScore >= 70
     ? ['💚 안정적', '☀️ 평온함', '💬 소통 중']
@@ -126,44 +123,35 @@ export default function Home() {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={true}
         alwaysBounceVertical={true}
       >
+        {/* ── ABOVE FOLD ── */}
+        {/* 1. 헤더 */}
         <View style={styles.header}>
           <View style={styles.headerTextGroup}>
-            <Text style={styles.headerName}>{name ?? '트윈'}</Text>
-            {dDay !== null && (
-              <Text style={styles.headerDday}>연애 {dDay}일째</Text>
+            <Text style={styles.headerName}>{name ?? '안녕하세요'}</Text>
+            {headerSubText.length > 0 && (
+              <Text style={styles.headerDday}>{headerSubText}</Text>
             )}
           </View>
-          {weatherLoading ? (
-            <ActivityIndicator size="small" color={theme.textMuted} />
-          ) : (
-            weather && weather.temperature > -999 && (
-              <Text style={styles.weatherText}>
-                {weather.emoji} {weather.temperature}°
-              </Text>
-            )
-          )}
         </View>
 
-        <PartnerStatusBar />
-
-        <OverflowBanner />
-
-        <View style={{ alignItems: 'center', marginVertical: 8 }}>
+        {/* 2. 아바타 + 아우라 glow */}
+        <View style={styles.heroSection}>
+          <View style={styles.avatarGlow} />
           <ClayTwinAvatar
-            size={80}
+            size={120}
             auraVector={personaMatrix?.auraVector ?? null}
             clayStage={personaMatrix?.clayStage ?? 3}
           />
         </View>
 
-        <AICoachingCard />
-
-        <View style={styles.gaugeSection}>
+        {/* 3. 점수 게이지 */}
+        <View style={styles.scoreSection}>
           <View style={styles.gaugeContainer}>
             <CircularGauge
               score={displayScore}
@@ -171,29 +159,34 @@ export default function Home() {
               trackColor={theme.border}
             />
             <View style={styles.gaugeCenter}>
-              <MaskedView
-                maskElement={
-                  <Text style={styles.score}>{formatScore(displayScore)}</Text>
-                }
-              >
-                <LinearGradient
-                  colors={[...GRADIENT.BRAND_STOPS]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+              {themeMode === 'light' ? (
+                <Text style={[styles.score, { color: '#E07A82' }]}>
+                  {formatScore(displayScore)}
+                </Text>
+              ) : (
+                <MaskedView
+                  maskElement={
+                    <Text style={styles.score}>{formatScore(displayScore)}</Text>
+                  }
                 >
-                  <Text style={[styles.score, { opacity: 0 }]}>
-                    {formatScore(displayScore)}
-                  </Text>
-                </LinearGradient>
-              </MaskedView>
+                  <LinearGradient
+                    colors={[...GRADIENT.BRAND_STOPS]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Text style={[styles.score, { opacity: 0 }]}>
+                      {formatScore(displayScore)}
+                    </Text>
+                  </LinearGradient>
+                </MaskedView>
+              )}
               <Text style={styles.tierText}>{tier.emoji} {tier.title}</Text>
             </View>
           </View>
         </View>
 
-        <Text style={styles.statusText}>{statusEmoji(displayScore)} {statusMessage}</Text>
-
-        <View style={styles.tagRow}>
+        {/* 4. 무드 태그 */}
+        <View style={styles.moodRow}>
           {moodTags.map((tag) => (
             <View key={tag} style={styles.tag}>
               <Text style={styles.tagText}>{tag}</Text>
@@ -201,30 +194,63 @@ export default function Home() {
           ))}
         </View>
 
+        {/* ── 구분 힌트 ── */}
+        <View style={styles.scrollHint}>
+          <Text style={styles.scrollHintText}>아래로 스크롤해보세요</Text>
+          <Text style={styles.scrollHintIcon}>↓</Text>
+        </View>
+
+        {/* ── BELOW FOLD ── */}
+        {/* 5. AI 코칭 카드 */}
+        <View style={styles.coachingWrapper}>
+          <AICoachingCard />
+        </View>
+
+        {/* 6. 추억 링 */}
+        <MemoryRingSection />
+
+        {/* 7. 액션 버튼 2개 */}
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/chat')}>
-            <Ionicons name="chatbubble-ellipses" size={20} color={BRAND.CORAL} />
-            <Text style={styles.actionBtnText}>트윈과 대화</Text>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push('/(tabs)/history')}
+          >
+            <Ionicons name="time-outline" size={22} color={theme.text} />
+            <Text style={styles.actionBtnText}>히스토리</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/history')}>
-            <Ionicons name="time" size={20} color={BRAND.MINT} />
-            <Text style={styles.actionBtnText}>히스토리 보기</Text>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={handleShare}
+            disabled={sharing}
+          >
+            {sharing ? (
+              <ActivityIndicator size="small" color={theme.text} />
+            ) : (
+              <Ionicons name="share-outline" size={22} color={theme.text} />
+            )}
+            <Text style={styles.actionBtnText}>공유하기</Text>
           </TouchableOpacity>
         </View>
 
-        <MemoryRingSection />
+        {/* 8. PartnerStatusBar */}
+        <PartnerStatusBar />
 
-        <TouchableOpacity style={styles.shareBtn} onPress={handleShare} disabled={sharing}>
-          {sharing ? (
-            <ActivityIndicator color={SYS.TEXT_LIGHT} />
-          ) : (
-            <>
-              <Ionicons name="share-outline" size={20} color={SYS.TEXT_LIGHT} />
-              <Text style={styles.shareBtnText}>공유하기</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {/* 9. OverflowBanner (조건부) */}
+        <OverflowBanner />
       </ScrollView>
+
+      {/* 하단 고정 CTA — ScrollView 밖 */}
+      <View style={styles.bottomCTA}>
+        <TouchableOpacity
+          style={styles.ctaBtn}
+          onPress={() => {
+            setActiveChatRoom('twin');
+            router.push('/(tabs)/chat');
+          }}
+        >
+          <Text style={styles.ctaBtnText}>트윈과 대화하기 →</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.shareCardOffscreen} pointerEvents="none">
         <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
@@ -253,13 +279,18 @@ export default function Home() {
 function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.bg },
+    scroll: {
+      flex: 1,
+    },
     scrollContent: {
-      flexGrow: 1,
-      padding: 24,
-      gap: 24,
+      paddingHorizontal: 20,
+      paddingTop: 0,
+      paddingBottom: 24,
+      gap: 0,
     },
     header: {
       marginTop: 8,
+      marginBottom: 0,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
@@ -271,19 +302,39 @@ function makeStyles(theme: SigmaTheme) {
     },
     headerName: {
       ...TYPOGRAPHY.heading,
+      fontSize: 18,
+      fontWeight: '600',
       color: theme.text,
     },
     headerDday: {
       ...TYPOGRAPHY.caption,
+      fontSize: 12,
       color: theme.textMuted,
     },
-    weatherText: {
-      ...TYPOGRAPHY.label,
-      color: theme.textMuted,
-    },
-    gaugeSection: {
+    // 히어로 섹션 — 아바타 + 글로우
+    heroSection: {
       alignItems: 'center',
-      marginTop: 16,
+      justifyContent: 'center',
+      marginTop: 8,
+      marginBottom: 16,
+      position: 'relative',
+      height: 148,
+    },
+    avatarGlow: {
+      position: 'absolute',
+      width: 180,
+      height: 180,
+      borderRadius: 90,
+      backgroundColor: 'rgba(255, 164, 164, 0.10)',
+      top: '50%',
+      marginTop: -90,
+      alignSelf: 'center',
+    },
+    // 점수 섹션
+    scoreSection: {
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 16,
     },
     gaugeContainer: {
       width: 220,
@@ -299,65 +350,103 @@ function makeStyles(theme: SigmaTheme) {
     },
     score: {
       ...TYPOGRAPHY.display,
+      fontSize: 48,
       fontVariant: ['tabular-nums'],
     },
     tierText: {
       ...TYPOGRAPHY.label,
-      color: theme.text,
-      marginTop: 8,
-    },
-    statusText: {
-      ...TYPOGRAPHY.caption,
-      color: theme.textMuted,
-      textAlign: 'center',
-      marginTop: 8,
-    },
-    tagRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    tag: {
-      backgroundColor: theme.card,
-      borderRadius: 20,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-    },
-    tagText: {
-      ...TYPOGRAPHY.caption,
-      color: theme.text,
-    },
-    actionsRow: {
-      flexDirection: 'row',
-      gap: 16,
-    },
-    actionBtn: {
-      flex: 1,
-      backgroundColor: theme.card,
-      borderRadius: 16,
-      paddingVertical: 18,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
-    actionBtnText: {
-      ...TYPOGRAPHY.label,
+      fontSize: 15,
+      fontWeight: '600',
       color: theme.text,
       marginTop: 6,
     },
-    shareBtn: {
+    // 무드 태그 행
+    moodRow: {
       flexDirection: 'row',
-      backgroundColor: BRAND.CORAL,
+      justifyContent: 'center',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 24,
+    },
+    tag: {
+      backgroundColor: 'rgba(186, 223, 219, 0.20)',
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderWidth: 0,
+    },
+    tagText: {
+      ...TYPOGRAPHY.caption,
+      color: '#3A8C85',
+      fontSize: 12,
+    },
+    // 스크롤 힌트
+    scrollHint: {
+      alignItems: 'center',
+      paddingVertical: 20,
+      gap: 4,
+      borderTopWidth: 0.5,
+      borderTopColor: 'rgba(0, 0, 0, 0.06)',
+      marginBottom: 24,
+    },
+    scrollHintText: {
+      fontSize: 11,
+      color: '#CCCCCC',
+      letterSpacing: 0.5,
+    },
+    scrollHintIcon: {
+      fontSize: 12,
+      color: '#CCCCCC',
+    },
+    coachingWrapper: {
+      backgroundColor: 'rgba(255, 164, 164, 0.07)',
       borderRadius: 16,
+      borderWidth: 0.5,
+      borderColor: 'rgba(255, 164, 164, 0.18)',
+      overflow: 'hidden',
+      marginBottom: 20,
+    },
+    // 액션 버튼 2개 (히스토리/공유)
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginHorizontal: 0,
+      marginBottom: 20,
+    },
+    actionBtn: {
+      flex: 1,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 14,
       paddingVertical: 16,
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
+      gap: 6,
+      borderWidth: 0.5,
+      borderColor: 'rgba(0, 0, 0, 0.06)',
     },
-    shareBtnText: {
-      ...TYPOGRAPHY.button,
-      color: SYS.TEXT_LIGHT,
+    actionBtnText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: '#1A1A1A',
+    },
+    // 하단 고정 CTA
+    bottomCTA: {
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      paddingBottom: 12,
+      backgroundColor: '#FBF8F3',
+      borderTopWidth: 0.5,
+      borderTopColor: 'rgba(0, 0, 0, 0.06)',
+    },
+    ctaBtn: {
+      backgroundColor: '#FFA4A4',
+      borderRadius: 14,
+      paddingVertical: 18,
+      alignItems: 'center',
+    },
+    ctaBtnText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#FFFFFF',
     },
     shareCardOffscreen: {
       position: 'absolute',

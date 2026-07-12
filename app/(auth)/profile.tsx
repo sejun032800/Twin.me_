@@ -76,7 +76,7 @@ export default function Profile() {
     if (from === 'settings') {
       router.back();
     } else {
-      router.push('/(auth)/kakao-upload');
+      router.push('/(auth)/kakao-guide');
     }
   }
 

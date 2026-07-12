@@ -1,28 +1,41 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { useSessionStore } from '@/store/sessionStore';
 
 export default function TabsLayout() {
   const theme = useTheme();
+  const themeMode = useSessionStore((s) => s.themeMode);
+  const isLight = themeMode === 'light';
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: theme.tabBar,
-          borderTopColor: theme.border,
-          borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 4,
-        },
-        tabBarActiveTintColor: theme.accent,
-        tabBarInactiveTintColor: theme.textMuted,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          marginTop: 2,
-        },
+        tabBarStyle: isLight
+          ? {
+              backgroundColor: '#FBF8F3',
+              borderTopWidth: 0,
+              elevation: 0,
+              shadowOpacity: 0,
+              height: 60,
+              paddingBottom: 8,
+              paddingTop: 4,
+            }
+          : {
+              backgroundColor: theme.tabBar,
+              borderTopColor: theme.border,
+              borderTopWidth: 1,
+              height: 60,
+              paddingBottom: 8,
+              paddingTop: 4,
+            },
+        tabBarActiveTintColor: isLight ? '#FFA4A4' : theme.accent,
+        tabBarInactiveTintColor: isLight ? '#C0C0C0' : theme.textMuted,
+        tabBarLabelStyle: isLight
+          ? { fontSize: 10, fontWeight: '500', marginTop: 2 }
+          : { fontSize: 11, marginTop: 2 },
+        tabBarIconStyle: { marginTop: 2 },
       }}
     >
       <Tabs.Screen

@@ -80,7 +80,7 @@ export function getDefaultDarkTheme(): SigmaTheme {
 
 export function getLightTheme(): SigmaTheme {
   return {
-    bg: SYS.BG_LIGHT_SNOW,
+    bg: '#FBF8F3',
     bgSecondary: '#F0F2F5',
     card: SYS.CARD_LIGHT,
     accent: BRAND.CORAL,
