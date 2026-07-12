@@ -6,8 +6,8 @@
 // 트윈 AI 응답: Gemini 2.5 Flash (Supabase Edge Function 프록시, 스트리밍 방식)
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator, Alert, Switch, AppState } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator, Alert, Switch, AppState, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,7 +35,8 @@ import { BRAND, SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { FONTS, TYPOGRAPHY } from '@/constants/typography';
 
-const FREE_MONTHLY_LIMIT = 4;
+const FREE_MONTHLY_LIMIT = 10;
+const FREE_TRIAL_DAYS = 14; // 첫 설치 후 14일간 무제한
 
 type RoomKey = 'lover' | 'twin' | 'analyst';
 
@@ -49,7 +50,9 @@ interface ChatMessage {
 export default function Chat() {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const router = useRouter();
   const isPartnerConnected = useCoupleStore((s) => s.isPartnerConnected);
+  const inviteCode = useCoupleStore((s) => s.inviteCode);
   const activeChatRoom = useSessionStore((s) => s.activeChatRoom);
   const setActiveChatRoom = useSessionStore((s) => s.setActiveChatRoom);
   const isCrisisMode = useSessionStore((s) => s.isCrisisMode);
@@ -69,6 +72,10 @@ export default function Chat() {
   const name = useUserStore((s) => s.name);
   const monthlyChatCount = useUserStore((s) => s.monthlyChatCount);
   const setMonthlyChatCount = useUserStore((s) => s.setMonthlyChatCount);
+  const joinedAt = useUserStore((s) => s.joinedAt);
+  const isTrialPeriod = !joinedAt
+    ? true
+    : Date.now() - new Date(joinedAt).getTime() < FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000;
   const { hasReportAccess, hasDeepChatAccess } = usePremiumGate();
   const { processMessage } = useMatchEngine();
   const { result: crisisResult, runAnalysis: analyzeConversation } = useCrisisIntelligence();
@@ -196,13 +203,18 @@ export default function Chat() {
       setTimeout(() => setSensitiveWarning(null), 4000);
     }
 
-    // §9.3 — 트윈방/분석가방은 무료 플랜 월 4회 제한 (Deep Talk Night만 무제한)
+    // §9.3 — 트윈방/분석가방은 무료 플랜 월 FREE_MONTHLY_LIMIT회 제한 (Deep Talk Night만 무제한).
+    // 단, 가입 후 FREE_TRIAL_DAYS일간은 트라이얼 기간이라 한도 체크를 건너뛴다.
     const isGatedRoom = currentRoom === 'twin' || currentRoom === 'analyst';
-    if (isGatedRoom && !hasDeepChatAccess && monthlyChatCount >= FREE_MONTHLY_LIMIT) {
+    if (isGatedRoom && !isTrialPeriod && !hasDeepChatAccess && monthlyChatCount >= FREE_MONTHLY_LIMIT) {
       Alert.alert(
-        '이번 달 대화 한도',
-        '무료 플랜은 이번 달 4회 대화가 가능해요.\nCoffee Talk으로 업그레이드하면 30회까지!',
-        [{ text: '확인' }],
+        '이번 달 대화를 다 썼어요',
+        `무료 플랜은 매달 ${FREE_MONTHLY_LIMIT}회 대화할 수 있어요.\n` +
+        'Deep Talk Night로 업그레이드하면 무제한으로 대화할 수 있어요.',
+        [
+          { text: '나중에', style: 'cancel' },
+          { text: '업그레이드 보기', onPress: () => router.push('/(tabs)/settings') },
+        ],
       );
       return;
     }
@@ -402,9 +414,55 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
   function renderPlaceholder() {
     if (currentRoom === 'lover' && isLoverLocked) {
       return (
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderIcon}>🔒</Text>
-          <Text style={styles.placeholderText}>연인을 초대해야 이용할 수 있어요</Text>
+        <View style={styles.loverLockScreen}>
+          {/* 감성 배경 */}
+          <View style={styles.loverLockGlow} />
+
+          {/* 아이콘 */}
+          <Text style={styles.loverLockIcon}>💌</Text>
+
+          {/* 타이틀 */}
+          <Text style={styles.loverLockTitle}>
+            연인과 함께하면{'\n'}더 특별해져요
+          </Text>
+          <Text style={styles.loverLockDesc}>
+            초대 코드를 공유하면{'\n'}
+            연인방이 열리고 일치율도 더 정확해져요
+          </Text>
+
+          {/* 초대 코드 표시 */}
+          {inviteCode ? (
+            <View style={styles.loverCodeCard}>
+              <Text style={styles.loverCodeLabel}>내 초대 코드</Text>
+              <Text style={styles.loverCodeValue}>{inviteCode}</Text>
+            </View>
+          ) : null}
+
+          {/* 공유 버튼 */}
+          <TouchableOpacity
+            style={styles.loverShareBtn}
+            onPress={async () => {
+              const code = inviteCode ?? '설정에서 확인';
+              await Share.share({
+                message:
+                  `나 Twin.me 써보고 있는데 같이 해볼래? 🧬\n` +
+                  `초대 코드: ${code}\n` +
+                  `Twin.me 설치 후 설정 → 커플 연동 → 코드 입력해줘 💌`,
+              });
+            }}
+          >
+            <Text style={styles.loverShareBtnText}>💌 연인에게 보내기</Text>
+          </TouchableOpacity>
+
+          {/* 설정으로 이동 */}
+          <TouchableOpacity
+            style={styles.loverSettingsBtn}
+            onPress={() => router.push('/(tabs)/settings')}
+          >
+            <Text style={styles.loverSettingsBtnText}>
+              설정에서 초대 코드 관리하기
+            </Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -679,6 +737,24 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
               </Animated.View>
             )}
 
+            {/* 남은 대화 횟수 상시 노출 — 트윈/분석가 룸에서만 표시 */}
+            {currentRoom !== 'lover' && !hasDeepChatAccess && (
+              <View style={styles.limitBanner}>
+                {isTrialPeriod ? (
+                  <Text style={styles.limitBannerText}>✨ 14일 무료 체험 중</Text>
+                ) : (
+                  <Text
+                    style={[
+                      styles.limitBannerText,
+                      (FREE_MONTHLY_LIMIT - monthlyChatCount) <= 2 && { color: '#FFA4A4' },
+                    ]}
+                  >
+                    이번 달 {FREE_MONTHLY_LIMIT - monthlyChatCount}회 남았어요
+                  </Text>
+                )}
+              </View>
+            )}
+
             <View style={styles.inputBar}>
               {currentRoom === 'twin' && (
                 <TouchableOpacity style={styles.museBtn} onPress={() => setMuseVisible(true)}>
@@ -867,6 +943,82 @@ function makeStyles(theme: SigmaTheme) {
   messageList: { flex: 1 },
   messageListContent: { padding: 16, gap: 8 },
 
+  // 연인방 잠금 화면 — 초대 코드 인라인 CTA
+  loverLockScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 16,
+    position: 'relative',
+  },
+  loverLockGlow: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(255, 189, 189, 0.08)',
+    top: '20%',
+  },
+  loverLockIcon: {
+    fontSize: 56,
+  },
+  loverLockTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.text,
+    textAlign: 'center',
+    lineHeight: 32,
+  },
+  loverLockDesc: {
+    fontSize: 14,
+    color: theme.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  loverCodeCard: {
+    backgroundColor: theme.card,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 28,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 189, 189, 0.20)',
+    width: '100%',
+  },
+  loverCodeLabel: {
+    fontSize: 11,
+    color: theme.textMuted,
+    letterSpacing: 1,
+  },
+  loverCodeValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: BRAND.PINK,
+    letterSpacing: 4,
+  },
+  loverShareBtn: {
+    backgroundColor: BRAND.PINK,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    width: '100%',
+  },
+  loverShareBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  loverSettingsBtn: {
+    paddingVertical: 8,
+  },
+  loverSettingsBtnText: {
+    fontSize: 13,
+    color: theme.textMuted,
+    textAlign: 'center',
+  },
+
   // 분석가 룸 — 주간 리포트(§6)
   reportSection: { maxHeight: 320 },
   reportCard: { backgroundColor: theme.card, borderRadius: 16, padding: 16, gap: 8, margin: 8 },
@@ -954,6 +1106,15 @@ function makeStyles(theme: SigmaTheme) {
     color: '#FFB800',
   },
 
+  limitBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  limitBannerText: {
+    fontSize: 11,
+    color: theme.textMuted,
+  },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',

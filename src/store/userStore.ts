@@ -26,6 +26,8 @@ export interface UserState {
   pushToken: string | null;
   /** §9.3 무료 플랜 월간 대화 횟수 카운터 — useMidnightSettlement가 매월 1일에 0으로 리셋 */
   monthlyChatCount: number;
+  /** 최초 가입 시각(ISO 문자열) — 무료 플랜 14일 트라이얼 기간 판정 기준 */
+  joinedAt: string | null;
   _hasHydrated: boolean;
 }
 
@@ -42,6 +44,7 @@ export interface UserActions {
   setLastGenesisAt: (lastGenesisAt: string | null) => void;
   setPushToken: (pushToken: string | null) => void;
   setMonthlyChatCount: (monthlyChatCount: number) => void;
+  setJoinedAt: (joinedAt: string) => void;
   setHasHydrated: (value: boolean) => void;
   /** 로그아웃/계정 전환 시 온보딩 이전 상태로 완전 초기화 */
   reset: () => void;
@@ -60,6 +63,7 @@ const initialState: UserState = {
   lastGenesisAt: null,
   pushToken: null,
   monthlyChatCount: 0,
+  joinedAt: null,
   _hasHydrated: false,
 };
 
@@ -84,6 +88,7 @@ export const useUserStore = create<UserState & UserActions>()(
       setLastGenesisAt: (lastGenesisAt) => set({ lastGenesisAt }),
       setPushToken: (pushToken) => set({ pushToken }),
       setMonthlyChatCount: (monthlyChatCount) => set({ monthlyChatCount }),
+      setJoinedAt: (joinedAt) => set({ joinedAt }),
       setHasHydrated: (_hasHydrated) => set({ _hasHydrated }),
       reset: () => set({ ...initialState }),
     }),

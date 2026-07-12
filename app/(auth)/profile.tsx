@@ -75,9 +75,24 @@ export default function Profile() {
 
     if (from === 'settings') {
       router.back();
-    } else {
-      router.push('/(auth)/kakao-guide');
+      return;
     }
+
+    Alert.alert(
+      '카카오 대화를 가져올까요?',
+      '대화를 가져오면 트윈 AI가 내 말투를\n더 정확하게 배울 수 있어요.',
+      [
+        {
+          text: '가져올게요',
+          onPress: () => router.push('/(auth)/kakao-guide'),
+        },
+        {
+          text: '건너뛸게요',
+          style: 'cancel',
+          onPress: () => router.push('/(auth)/genesis'),
+        },
+      ],
+    );
   }
 
   return (

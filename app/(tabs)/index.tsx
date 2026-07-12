@@ -30,7 +30,7 @@ import { useWeather } from '@/hooks/useWeather';
 import { getTierFromScore, formatScore } from '@/engine/scoreCalculator';
 import { shouldShowMasterQuestion, markShownToday, type MasterQuestion } from '@/services/masterQuestionService';
 import { GRADIENT } from '@/constants/colors';
-import type { SigmaTheme } from '@/constants/theme';
+import type { SigmaTheme, ThemeMode } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
 function computeDDay(relationshipStartDate: string | null): number | null {
@@ -47,10 +47,10 @@ function computeDDay(relationshipStartDate: string | null): number | null {
 export default function Home() {
   const router = useRouter();
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
   const name = useUserStore((s) => s.name);
   const personaMatrix = useUserStore((s) => s.personaMatrix);
   const relationshipStartDate = useCoupleStore((s) => s.relationshipStartDate);
+  const isPartnerConnected = useCoupleStore((s) => s.isPartnerConnected);
   const sLive = useScoreStore((s) => s.sLive);
   const sCurrent = useScoreStore((s) => s.sCurrent);
   const sBase = useScoreStore((s) => s.sBase);
@@ -58,6 +58,7 @@ export default function Home() {
   const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
   const themeMode = useSessionStore((s) => s.themeMode);
   const setActiveChatRoom = useSessionStore((s) => s.setActiveChatRoom);
+  const styles = useMemo(() => makeStyles(theme, themeMode), [theme, themeMode]);
 
   useFocusEffect(useCallback(() => {
     setAuraScreenKey('main');
@@ -139,6 +140,24 @@ export default function Home() {
             )}
           </View>
         </View>
+
+        {/* 미연동 유저 → Above Fold 상단에 초대 배너 */}
+        {!isPartnerConnected && (
+          <TouchableOpacity
+            style={styles.inviteBanner}
+            onPress={() => router.push('/(tabs)/settings')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.inviteBannerEmoji}>💌</Text>
+            <View style={styles.inviteBannerText}>
+              <Text style={styles.inviteBannerTitle}>연인을 초대해보세요</Text>
+              <Text style={styles.inviteBannerDesc}>
+                함께 쓰면 일치율이 더 정확해져요
+              </Text>
+            </View>
+            <Text style={styles.inviteBannerArrow}>›</Text>
+          </TouchableOpacity>
+        )}
 
         {/* 2. 아바타 + 아우라 glow */}
         <View style={styles.heroSection}>
@@ -232,8 +251,8 @@ export default function Home() {
           </TouchableOpacity>
         </View>
 
-        {/* 8. PartnerStatusBar */}
-        <PartnerStatusBar />
+        {/* 8. 연동 완료 유저 → Below Fold에 PartnerStatusBar */}
+        {isPartnerConnected && <PartnerStatusBar />}
 
         {/* 9. OverflowBanner (조건부) */}
         <OverflowBanner />
@@ -276,7 +295,7 @@ export default function Home() {
   );
 }
 
-function makeStyles(theme: SigmaTheme) {
+function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.bg },
     scroll: {
@@ -310,6 +329,39 @@ function makeStyles(theme: SigmaTheme) {
       ...TYPOGRAPHY.caption,
       fontSize: 12,
       color: theme.textMuted,
+    },
+    inviteBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 189, 189, 0.10)',
+      borderRadius: 14,
+      padding: 14,
+      gap: 12,
+      marginBottom: 8,
+      borderWidth: 0.5,
+      borderColor: 'rgba(255, 189, 189, 0.20)',
+    },
+    inviteBannerEmoji: {
+      fontSize: 24,
+      flexShrink: 0,
+    },
+    inviteBannerText: {
+      flex: 1,
+    },
+    inviteBannerTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.text,
+    },
+    inviteBannerDesc: {
+      fontSize: 12,
+      color: theme.textMuted,
+      marginTop: 2,
+    },
+    inviteBannerArrow: {
+      fontSize: 18,
+      color: theme.textMuted,
+      flexShrink: 0,
     },
     // 히어로 섹션 — 아바타 + 글로우
     heroSection: {
@@ -369,7 +421,10 @@ function makeStyles(theme: SigmaTheme) {
       marginBottom: 24,
     },
     tag: {
-      backgroundColor: 'rgba(186, 223, 219, 0.20)',
+      // Mint tint는 라이트/다크 모두 잘 보이므로 유지하되, 다크에서는 살짝 더 불투명하게
+      backgroundColor: themeMode === 'dark'
+        ? 'rgba(186, 223, 219, 0.15)'
+        : 'rgba(186, 223, 219, 0.20)',
       borderRadius: 20,
       paddingHorizontal: 14,
       paddingVertical: 7,
@@ -391,18 +446,19 @@ function makeStyles(theme: SigmaTheme) {
     },
     scrollHintText: {
       fontSize: 11,
-      color: '#CCCCCC',
+      color: theme.textMuted,
       letterSpacing: 0.5,
     },
     scrollHintIcon: {
       fontSize: 12,
-      color: '#CCCCCC',
+      color: theme.textMuted,
     },
     coachingWrapper: {
+      // Coral tint 배경은 라이트/다크 모두 잘 동작하므로 유지, 테두리만 테마 토큰으로
       backgroundColor: 'rgba(255, 164, 164, 0.07)',
       borderRadius: 16,
       borderWidth: 0.5,
-      borderColor: 'rgba(255, 164, 164, 0.18)',
+      borderColor: theme.border,
       overflow: 'hidden',
       marginBottom: 20,
     },
@@ -415,27 +471,27 @@ function makeStyles(theme: SigmaTheme) {
     },
     actionBtn: {
       flex: 1,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: theme.card,
       borderRadius: 14,
       paddingVertical: 16,
       alignItems: 'center',
       gap: 6,
       borderWidth: 0.5,
-      borderColor: 'rgba(0, 0, 0, 0.06)',
+      borderColor: theme.border,
     },
     actionBtnText: {
       fontSize: 13,
       fontWeight: '500',
-      color: '#1A1A1A',
+      color: theme.text,
     },
     // 하단 고정 CTA
     bottomCTA: {
       paddingHorizontal: 20,
       paddingTop: 8,
       paddingBottom: 12,
-      backgroundColor: '#FBF8F3',
+      backgroundColor: theme.bg,
       borderTopWidth: 0.5,
-      borderTopColor: 'rgba(0, 0, 0, 0.06)',
+      borderTopColor: theme.border,
     },
     ctaBtn: {
       backgroundColor: '#FFA4A4',

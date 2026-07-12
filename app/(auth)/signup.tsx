@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
+import { useUserStore } from '@/store/userStore';
 
 export default function Signup() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function Signup() {
     if (error) {
       Alert.alert('가입 실패', error.message);
     } else {
+      useUserStore.getState().setJoinedAt(new Date().toISOString());
       Alert.alert('확인 이메일 발송', '이메일을 확인해주세요.', [
         { text: '확인', onPress: () => router.replace('/(auth)/profile') }
       ]);

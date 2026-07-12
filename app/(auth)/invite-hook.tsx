@@ -2,16 +2,63 @@
 // genesis.tsx의 handleStart() 완료 후 진입하는 "오라 공유 + 파트너 초대" 훅 화면.
 // 항상-다크 고정.
 
-import { View, Text, TouchableOpacity, StyleSheet, Share, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Share, Alert, BackHandler } from 'react-native';
+import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { useUserStore } from '@/store/userStore';
+import { useCoupleStore } from '@/store/coupleStore';
+import { createCouple } from '@/services/coupleService';
 import { auraChannelToCss } from '@/engine/auraEngine';
 import type { AuraAxis } from '@/types/genesis';
 
 export default function InviteHook() {
   const router = useRouter();
+  const navigation = useNavigation();
   const personaMatrix = useUserStore((s) => s.personaMatrix);
   const name = useUserStore((s) => s.name);
+  const userId = useUserStore((s) => s.userId);
+  const inviteCode = useCoupleStore((s) => s.inviteCode);
+  const setInviteCode = useCoupleStore((s) => s.setInviteCode);
+  const setCoupleId = useCoupleStore((s) => s.setCoupleId);
+  const [codeReady, setCodeReady] = useState(false);
+  const [codeError, setCodeError] = useState(false);
+
+  // 화면 진입 직후 파트너 초대 코드가 없으면 자동 생성 — 공유 메시지에 코드를 실을 수 있도록 선행한다.
+  useEffect(() => {
+    async function ensureInviteCode() {
+      if (inviteCode) {
+        setCodeReady(true);
+        return;
+      }
+      if (!userId) return;
+
+      try {
+        const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const newCoupleId = await createCouple(newCode, userId);
+        setInviteCode(newCode);
+        setCoupleId(newCoupleId);
+        setCodeReady(true);
+      } catch (e) {
+        console.warn('[invite-hook] 코드 자동 생성 실패:', e);
+        setCodeError(true);
+        setCodeReady(true);
+      }
+    }
+
+    ensureInviteCode();
+  }, [inviteCode, userId]);
+
+  // 뒤로가기(iOS 스와이프)로 이미 완료된 제네시스 인터뷰로 돌아가는 걸 막는다.
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: false });
+  }, [navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+      return () => subscription.remove();
+    }, []),
+  );
 
   // 아우라 대표 채널 추출 — auraChannelToCss()는 hsl() 문자열을 반환하므로
   // (헥스가 아님) 알파 tint는 hsla()로 직접 구성한다.
@@ -33,9 +80,15 @@ export default function InviteHook() {
   }
 
   async function handleShare() {
+    const code = inviteCode ?? '설정에서 확인';
+
     try {
       await Share.share({
-        message: `${name ?? '나'}의 트윈 AI가 완성됐어 🧬\n우리 연애 DNA 일치율 확인해볼래?\nTwin.me 다운받고 초대 코드 입력해줘 💌`,
+        message:
+          `${name ?? '나'}의 트윈이 완성됐어 🧬\n` +
+          `우리 연애 DNA 일치율 확인해볼래?\n\n` +
+          `초대 코드: ${code}\n\n` +
+          `Twin.me 설치 후 설정 → 커플 연동 → 코드 입력하면 돼 💌`,
         title: 'Twin.me 파트너 초대',
       });
     } catch {
@@ -79,11 +132,31 @@ export default function InviteHook() {
           <Text style={styles.previewSub}>
             연애 DNA 일치율을 함께 확인해요
           </Text>
-          <View style={[styles.previewBadge, { backgroundColor: auraTint(0.125) }]}>
+          <TouchableOpacity
+            style={[styles.previewBadge, { backgroundColor: auraTint(0.125) }]}
+            onPress={() => router.replace('/(tabs)')}
+            activeOpacity={0.7}
+          >
             <Text style={[styles.previewBadgeText, { color: auraColor }]}>
               내 오라 색 보기 →
             </Text>
-          </View>
+          </TouchableOpacity>
+          {codeReady && inviteCode && (
+            <View style={styles.codeRow}>
+              <Text style={styles.codeLabel}>초대 코드</Text>
+              <Text style={[styles.codeValue, { color: auraColor }]}>
+                {inviteCode}
+              </Text>
+            </View>
+          )}
+          {codeReady && !inviteCode && codeError && (
+            <Text style={styles.codeError}>
+              코드 생성 실패 — 설정에서 다시 시도해주세요
+            </Text>
+          )}
+          {!codeReady && (
+            <Text style={styles.codeLoading}>초대 코드 준비 중...</Text>
+          )}
         </View>
       </View>
 
@@ -193,6 +266,34 @@ const styles = StyleSheet.create({
   previewBadgeText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  codeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  codeLabel: {
+    fontSize: 11,
+    color: '#5A6480',
+  },
+  codeValue: {
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  codeError: {
+    fontSize: 11,
+    color: '#EF4444',
+    marginTop: 6,
+  },
+  codeLoading: {
+    fontSize: 11,
+    color: '#5A6480',
+    marginTop: 6,
   },
   hint: {
     fontSize: 12,
