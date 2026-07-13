@@ -1,11 +1,12 @@
-// welcome은 항상-다크 의도 화면. themeMode 리셋('dark')과 고정값이 일치하도록
-// resetSession()의 기본값 유지 필요.
-
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTheme } from '@/hooks/useTheme';
+import type { SigmaTheme } from '@/constants/theme';
 
 export default function Welcome() {
   const router = useRouter();
+  const theme = useTheme();
+  const styles = makeStyles(theme);
 
   async function handleGuest() {
     // 게스트 모드: 온보딩 스킵하고 탭으로 바로 진입
@@ -69,103 +70,105 @@ export default function Welcome() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0D1A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  glowRing: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(186, 223, 219, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 36,
-  },
-  glowInner: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 164, 164, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dnaEmoji: {
-    fontSize: 48,
-  },
-  tagline: {
-    fontSize: 13,
-    color: '#5A6480',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#E8E4DC',
-    textAlign: 'center',
-    lineHeight: 38,
-    marginBottom: 8,
-  },
-  titleAccent: {
-    color: '#FFA4A4',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#5A6480',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 56,
-  },
-  btnGroup: {
-    width: '100%',
-    gap: 12,
-  },
-  primaryBtn: {
-    backgroundColor: '#FFA4A4',
-    borderRadius: 14,
-    paddingVertical: 18,
-    alignItems: 'center',
-  },
-  primaryBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  secondaryBtn: {
-    backgroundColor: 'rgba(255, 164, 164, 0.10)',
-    borderRadius: 14,
-    paddingVertical: 18,
-    alignItems: 'center',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 164, 164, 0.25)',
-  },
-  secondaryBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFA4A4',
-  },
-  devBtn: {
-    marginTop: 24,
-    padding: 8,
-  },
-  devBtnText: {
-    fontSize: 12,
-    color: '#3A4055',
-    textAlign: 'center',
-  },
-  guestBtn: {
-    marginTop: 16,
-    padding: 8,
-  },
-  guestBtnText: {
-    fontSize: 13,
-    color: '#3A4055',
-    textAlign: 'center',
-  },
-});
+function makeStyles(theme: SigmaTheme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 32,
+    },
+    glowRing: {
+      width: 160,
+      height: 160,
+      borderRadius: 80,
+      backgroundColor: 'rgba(186, 223, 219, 0.08)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 36,
+    },
+    glowInner: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: 'rgba(255, 164, 164, 0.12)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dnaEmoji: {
+      fontSize: 48,
+    },
+    tagline: {
+      fontSize: 13,
+      color: theme.textMuted,
+      letterSpacing: 2,
+      textTransform: 'uppercase',
+      marginBottom: 12,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '900',
+      color: theme.text,
+      textAlign: 'center',
+      lineHeight: 38,
+      marginBottom: 8,
+    },
+    titleAccent: {
+      color: '#FFA4A4',
+    },
+    subtitle: {
+      fontSize: 14,
+      color: theme.textMuted,
+      textAlign: 'center',
+      lineHeight: 22,
+      marginBottom: 56,
+    },
+    btnGroup: {
+      width: '100%',
+      gap: 12,
+    },
+    primaryBtn: {
+      backgroundColor: '#FFA4A4',
+      borderRadius: 14,
+      paddingVertical: 18,
+      alignItems: 'center',
+    },
+    primaryBtnText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    secondaryBtn: {
+      backgroundColor: 'rgba(255, 164, 164, 0.10)',
+      borderRadius: 14,
+      paddingVertical: 18,
+      alignItems: 'center',
+      borderWidth: 0.5,
+      borderColor: 'rgba(255, 164, 164, 0.25)',
+    },
+    secondaryBtnText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#FFA4A4',
+    },
+    devBtn: {
+      marginTop: 24,
+      padding: 8,
+    },
+    devBtnText: {
+      fontSize: 12,
+      color: theme.textMuted,
+      textAlign: 'center',
+    },
+    guestBtn: {
+      marginTop: 16,
+      padding: 8,
+    },
+    guestBtnText: {
+      fontSize: 13,
+      color: theme.textMuted,
+      textAlign: 'center',
+    },
+  });
+}

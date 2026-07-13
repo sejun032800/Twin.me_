@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
@@ -36,7 +37,8 @@ export default function Profile() {
   const setRelationshipStartDate = useCoupleStore((s) => s.setRelationshipStartDate);
 
   const [name, setLocalName] = useState('');
-  const [relationshipStartDate, setLocalRelationshipStartDate] = useState('');
+  const [relationshipStartDate, setLocalRelationshipStartDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [mbtiSelection, setMbtiSelection] = useState<MbtiSelection>(EMPTY_MBTI_SELECTION);
   const [submitting, setSubmitting] = useState(false);
 
@@ -49,18 +51,16 @@ export default function Profile() {
   async function handleComplete() {
     if (!allAxesSelected || !name.trim() || submitting) return;
 
-    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-    if (relationshipStartDate && !DATE_RE.test(relationshipStartDate)) {
-      Alert.alert('날짜 형식 오류', 'YYYY-MM-DD 형식으로 입력해주세요.\n예: 2024-01-15');
-      return;
-    }
-
     setSubmitting(true);
 
     const mbti = MBTI_AXES.map(({ key }) => mbtiSelection[key]).join('');
     setMbti(mbti);
     setName(name.trim());
-    setRelationshipStartDate(relationshipStartDate || null);
+    setRelationshipStartDate(
+      relationshipStartDate
+        ? `${relationshipStartDate.getFullYear()}-${String(relationshipStartDate.getMonth() + 1).padStart(2, '0')}-${String(relationshipStartDate.getDate()).padStart(2, '0')}`
+        : null,
+    );
 
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
@@ -111,14 +111,37 @@ export default function Profile() {
         onChangeText={setLocalName}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="연애 시작일 (YYYY-MM-DD)"
-        placeholderTextColor={theme.textMuted}
-        value={relationshipStartDate}
-        onChangeText={setLocalRelationshipStartDate}
-        keyboardType="numbers-and-punctuation"
-      />
+      <TouchableOpacity
+        style={styles.datePickerBtn}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Text style={[
+          styles.datePickerBtnText,
+          !relationshipStartDate && styles.datePickerPlaceholder,
+        ]}>
+          {relationshipStartDate
+            ? `${relationshipStartDate.getFullYear()}년 ${relationshipStartDate.getMonth() + 1}월 ${relationshipStartDate.getDate()}일`
+            : '연애 시작일을 선택해주세요'}
+        </Text>
+        <Text style={styles.datePickerIcon}>📅</Text>
+      </TouchableOpacity>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={relationshipStartDate ?? new Date()}
+          mode="date"
+          display="spinner"
+          maximumDate={new Date()}
+          minimumDate={new Date(2010, 0, 1)}
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+            if (event.type === 'set' && selectedDate) {
+              setLocalRelationshipStartDate(selectedDate);
+            }
+          }}
+          locale="ko-KR"
+        />
+      )}
 
       <Text style={styles.label}>MBTI</Text>
       {MBTI_AXES.map(({ key, options }) => (
@@ -164,5 +187,23 @@ function makeStyles(theme: SigmaTheme) {
     nextBtn: { backgroundColor: BRAND.CORAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
     nextBtnDisabled: { backgroundColor: theme.card },
     nextBtnText: { fontSize: 16, fontWeight: 'bold', color: theme.text },
+    datePickerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      padding: 16,
+    },
+    datePickerBtnText: {
+      fontSize: 16,
+      color: theme.text,
+    },
+    datePickerPlaceholder: {
+      color: theme.textMuted,
+    },
+    datePickerIcon: {
+      fontSize: 18,
+    },
   });
 }

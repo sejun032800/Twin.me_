@@ -21,6 +21,8 @@ export interface UserState {
   toneVector: UserToneVector | null;
   isOnboardingComplete: boolean;
   isFoundingVip: boolean;
+  /** 카카오톡 대화 업로드 완료 여부 — Helix 아카이브의 하드코딩 예시 카드 노출 판단 기준 */
+  hasKakaoData: boolean;
   subscriptionStatus: SubscriptionStatus | null;
   lastGenesisAt: string | null;
   pushToken: string | null;
@@ -40,6 +42,7 @@ export interface UserActions {
   setToneVector: (toneVector: UserToneVector | null) => void;
   completeOnboarding: () => void;
   setFoundingVip: (isFoundingVip: boolean) => void;
+  setHasKakaoData: (hasKakaoData: boolean) => void;
   setSubscriptionStatus: (subscriptionStatus: SubscriptionStatus | null) => void;
   setLastGenesisAt: (lastGenesisAt: string | null) => void;
   setPushToken: (pushToken: string | null) => void;
@@ -59,6 +62,7 @@ const initialState: UserState = {
   toneVector: null,
   isOnboardingComplete: false,
   isFoundingVip: false,
+  hasKakaoData: false,
   subscriptionStatus: null,
   lastGenesisAt: null,
   pushToken: null,
@@ -84,6 +88,7 @@ export const useUserStore = create<UserState & UserActions>()(
       setToneVector: (toneVector) => set({ toneVector }),
       completeOnboarding: () => set({ isOnboardingComplete: true }),
       setFoundingVip: (isFoundingVip) => set({ isFoundingVip }),
+      setHasKakaoData: (hasKakaoData) => set({ hasKakaoData }),
       setSubscriptionStatus: (subscriptionStatus) => set({ subscriptionStatus }),
       setLastGenesisAt: (lastGenesisAt) => set({ lastGenesisAt }),
       setPushToken: (pushToken) => set({ pushToken }),

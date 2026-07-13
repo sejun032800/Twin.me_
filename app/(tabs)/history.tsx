@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -31,6 +32,7 @@ import Animated, {
   Extrapolation,
   type SharedValue,
 } from 'react-native-reanimated';
+import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useSessionStore } from '@/store/sessionStore';
@@ -76,6 +78,16 @@ const HELIX_CARDS = [
   { id: '6', emoji: '☕', label: '카페투어', date: '2025.06.14', tags: ['#카페', '#힐링'], cardBg: 'rgba(252, 249, 234, 0.40)' },
 ];
 
+const PLACEHOLDER_CARD: HelixCardData = {
+  id: 'placeholder',
+  emoji: '✨',
+  label: '첫 추억을 기록해봐요',
+  date: '',
+  tags: ['#우리만의', '#이야기'],
+  cardBg: 'rgba(255, 164, 164, 0.06)',
+  isPlaceholder: true,
+};
+
 // TODO: 실제 장소 데이터(kakaoParser 연동) 반영 전까지는 임시 표시값
 const MOCK_PLACES_COUNT = 4;
 
@@ -97,6 +109,7 @@ interface HelixCardData {
   date: string;
   tags: string[];
   cardBg: string;
+  isPlaceholder?: boolean;
 }
 
 type HistoryStyles = ReturnType<typeof makeStyles>;
@@ -107,12 +120,14 @@ function HelixCard({
   scrollY,
   viewportHeight,
   styles,
+  hasKakaoData,
 }: {
   card: HelixCardData;
   index: number;
   scrollY: SharedValue<number>;
   viewportHeight: SharedValue<number>;
   styles: HistoryStyles;
+  hasKakaoData: boolean;
 }) {
   const baseOffset = index % 2 === 0 ? -50 : 50;
 
@@ -136,8 +151,23 @@ function HelixCard({
     };
   });
 
+  if (card.isPlaceholder) {
+    return (
+      <Animated.View style={[styles.helixItem, { backgroundColor: card.cardBg }, animatedStyle]}>
+        <Text style={styles.helixEmoji}>{card.emoji}</Text>
+        <Text style={styles.helixLabel}>{card.label}</Text>
+        <Text style={styles.helixDate}>지도 탭에서 장소를 추가해보세요</Text>
+      </Animated.View>
+    );
+  }
+
   return (
     <Animated.View style={[styles.helixItem, { backgroundColor: card.cardBg }, animatedStyle]}>
+      {!hasKakaoData && (
+        <View style={styles.helixExampleBadge}>
+          <Text style={styles.helixExampleBadgeText}>예시</Text>
+        </View>
+      )}
       <Text style={styles.helixEmoji}>{card.emoji}</Text>
       <Text style={styles.helixLabel}>{card.label}</Text>
       <Text style={styles.helixDate}>{card.date}</Text>
@@ -156,8 +186,11 @@ function ArchiveTab() {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const relationshipStartDate = useCoupleStore((s) => s.relationshipStartDate);
+  const hasKakaoData = useUserStore((s) => s.hasKakaoData);
   const dDay = computeDDay(relationshipStartDate);
   const [wrappedVisible, setWrappedVisible] = useState(false);
+
+  const displayCards = hasKakaoData ? HELIX_CARDS : [PLACEHOLDER_CARD, ...HELIX_CARDS];
 
   const scrollY = useSharedValue(0);
   const viewportHeight = useSharedValue(500);
@@ -188,8 +221,16 @@ function ArchiveTab() {
           viewportHeight.value = e.nativeEvent.layout.height;
         }}
       >
-        {HELIX_CARDS.map((card, i) => (
-          <HelixCard key={card.id} card={card} index={i} scrollY={scrollY} viewportHeight={viewportHeight} styles={styles} />
+        {displayCards.map((card, i) => (
+          <HelixCard
+            key={card.id}
+            card={card}
+            index={i}
+            scrollY={scrollY}
+            viewportHeight={viewportHeight}
+            styles={styles}
+            hasKakaoData={hasKakaoData}
+          />
         ))}
       </Animated.ScrollView>
 
@@ -271,9 +312,13 @@ function FeedTab({ onAddToMap }: { onAddToMap: (course: DateCourse) => void }) {
       <Text style={styles.feedTitle}>💑 인기 데이트코스</Text>
 
       {isMockCourses && (
-        <Text style={styles.mockCoursesBanner}>
-          📋 샘플 데이터입니다. Supabase 테이블 생성 후 실제 코스가 표시돼요.
-        </Text>
+        <View style={styles.mockBannerCard}>
+          <Text style={styles.mockBannerTitle}>💌 아직 공유된 코스가 없어요</Text>
+          <Text style={styles.mockBannerDesc}>
+            데이트 후 코스를 공유하면{'\n'}
+            여기에 모여요
+          </Text>
+        </View>
       )}
 
       {!hasReportAccess && (
@@ -412,14 +457,15 @@ function AddPlaceModal({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [name, setName] = useState('');
   const [area, setArea] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   function reset() {
     setName('');
     setArea('');
-    setDate('');
+    setDate(null);
     setRating(null);
   }
 
@@ -436,7 +482,9 @@ function AddPlaceModal({
         id: Date.now().toString(),
         name: name.trim(),
         area: area.trim(),
-        date: date.trim(),
+        date: date
+          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+          : '',
         rating: rating ?? undefined,
       };
       await saveDatePlace(place);
@@ -476,13 +524,33 @@ function AddPlaceModal({
             value={area}
             onChangeText={setArea}
           />
-          <TextInput
-            style={styles.placeInput}
-            placeholder="날짜 (YYYY-MM-DD)"
-            placeholderTextColor={theme.textMuted}
-            value={date}
-            onChangeText={setDate}
-          />
+          <TouchableOpacity
+            style={[styles.placeInput, styles.placeDateBtn]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={[styles.placeDateBtnText, !date && { color: theme.textMuted }]}>
+              {date
+                ? `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
+                : '날짜 선택 (선택사항)'}
+            </Text>
+            <Text style={styles.placeDateIcon}>📅</Text>
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={date ?? new Date()}
+              mode="date"
+              display="spinner"
+              maximumDate={new Date()}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (event.type === 'set' && selectedDate) {
+                  setDate(selectedDate);
+                }
+              }}
+              locale="ko-KR"
+            />
+          )}
 
           <View style={styles.ratingRow}>
             {RATING_OPTIONS.map((n) => (
@@ -732,14 +800,14 @@ export default function History() {
 
 function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FBF8F3' },
-  container: { flex: 1, backgroundColor: '#FBF8F3' },
+  safeArea: { flex: 1, backgroundColor: theme.bg },
+  container: { flex: 1, backgroundColor: theme.bg },
 
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#FBF8F3',
+    backgroundColor: theme.bg,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+    borderBottomColor: theme.border,
     paddingHorizontal: 4,
   },
   tabItem: {
@@ -747,7 +815,7 @@ function makeStyles(theme: SigmaTheme) {
     alignItems: 'center',
     paddingVertical: 14,
   },
-  tabLabel: { fontSize: 14, color: '#C0C0C0', fontWeight: '500' },
+  tabLabel: { fontSize: 14, color: theme.textMuted, fontWeight: '500' },
   tabLabelActive: { color: '#FFA4A4', fontWeight: '700' },
   tabUnderline: {
     marginTop: 6,
@@ -764,8 +832,8 @@ function makeStyles(theme: SigmaTheme) {
     paddingBottom: 8,
     alignItems: 'center',
   },
-  helixTitle: { fontSize: 20, fontWeight: '700', color: '#1A1A1A' },
-  helixSub: { fontSize: 12, color: '#AAAAAA', marginTop: 4 },
+  helixTitle: { fontSize: 20, fontWeight: '700', color: theme.text },
+  helixSub: { fontSize: 12, color: theme.textMuted, marginTop: 4 },
   helixContent: { paddingVertical: 20 },
   helixItem: {
     width: CARD_WIDTH,
@@ -778,26 +846,40 @@ function makeStyles(theme: SigmaTheme) {
     padding: 18,
     gap: 8,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.04)',
+    borderColor: theme.border,
   },
   helixEmoji: { fontSize: 44 },
-  helixLabel: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
-  helixDate: { fontSize: 11, color: '#AAAAAA' },
+  helixLabel: { fontSize: 14, fontWeight: '600', color: theme.text },
+  helixDate: { fontSize: 11, color: theme.textMuted },
   helixTags: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 4 },
   helixTag: { backgroundColor: 'rgba(255, 255, 255, 0.6)', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3 },
   helixTagText: { fontSize: 10, color: '#3A8C85' },
+  helixExampleBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.20)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  helixExampleBadgeText: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '600',
+  },
   helixStatsBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 14,
     marginHorizontal: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card,
     borderRadius: 14,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: theme.border,
     marginBottom: 12,
   },
-  helixStatItem: { fontSize: 13, fontWeight: '500', color: '#1A1A1A' },
+  helixStatItem: { fontSize: 13, fontWeight: '500', color: theme.text },
 
   // 커플 Wrapped(§11) 진입 버튼
   wrappedBtn: { marginHorizontal: 20, marginBottom: 16, borderRadius: 14, paddingVertical: 15, alignItems: 'center', backgroundColor: '#FFA4A4' },
@@ -807,19 +889,19 @@ function makeStyles(theme: SigmaTheme) {
   // 지도 — 카카오맵 연동 전 플레이스홀더. "등록된 장소" 섹션은 memoryMapService 연동
   mapPlaceholder: { flex: 1, alignItems: 'center', padding: 28, gap: 12 },
   mapPlaceholderEmoji: { fontSize: 56 },
-  mapPlaceholderTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
-  mapPlaceholderDesc: { fontSize: 13, color: '#AAAAAA', textAlign: 'center', lineHeight: 20 },
+  mapPlaceholderTitle: { fontSize: 18, fontWeight: '700', color: theme.text },
+  mapPlaceholderDesc: { fontSize: 13, color: theme.textMuted, textAlign: 'center', lineHeight: 20 },
   mapPinList: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card,
     borderRadius: 16,
     padding: 18,
     gap: 10,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: theme.border,
     marginTop: 4,
   },
-  mapPinListTitle: { fontSize: 12, color: '#AAAAAA', fontWeight: '600', letterSpacing: 0.5 },
+  mapPinListTitle: { fontSize: 12, color: theme.textMuted, fontWeight: '600', letterSpacing: 0.5 },
   mapPinEmpty: { ...TYPOGRAPHY.caption },
   placeList: { gap: 10, marginTop: 4 },
   placeRow: {
@@ -829,11 +911,11 @@ function makeStyles(theme: SigmaTheme) {
     paddingVertical: 6,
     gap: 8,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(0, 0, 0, 0.04)',
+    borderBottomColor: theme.border,
   },
   placeRowInfo: { flex: 1, gap: 2 },
-  placeRowName: { fontSize: 14, fontWeight: '500', color: '#1A1A1A' },
-  placeRowMeta: { fontSize: 11, color: '#AAAAAA', marginTop: 2 },
+  placeRowName: { fontSize: 14, fontWeight: '500', color: theme.text },
+  placeRowMeta: { fontSize: 11, color: theme.textMuted, marginTop: 2 },
   addPlaceBtn: {
     marginTop: 6,
     alignSelf: 'flex-start',
@@ -853,7 +935,7 @@ function makeStyles(theme: SigmaTheme) {
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: MODAL_BACKDROP_LIGHT },
   sheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -862,13 +944,25 @@ function makeStyles(theme: SigmaTheme) {
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.border, alignSelf: 'center' },
   title: { ...TYPOGRAPHY.title, color: theme.text, textAlign: 'center' },
   placeInput: {
-    backgroundColor: '#FBF8F3',
+    backgroundColor: theme.bg,
     borderRadius: 12,
     padding: 14,
-    color: '#1A1A1A',
+    color: theme.text,
     fontSize: 14,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
+    borderColor: theme.border,
+  },
+  placeDateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  placeDateBtnText: {
+    fontSize: 14,
+    color: theme.text,
+  },
+  placeDateIcon: {
+    fontSize: 16,
   },
   ratingRow: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
   ratingBtn: {
@@ -886,9 +980,9 @@ function makeStyles(theme: SigmaTheme) {
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.bg,
   },
-  placeCancelBtnText: { fontSize: 14, fontWeight: '600', color: '#AAAAAA' },
+  placeCancelBtnText: { fontSize: 14, fontWeight: '600', color: theme.textMuted },
   placeSaveBtn: {
     flex: 1,
     borderRadius: 12,
@@ -902,12 +996,27 @@ function makeStyles(theme: SigmaTheme) {
   // 피드 — 인기 데이트코스
   feedContent: { paddingBottom: 20 },
   feedTitle: { ...TYPOGRAPHY.heading, color: theme.text, padding: 20, paddingBottom: 12 },
-  mockCoursesBanner: {
-    ...TYPOGRAPHY.caption,
+  mockBannerCard: {
+    backgroundColor: 'rgba(186, 223, 219, 0.08)',
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 0.5,
+    borderColor: 'rgba(186, 223, 219, 0.15)',
+  },
+  mockBannerTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  mockBannerDesc: {
+    fontSize: 13,
     color: theme.textMuted,
     textAlign: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    lineHeight: 20,
   },
 
   freeFeedBanner: {
@@ -924,15 +1033,15 @@ function makeStyles(theme: SigmaTheme) {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card,
     borderRadius: 14,
     padding: 14,
     marginHorizontal: 20,
     marginBottom: 12,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: theme.border,
   },
-  ootdText: { fontSize: 13, fontWeight: '500', color: '#1A1A1A', flex: 1 },
+  ootdText: { fontSize: 13, fontWeight: '500', color: theme.text, flex: 1 },
 
   feedLoading: { marginTop: 40 },
   feedEmptyText: { ...TYPOGRAPHY.body, color: theme.textMuted, textAlign: 'center', marginTop: 40 },
@@ -943,23 +1052,23 @@ function makeStyles(theme: SigmaTheme) {
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: theme.border,
   },
   filterChipActive: { backgroundColor: '#FFA4A4', borderColor: '#FFA4A4' },
-  filterChipText: { fontSize: 12, color: '#AAAAAA', fontWeight: '500' },
+  filterChipText: { fontSize: 12, color: theme.textMuted, fontWeight: '500' },
   filterChipTextActive: { color: '#FFFFFF', fontWeight: '700' },
 
   courseCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card,
     borderRadius: 18,
     padding: 18,
     marginHorizontal: 20,
     marginBottom: 14,
     gap: 12,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: theme.border,
   },
   courseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   courseCoupleLabel: { ...TYPOGRAPHY.bodyMedium, color: theme.text, flex: 1 },

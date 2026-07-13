@@ -1,8 +1,6 @@
 // ─── FUN-CPL — 연인 초대 코드 입력 (MASTER.md §3 커플 연동) ───────────────────
 // 설정 탭 "연인 코드 입력"에서 진입. couples 테이블에서 코드를 조회해 partner_id를
 // 채워 넣는 joinCouple()을 호출한다.
-// auth 화면군(login, signup, join, kakao-upload)은 브랜드 일관성을 위해
-// 항상-다크 크롬을 유지합니다. useTheme() 미적용 의도적.
 
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
@@ -11,11 +9,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabaseClient';
 import { joinCouple } from '@/services/coupleService';
 import { useCoupleStore } from '@/store/coupleStore';
-import { BRAND, SYS } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
+import { BRAND } from '@/constants/colors';
+import type { SigmaTheme } from '@/constants/theme';
 
 export default function Join() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const setCoupleId = useCoupleStore((s) => s.setCoupleId);
   const setPartnerConnected = useCoupleStore((s) => s.setPartnerConnected);
 
@@ -64,7 +66,7 @@ export default function Join() {
         <TextInput
           style={styles.codeInput}
           placeholder="ABC123"
-          placeholderTextColor="#555"
+          placeholderTextColor={theme.textMuted}
           value={inputCode}
           onChangeText={(text) => setInputCode(text.toUpperCase().slice(0, 6))}
           maxLength={6}
@@ -84,22 +86,24 @@ export default function Join() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: SYS.BG_DARK_MIDNIGHT, padding: 32, justifyContent: 'center', gap: 16 },
-  backBtn: { position: 'absolute', left: 24 },
-  backText: { fontSize: 15, color: SYS.TEXT_LIGHT },
-  title: { fontSize: 28, fontWeight: 'bold', color: BRAND.CORAL, marginBottom: 4, textAlign: 'center' },
-  subtitle: { fontSize: 14, color: SYS.TEXT_MUTED, textAlign: 'center', marginBottom: 16 },
-  codeInput: {
-    backgroundColor: SYS.CARD_DARK,
-    borderRadius: 16,
-    paddingVertical: 20,
-    color: SYS.TEXT_LIGHT,
-    fontSize: 32,
-    fontWeight: 'bold',
-    letterSpacing: 8,
-  },
-  joinBtn: { backgroundColor: BRAND.CORAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
-  joinBtnDisabled: { backgroundColor: SYS.CARD_DARK },
-  joinBtnText: { fontSize: 16, fontWeight: 'bold', color: SYS.TEXT_LIGHT },
-});
+function makeStyles(theme: SigmaTheme) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg, padding: 32, justifyContent: 'center', gap: 16 },
+    backBtn: { position: 'absolute', left: 24 },
+    backText: { fontSize: 15, color: theme.text },
+    title: { fontSize: 28, fontWeight: 'bold', color: BRAND.CORAL, marginBottom: 4, textAlign: 'center' },
+    subtitle: { fontSize: 14, color: theme.textMuted, textAlign: 'center', marginBottom: 16 },
+    codeInput: {
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      paddingVertical: 20,
+      color: theme.text,
+      fontSize: 32,
+      fontWeight: 'bold',
+      letterSpacing: 8,
+    },
+    joinBtn: { backgroundColor: BRAND.CORAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+    joinBtnDisabled: { backgroundColor: theme.card },
+    joinBtnText: { fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' },
+  });
+}

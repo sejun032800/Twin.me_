@@ -23,7 +23,7 @@ import MasterQuestionModal from '@/components/MasterQuestionModal';
 import ShareCard from '@/components/ShareCard';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
-import { useScoreStore } from '@/store/scoreStore';
+import { useScoreStore, type EventHistoryEntry } from '@/store/scoreStore';
 import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useWeather } from '@/hooks/useWeather';
@@ -32,6 +32,48 @@ import { shouldShowMasterQuestion, markShownToday, type MasterQuestion } from '@
 import { GRADIENT } from '@/constants/colors';
 import type { SigmaTheme, ThemeMode } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
+
+function buildScoreStory(eventLog: EventHistoryEntry[], sLive: number, sCurrent: number): string {
+  if (!eventLog || eventLog.length === 0) {
+    return '트윈과 대화할수록 정확해져요';
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayEvents = eventLog.filter((e) => e.t >= today.getTime());
+
+  const delta = sLive - sCurrent;
+  const absDelta = Math.abs(delta).toFixed(1);
+
+  if (todayEvents.length === 0) {
+    if (delta > 0.5) return `어제보다 ${absDelta}점 올랐어요 ↑`;
+    if (delta < -0.5) return `어제보다 ${absDelta}점 내려갔어요 ↓`;
+    return '오늘도 꾸준히 유지 중이에요';
+  }
+
+  const posCount = todayEvents.filter((e) => e.delta > 0).length;
+
+  const hasApology = todayEvents.some((e) => e.code === 'G-CON-002' || e.code === 'G-CON-008');
+  if (hasApology && delta > 0) {
+    return `화해 덕분에 ${absDelta}점 회복했어요 💚`;
+  }
+
+  const hasTikitaka = todayEvents.some((e) => e.code === 'G-HUM-007');
+  if (hasTikitaka) {
+    return '오늘 티키타카가 좋았어요 ✨';
+  }
+
+  const hasCrisis = todayEvents.some((e) => e.code.startsWith('L-CRU') || e.code.startsWith('L-HRS'));
+  if (hasCrisis && delta < 0) {
+    return `오늘 ${absDelta}점 내려갔어요. 대화가 필요할 것 같아요`;
+  }
+
+  if (delta > 0.5) return `오늘 ${absDelta}점 올랐어요 ↑`;
+  if (delta < -0.5) return `오늘 ${absDelta}점 내려갔어요 ↓`;
+  if (posCount >= 3) return `오늘 좋은 대화가 ${posCount}번 있었어요 💚`;
+
+  return '오늘도 꾸준히 함께하고 있어요';
+}
 
 function computeDDay(relationshipStartDate: string | null): number | null {
   if (!relationshipStartDate) return null;
@@ -54,6 +96,7 @@ export default function Home() {
   const sLive = useScoreStore((s) => s.sLive);
   const sCurrent = useScoreStore((s) => s.sCurrent);
   const sBase = useScoreStore((s) => s.sBase);
+  const eventLog = useScoreStore((s) => s.eventLog);
   const { weather, loading: weatherLoading } = useWeather();
   const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
   const themeMode = useSessionStore((s) => s.themeMode);
@@ -67,6 +110,7 @@ export default function Home() {
   const displayScore = sLive > 0 ? sLive : (sCurrent > 0 ? sCurrent : sBase);
   const tier = getTierFromScore(displayScore);
   const dDay = computeDDay(relationshipStartDate);
+  const scoreStory = buildScoreStory(eventLog, sLive, sCurrent);
 
   const viewShotRef = useRef<ViewShot>(null);
   const [sharing, setSharing] = useState(false);
@@ -202,6 +246,7 @@ export default function Home() {
               <Text style={styles.tierText}>{tier.emoji} {tier.title}</Text>
             </View>
           </View>
+          <Text style={styles.scoreStory}>{scoreStory}</Text>
         </View>
 
         {/* 4. 무드 태그 */}
@@ -412,6 +457,13 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
       color: theme.text,
       marginTop: 6,
     },
+    scoreStory: {
+      fontSize: 12,
+      color: theme.textMuted,
+      textAlign: 'center',
+      marginTop: 4,
+      lineHeight: 18,
+    },
     // 무드 태그 행
     moodRow: {
       flexDirection: 'row',
@@ -441,7 +493,7 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
       paddingVertical: 20,
       gap: 4,
       borderTopWidth: 0.5,
-      borderTopColor: 'rgba(0, 0, 0, 0.06)',
+      borderTopColor: theme.border,
       marginBottom: 24,
     },
     scrollHintText: {

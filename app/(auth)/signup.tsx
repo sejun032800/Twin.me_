@@ -1,14 +1,15 @@
-// auth 화면군(login, signup, join, kakao-upload)은 브랜드 일관성을 위해
-// 항상-다크 크롬을 유지합니다. useTheme() 미적용 의도적.
-
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserStore } from '@/store/userStore';
+import { useTheme } from '@/hooks/useTheme';
+import type { SigmaTheme } from '@/constants/theme';
 
 export default function Signup() {
   const router = useRouter();
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,7 +44,7 @@ export default function Signup() {
           <TextInput
             style={styles.input}
             placeholder="이메일"
-            placeholderTextColor="#5A6480"
+            placeholderTextColor={theme.textMuted}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -53,7 +54,7 @@ export default function Signup() {
           <TextInput
             style={styles.input}
             placeholder="비밀번호 (6자 이상)"
-            placeholderTextColor="#5A6480"
+            placeholderTextColor={theme.textMuted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -89,92 +90,91 @@ export default function Signup() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0D1A',
-    padding: 28,
-    justifyContent: 'space-between',
-  },
-  progressBar: {
-    height: 2,
-    backgroundColor: '#FFA4A4',
-    borderRadius: 1,
-    marginBottom: 40,
-  },
-  heading: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#E8E4DC',
-    lineHeight: 36,
-    marginBottom: 8,
-  },
-  subHeading: {
-    fontSize: 14,
-    color: '#5A6480',
-    marginBottom: 36,
-    lineHeight: 22,
-  },
-  label: {
-    fontSize: 12,
-    color: '#5A6480',
-    marginBottom: 8,
-    letterSpacing: 0.5,
-  },
-  input: {
-    backgroundColor: '#131726',
-    borderRadius: 12,
-    padding: 16,
-    color: '#E8E4DC',
-    fontSize: 16,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    marginBottom: 16,
-  },
-  inputFocused: {
-    borderColor: 'rgba(255, 164, 164, 0.40)',
-  },
-  primaryBtn: {
-    backgroundColor: '#FFA4A4',
-    borderRadius: 14,
-    paddingVertical: 18,
-    alignItems: 'center',
-  },
-  primaryBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  primaryBtnDisabled: {
-    backgroundColor: 'rgba(255, 164, 164, 0.25)',
-  },
-  linkText: {
-    fontSize: 13,
-    color: '#5A6480',
-    textAlign: 'center',
-    marginTop: 16,
-  },
-  linkAccent: {
-    color: '#FFA4A4',
-    fontWeight: '600',
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#EF4444',
-    marginTop: -12,
-    marginBottom: 12,
-  },
-  backLink: {
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  backLinkText: {
-    fontSize: 13,
-    color: '#3A4055',
-    textAlign: 'center',
-  },
-  backLinkAccent: {
-    color: '#FFA4A4',
-    fontWeight: '600',
-  },
-});
+function makeStyles(theme: SigmaTheme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+      padding: 28,
+      justifyContent: 'space-between',
+    },
+    progressBar: {
+      height: 2,
+      backgroundColor: '#FFA4A4',
+      borderRadius: 1,
+      marginBottom: 40,
+    },
+    heading: {
+      fontSize: 26,
+      fontWeight: '900',
+      color: theme.text,
+      lineHeight: 36,
+      marginBottom: 8,
+    },
+    subHeading: {
+      fontSize: 14,
+      color: theme.textMuted,
+      marginBottom: 36,
+      lineHeight: 22,
+    },
+    label: {
+      fontSize: 12,
+      color: theme.textMuted,
+      marginBottom: 8,
+      letterSpacing: 0.5,
+    },
+    input: {
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      padding: 16,
+      color: theme.text,
+      fontSize: 16,
+      borderWidth: 0.5,
+      borderColor: theme.border,
+      marginBottom: 16,
+    },
+    primaryBtn: {
+      backgroundColor: '#FFA4A4',
+      borderRadius: 14,
+      paddingVertical: 18,
+      alignItems: 'center',
+    },
+    primaryBtnText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    primaryBtnDisabled: {
+      backgroundColor: 'rgba(255, 164, 164, 0.25)',
+    },
+    linkText: {
+      fontSize: 13,
+      color: theme.textMuted,
+      textAlign: 'center',
+      marginTop: 16,
+    },
+    linkAccent: {
+      color: '#FFA4A4',
+      fontWeight: '600',
+    },
+    errorText: {
+      fontSize: 12,
+      color: '#EF4444',
+      marginTop: -12,
+      marginBottom: 12,
+    },
+    backLink: {
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    backLinkText: {
+      fontSize: 13,
+      color: theme.textMuted,
+      textAlign: 'center',
+    },
+    backLinkAccent: {
+      color: '#FFA4A4',
+      fontWeight: '600',
+    },
+  });
+}

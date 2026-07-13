@@ -1,10 +1,12 @@
 // app/(auth)/kakao-guide.tsx
 // 카카오톡 대화 내보내기 방법을 안내하는 4단계 가이드 화면.
-// kakao-upload.tsx 진입 전에 거치며, auth 화면군과 동일하게 항상-다크 고정.
+// kakao-upload.tsx 진입 전에 거친다.
 
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTheme } from '@/hooks/useTheme';
+import type { SigmaTheme } from '@/constants/theme';
 
 const STEPS = [
   {
@@ -39,6 +41,8 @@ const STEPS = [
 
 export default function KakaoGuide() {
   const router = useRouter();
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [currentStep, setCurrentStep] = useState(0);
 
   const isLast = currentStep === STEPS.length - 1;
@@ -110,117 +114,120 @@ export default function KakaoGuide() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0D1A',
-    padding: 28,
-    paddingTop: 20,
-    justifyContent: 'space-between',
-  },
-  progressTrack: {
-    height: 2,
-    backgroundColor: '#131726',
-    borderRadius: 1,
-    overflow: 'hidden',
-    marginBottom: 24,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#FFA4A4',
-    borderRadius: 1,
-  },
-  stepIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 32,
-  },
-  stepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#1C2235',
-  },
-  stepDotActive: {
-    backgroundColor: '#FFA4A4',
-    width: 20,
-  },
-  stepDotDone: {
-    backgroundColor: '#BADFDB',
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  emojiCard: {
-    width: 120,
-    height: 120,
-    borderRadius: 32,
-    backgroundColor: '#131726',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  emoji: {
-    fontSize: 56,
-  },
-  stepBadge: {
-    backgroundColor: 'rgba(255,164,164,0.12)',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-  },
-  stepBadgeText: {
-    fontSize: 11,
-    color: '#FFA4A4',
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#E8E4DC',
-    textAlign: 'center',
-    lineHeight: 34,
-  },
-  desc: {
-    fontSize: 15,
-    color: '#A0AABF',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  sub: {
-    fontSize: 12,
-    color: '#3A4055',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  bottom: {
-    gap: 12,
-    paddingTop: 24,
-  },
-  primaryBtn: {
-    backgroundColor: '#FFA4A4',
-    borderRadius: 14,
-    paddingVertical: 18,
-    alignItems: 'center',
-  },
-  primaryBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  skipBtn: {
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  skipText: {
-    fontSize: 13,
-    color: '#3A4055',
-  },
-});
+function makeStyles(theme: SigmaTheme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+      padding: 28,
+      paddingTop: 20,
+      justifyContent: 'space-between',
+    },
+    progressTrack: {
+      height: 2,
+      backgroundColor: theme.card,
+      borderRadius: 1,
+      overflow: 'hidden',
+      marginBottom: 24,
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: '#FFA4A4',
+      borderRadius: 1,
+    },
+    stepIndicator: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+      marginBottom: 32,
+    },
+    stepDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.card,
+    },
+    stepDotActive: {
+      backgroundColor: '#FFA4A4',
+      width: 20,
+    },
+    stepDotDone: {
+      backgroundColor: '#BADFDB',
+    },
+    content: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16,
+    },
+    emojiCard: {
+      width: 120,
+      height: 120,
+      borderRadius: 32,
+      backgroundColor: theme.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+      borderWidth: 0.5,
+      borderColor: theme.border,
+    },
+    emoji: {
+      fontSize: 56,
+    },
+    stepBadge: {
+      backgroundColor: 'rgba(255,164,164,0.12)',
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      paddingVertical: 5,
+    },
+    stepBadgeText: {
+      fontSize: 11,
+      color: '#FFA4A4',
+      fontWeight: '700',
+      letterSpacing: 1,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '900',
+      color: theme.text,
+      textAlign: 'center',
+      lineHeight: 34,
+    },
+    desc: {
+      fontSize: 15,
+      color: theme.textMuted,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    sub: {
+      fontSize: 12,
+      color: theme.textMuted,
+      textAlign: 'center',
+      lineHeight: 18,
+      opacity: 0.7,
+    },
+    bottom: {
+      gap: 12,
+      paddingTop: 24,
+    },
+    primaryBtn: {
+      backgroundColor: '#FFA4A4',
+      borderRadius: 14,
+      paddingVertical: 18,
+      alignItems: 'center',
+    },
+    primaryBtnText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    skipBtn: {
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    skipText: {
+      fontSize: 13,
+      color: theme.textMuted,
+    },
+  });
+}

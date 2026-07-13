@@ -238,19 +238,19 @@ export default function Settings() {
                 onPress={() => { if (hasAuraVector) setThemeMode('sigma'); }}
                 disabled={!hasAuraVector}
               >
-                <Text style={[styles.themeBtnText, { color: themeMode === 'sigma' ? '#FFFFFF' : '#1A1A1A' }]}>✨ 6 Sigma</Text>
+                <Text style={[styles.themeBtnText, { color: themeMode === 'sigma' ? '#FFFFFF' : theme.text }]}>✨ 6 Sigma</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.themeBtn, themeMode === 'light' && styles.themeBtnSelected]}
                 onPress={() => setThemeMode('light')}
               >
-                <Text style={[styles.themeBtnText, { color: themeMode === 'light' ? '#FFFFFF' : '#1A1A1A' }]}>☀️ 라이트</Text>
+                <Text style={[styles.themeBtnText, { color: themeMode === 'light' ? '#FFFFFF' : theme.text }]}>☀️ 라이트</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.themeBtn, themeMode === 'dark' && styles.themeBtnSelected]}
                 onPress={() => setThemeMode('dark')}
               >
-                <Text style={[styles.themeBtnText, { color: themeMode === 'dark' ? '#FFFFFF' : '#1A1A1A' }]}>🌙 다크</Text>
+                <Text style={[styles.themeBtnText, { color: themeMode === 'dark' ? '#FFFFFF' : theme.text }]}>🌙 다크</Text>
               </TouchableOpacity>
             </View>
             {!hasAuraVector && (
@@ -295,7 +295,7 @@ export default function Settings() {
                 value={privacyLevel}
                 onValueChange={(v) => setPrivacyLevel(Math.round(v) as 0 | 1 | 2)}
                 minimumTrackTintColor="#FFA4A4"
-                maximumTrackTintColor="rgba(0,0,0,0.10)"
+                maximumTrackTintColor={theme.border}
                 thumbTintColor="#FFA4A4"
                 style={styles.slider}
               />
@@ -547,7 +547,7 @@ export default function Settings() {
 
 function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FBF8F3' },
+  safeArea: { flex: 1, backgroundColor: theme.bg },
   scrollContent: {
     paddingTop: 28,
     paddingBottom: 56,
@@ -556,7 +556,7 @@ function makeStyles(theme: SigmaTheme) {
   section: { marginBottom: 28 },
   sectionHeader: {
     fontSize: 11,
-    color: '#BBBBBB',
+    color: theme.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
     paddingHorizontal: 20,
@@ -565,14 +565,14 @@ function makeStyles(theme: SigmaTheme) {
   },
 
   rowGroup: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card,
     borderRadius: 16,
     marginHorizontal: 20,
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: theme.border,
   },
-  divider: { height: 0.5, backgroundColor: 'rgba(0, 0, 0, 0.05)', marginHorizontal: 16 },
+  divider: { height: 0.5, backgroundColor: theme.border, marginHorizontal: 16 },
   row: {
     paddingVertical: 16,
     paddingHorizontal: 16,
@@ -582,9 +582,9 @@ function makeStyles(theme: SigmaTheme) {
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowIcon: { ...TYPOGRAPHY.body },
-  rowText: { fontSize: 15, color: '#1A1A1A' },
-  rowSub: { fontSize: 12, color: '#AAAAAA', marginTop: 2 },
-  rowValue: { fontSize: 14, color: '#AAAAAA' },
+  rowText: { fontSize: 15, color: theme.text },
+  rowSub: { fontSize: 12, color: theme.textMuted, marginTop: 2 },
+  rowValue: { fontSize: 14, color: theme.textMuted },
   logoutText: { fontSize: 15, fontWeight: '500', color: '#EF4444' },
 
   profileRow: { gap: 16 },
@@ -598,17 +598,17 @@ function makeStyles(theme: SigmaTheme) {
   },
   avatarText: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
   profileInfo: { flex: 1, gap: 4 },
-  profileName: { fontSize: 17, fontWeight: '700', color: '#1A1A1A' },
-  profileMbti: { fontSize: 12, color: '#AAAAAA', marginTop: 3 },
+  profileName: { fontSize: 17, fontWeight: '700', color: theme.text },
+  profileMbti: { fontSize: 12, color: theme.textMuted, marginTop: 3 },
 
   themeBtnRow: { flexDirection: 'row', gap: 10, padding: 14 },
-  themeBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: '#F5F5F5' },
+  themeBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: theme.card },
   themeBtnSelected: { backgroundColor: '#FFA4A4' },
   themeBtnDisabled: { opacity: 0.35 },
-  themeBtnText: { fontSize: 12, fontWeight: '600', color: '#1A1A1A' },
+  themeBtnText: { fontSize: 12, fontWeight: '600', color: theme.text },
   themeHint: {
     fontSize: 11,
-    color: '#AAAAAA',
+    color: theme.textMuted,
     textAlign: 'center',
     paddingHorizontal: 16,
     paddingBottom: 14,
@@ -618,24 +618,24 @@ function makeStyles(theme: SigmaTheme) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card,
     borderRadius: 16,
     padding: 16,
     marginHorizontal: 20,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: theme.border,
   },
   themeShopIcon: { ...TYPOGRAPHY.heading },
   themeShopInfo: { flex: 1, gap: 2 },
-  themeShopTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A1A' },
-  themeShopSub: { fontSize: 12, color: '#AAAAAA', marginTop: 2 },
+  themeShopTitle: { fontSize: 15, fontWeight: '600', color: theme.text },
+  themeShopSub: { fontSize: 12, color: theme.textMuted, marginTop: 2 },
 
   privacyCard: { padding: 16, gap: 10 },
   levelBadge: { backgroundColor: 'rgba(186, 223, 219, 0.25)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   levelBadgeText: { fontSize: 11, color: '#3A8C85', fontWeight: '700' },
-  privacyDesc: { fontSize: 12, color: '#AAAAAA', lineHeight: 18 },
+  privacyDesc: { fontSize: 12, color: theme.textMuted, lineHeight: 18 },
   slider: { width: '100%', height: 32, marginTop: 4 },
-  privacyLevelText: { fontSize: 13, fontWeight: '500', color: '#1A1A1A', textAlign: 'center' },
+  privacyLevelText: { fontSize: 13, fontWeight: '500', color: theme.text, textAlign: 'center' },
 
   statusBadge: {
     borderRadius: 8,
@@ -663,35 +663,35 @@ function makeStyles(theme: SigmaTheme) {
   },
   vipModalCard: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card,
     borderRadius: 20,
     padding: 24,
     gap: 14,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
+    borderColor: theme.border,
   },
-  vipModalTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A', textAlign: 'center' },
-  vipModalDesc: { fontSize: 13, color: '#AAAAAA', textAlign: 'center', lineHeight: 20 },
+  vipModalTitle: { fontSize: 18, fontWeight: '700', color: theme.text, textAlign: 'center' },
+  vipModalDesc: { fontSize: 13, color: theme.textMuted, textAlign: 'center', lineHeight: 20 },
   vipModalInput: {
-    backgroundColor: '#FBF8F3',
+    backgroundColor: theme.bg,
     borderRadius: 12,
     padding: 14,
-    color: '#1A1A1A',
+    color: theme.text,
     fontSize: 16,
     letterSpacing: 3,
     textAlign: 'center',
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: theme.border,
   },
   vipModalActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   vipModalCancelBtn: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.bg,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  vipModalCancelText: { fontSize: 14, fontWeight: '600', color: '#AAAAAA' },
+  vipModalCancelText: { fontSize: 14, fontWeight: '600', color: theme.textMuted },
   vipModalConfirmBtn: {
     flex: 1,
     backgroundColor: '#FFA4A4',
@@ -729,10 +729,10 @@ function makeStyles(theme: SigmaTheme) {
     marginHorizontal: 20,
     padding: 12,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.12)',
+    borderColor: theme.border,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card,
   },
-  devBtnText: { fontSize: 12, color: '#AAAAAA', textAlign: 'center' },
+  devBtnText: { fontSize: 12, color: theme.textMuted, textAlign: 'center' },
   });
 }

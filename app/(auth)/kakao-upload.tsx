@@ -1,6 +1,3 @@
-// auth 화면군(login, signup, join, kakao-upload)은 브랜드 일관성을 위해
-// 항상-다크 크롬을 유지합니다. useTheme() 미적용 의도적.
-
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -13,12 +10,16 @@ import D0ResultScreen from '@/components/D0ResultScreen';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
+import { useTheme } from '@/hooks/useTheme';
 import { SYS } from '@/constants/colors';
+import type { SigmaTheme } from '@/constants/theme';
 
 const D0_DATE_HEADER_RE = /(\d{4})년 (\d{1,2})월 (\d{1,2})일/;
 
 export default function KakaoUpload() {
   const router = useRouter();
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [uploaded, setUploaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rawText, setRawText] = useState<string | null>(null);
@@ -27,6 +28,7 @@ export default function KakaoUpload() {
 
   const name = useUserStore((s) => s.name);
   const mbti = useUserStore((s) => s.mbti);
+  const setHasKakaoData = useUserStore((s) => s.setHasKakaoData);
   const partnerName = useCoupleStore((s) => s.partnerName);
   const eventLog = useScoreStore((s) => s.eventLog);
 
@@ -97,6 +99,7 @@ export default function KakaoUpload() {
       // 말투 벡터 저장 (batchSummary 기반)
       // TODO: Phase 5에서 userToneVectorBuilder 연결
 
+      setHasKakaoData(true);
     } catch (e) {
       const isStubError = e instanceof Error &&
         e.message.includes('weeklyReportService');
@@ -192,81 +195,83 @@ export default function KakaoUpload() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0D1A',
-    padding: 28,
-    justifyContent: 'space-between',
-  },
-  progressBar: {
-    height: 2,
-    width: '75%',
-    backgroundColor: '#FFA4A4',
-    borderRadius: 1,
-    marginBottom: 40,
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#E8E4DC',
-    lineHeight: 34,
-    marginBottom: 8,
-  },
-  desc: {
-    fontSize: 14,
-    color: '#5A6480',
-    lineHeight: 22,
-    marginBottom: 36,
-  },
-  uploadBtn: {
-    backgroundColor: '#131726',
-    borderRadius: 16,
-    paddingVertical: 28,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 164, 164, 0.30)',
-    borderStyle: 'dashed',
-    gap: 10,
-    marginBottom: 16,
-  },
-  uploadIcon: {
-    fontSize: 36,
-  },
-  uploadBtnText: {
-    fontSize: 15,
-    color: '#FFA4A4',
-    fontWeight: '600',
-  },
-  uploadBtnSub: {
-    fontSize: 12,
-    color: '#3A4055',
-  },
-  privacyNote: {
-    fontSize: 11,
-    color: '#3A4055',
-    textAlign: 'center',
-    lineHeight: 17,
-    marginBottom: 8,
-  },
-  nextBtn: {
-    backgroundColor: '#FFA4A4',
-    borderRadius: 14,
-    paddingVertical: 18,
-    alignItems: 'center',
-  },
-  nextBtnDisabled: {
-    backgroundColor: 'rgba(255, 164, 164, 0.20)',
-  },
-  nextBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  skipText: {
-    fontSize: 13,
-    color: '#3A4055',
-    textAlign: 'center',
-    marginTop: 16,
-  },
-});
+function makeStyles(theme: SigmaTheme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+      padding: 28,
+      justifyContent: 'space-between',
+    },
+    progressBar: {
+      height: 2,
+      width: '75%',
+      backgroundColor: '#FFA4A4',
+      borderRadius: 1,
+      marginBottom: 40,
+    },
+    heading: {
+      fontSize: 24,
+      fontWeight: '900',
+      color: theme.text,
+      lineHeight: 34,
+      marginBottom: 8,
+    },
+    desc: {
+      fontSize: 14,
+      color: theme.textMuted,
+      lineHeight: 22,
+      marginBottom: 36,
+    },
+    uploadBtn: {
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      paddingVertical: 28,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 164, 164, 0.30)',
+      borderStyle: 'dashed',
+      gap: 10,
+      marginBottom: 16,
+    },
+    uploadIcon: {
+      fontSize: 36,
+    },
+    uploadBtnText: {
+      fontSize: 15,
+      color: '#FFA4A4',
+      fontWeight: '600',
+    },
+    uploadBtnSub: {
+      fontSize: 12,
+      color: theme.textMuted,
+    },
+    privacyNote: {
+      fontSize: 11,
+      color: theme.textMuted,
+      textAlign: 'center',
+      lineHeight: 17,
+      marginBottom: 8,
+    },
+    nextBtn: {
+      backgroundColor: '#FFA4A4',
+      borderRadius: 14,
+      paddingVertical: 18,
+      alignItems: 'center',
+    },
+    nextBtnDisabled: {
+      backgroundColor: 'rgba(255, 164, 164, 0.20)',
+    },
+    nextBtnText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    skipText: {
+      fontSize: 13,
+      color: theme.textMuted,
+      textAlign: 'center',
+      marginTop: 16,
+    },
+  });
+}
