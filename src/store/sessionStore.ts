@@ -54,6 +54,8 @@ export interface SessionState {
   magicMirrorAccepted: boolean; // Magic Mirror(§4 FUN-CHA-004) opt-in 수락 여부 — 트윈방 최초 진입 1회 안내 게이팅
   pendingChatMessage: string | null; // MasterQuestionModal "채팅에서 답하기" → chat.tsx 마운트 시 인풋에 미리 채워넣을 질문
   overflowBannerDismissedDate: string | null; // OverflowBanner 닫기 상태 — 탭 이동/언마운트에도 유지되도록 스토어에 저장
+  /** Phase 3 — FEATURE_DNA_V21 개발자 런타임 재정의(설정 탭 개발자 메뉴). null이면 env 기본값(false)을 따른다. */
+  devFeatureDnaV21Override: boolean | null;
 }
 
 export interface SessionActions {
@@ -75,6 +77,7 @@ export interface SessionActions {
   setMagicMirrorAccepted: (value: boolean) => void;
   setPendingChatMessage: (msg: string | null) => void;
   setOverflowBannerDismissedDate: (date: string | null) => void;
+  setDevFeatureDnaV21Override: (value: boolean | null) => void;
   reset: () => void;
 }
 
@@ -102,6 +105,7 @@ const initialState: SessionState = {
   magicMirrorAccepted: false,
   pendingChatMessage: null,
   overflowBannerDismissedDate: null,
+  devFeatureDnaV21Override: null,
 };
 
 export const useSessionStore = create<SessionState & SessionActions>()(
@@ -132,6 +136,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       setMagicMirrorAccepted: (magicMirrorAccepted) => set({ magicMirrorAccepted }),
       setPendingChatMessage: (pendingChatMessage) => set({ pendingChatMessage }),
       setOverflowBannerDismissedDate: (overflowBannerDismissedDate) => set({ overflowBannerDismissedDate }),
+      setDevFeatureDnaV21Override: (devFeatureDnaV21Override) => set({ devFeatureDnaV21Override }),
       reset: () => {
         set({ ...initialState });
         AsyncStorage.removeItem(AURA_SETTINGS_KEY).catch(() => {});

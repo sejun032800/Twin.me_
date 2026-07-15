@@ -99,6 +99,9 @@ export default function Settings() {
   const setPrivacyLevel = useSessionStore((s) => s.setPrivacyLevel);
   const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
   const setReduceAuraMotion = useSessionStore((s) => s.setReduceAuraMotion);
+  const devFeatureDnaV21Override = useSessionStore((s) => s.devFeatureDnaV21Override);
+  const setDevFeatureDnaV21Override = useSessionStore((s) => s.setDevFeatureDnaV21Override);
+  const envFeatureDnaV21Default = process.env.EXPO_PUBLIC_FEATURE_DNA_V21 === 'true';
   const hasAuraVector = !!personaMatrix?.auraVector;
   const inviteCode = useCoupleStore((s) => s.inviteCode);
   const setInviteCode = useCoupleStore((s) => s.setInviteCode);
@@ -191,6 +194,11 @@ export default function Settings() {
       const detail = failed.map((r) => `${r.table}: ${r.detail}`).join('\n');
       Alert.alert('⚠️ 연결 실패', detail);
     }
+  }
+
+  function handleToggleFeatureDnaV21() {
+    const current = devFeatureDnaV21Override ?? envFeatureDnaV21Default;
+    setDevFeatureDnaV21Override(!current);
   }
 
   return (
@@ -495,6 +503,15 @@ export default function Settings() {
         {__DEV__ && (
           <TouchableOpacity style={styles.devBtn} onPress={handleSchemaHealthCheck}>
             <Text style={styles.devBtnText}>🔧 DB 연결 검증</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* 개발 전용 — Phase 3: FEATURE_DNA_V21 런타임 토글(설정값은 env 기본값을 재정의) */}
+        {__DEV__ && (
+          <TouchableOpacity style={styles.devBtn} onPress={handleToggleFeatureDnaV21}>
+            <Text style={styles.devBtnText}>
+              🧬 FEATURE_DNA_V21: {(devFeatureDnaV21Override ?? envFeatureDnaV21Default) ? 'ON' : 'OFF'}
+            </Text>
           </TouchableOpacity>
         )}
       </ScrollView>
