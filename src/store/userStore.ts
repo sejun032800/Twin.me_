@@ -12,12 +12,35 @@ import type { EnneagramType, UserPersonaMatrix } from '../types/genesis';
 import type { UserToneVector } from '../engine/userToneVectorBuilder';
 import type { SubscriptionStatus } from '../services/iapService';
 
+// ─── 연애 DNA v2.1 심리 프로파일 (Phase 1 — 그릇만 준비, 아직 아무도 읽지/쓰지 않음) ──
+// docs/spec/연애_DNA_일치율_공식_v2.1.md §1 표기법을 그대로 반영한 사후상태.
+// personaMatrix(Aura·제네시스 UX 소관, 애니어그램 코어 전용)와는 별개 슬롯으로 분리한다
+// — 감사표(docs/audit/폐기_수정_항목_감사표.md)가 personaMatrix를 UX 소관으로 규정했으므로
+// 순수 추론 상태(Big5·애착·애니어그램 코어+날개·스턴버그)를 섞지 않기 위함이다.
+export interface PsychProfile {
+  big5: { O: number; C: number; E: number; A: number; N: number };
+  attachment: { anxiety: number; avoidance: number };
+  enneagramCore: number[]; // p ∈ Δ⁹, length 9
+  enneagramWingJoint: Record<string, number>; // q, key="{core}w{wing}"
+  sternbergState: { intimacy: number; passion: number; commitment: number } | null;
+  mbtiEstimated: { pE: number; pN_axis: number; pF: number; pJ: number } | null; // §10 보너스, 궁합 계산 미관여
+  interviewMeta: {
+    completedAt: string | null;
+    turnsUsed: number;
+    elapsedSeconds: number;
+    stopReason: 'time_cap' | 'entropy_threshold' | 'min_turns_satisfied' | null;
+    calibrationVersion: string; // 예: "v2.1"
+  };
+}
+
 export interface UserState {
   userId: string | null;
   name: string | null;
   mbti: string | null;
   enneagramType: EnneagramType | null;
   personaMatrix: UserPersonaMatrix | null;
+  /** 연애 DNA v2.1 심리 프로파일 — Phase 3 전까지는 아무도 읽거나 쓰지 않는 미사용 슬롯 */
+  psychProfile: PsychProfile | null;
   toneVector: UserToneVector | null;
   isOnboardingComplete: boolean;
   isFoundingVip: boolean;
@@ -39,6 +62,7 @@ export interface UserActions {
   setMbti: (mbti: string | null) => void;
   setEnneagramType: (enneagramType: EnneagramType | null) => void;
   setPersonaMatrix: (personaMatrix: UserPersonaMatrix | null) => void;
+  setPsychProfile: (psychProfile: PsychProfile | null) => void;
   setToneVector: (toneVector: UserToneVector | null) => void;
   completeOnboarding: () => void;
   setFoundingVip: (isFoundingVip: boolean) => void;
@@ -59,6 +83,7 @@ const initialState: UserState = {
   mbti: null,
   enneagramType: null,
   personaMatrix: null,
+  psychProfile: null,
   toneVector: null,
   isOnboardingComplete: false,
   isFoundingVip: false,
@@ -85,6 +110,7 @@ export const useUserStore = create<UserState & UserActions>()(
       setMbti: (mbti) => set({ mbti }),
       setEnneagramType: (enneagramType) => set({ enneagramType }),
       setPersonaMatrix: (personaMatrix) => set({ personaMatrix }),
+      setPsychProfile: (psychProfile) => set({ psychProfile }),
       setToneVector: (toneVector) => set({ toneVector }),
       completeOnboarding: () => set({ isOnboardingComplete: true }),
       setFoundingVip: (isFoundingVip) => set({ isFoundingVip }),

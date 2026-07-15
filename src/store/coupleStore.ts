@@ -15,6 +15,20 @@ export interface Anniversary {
   date: string; // YYYY-MM-DD
 }
 
+// ─── 연애 DNA v2.1 궁합 결과 (Phase 1 — 그릇만 준비, 아직 아무도 읽지/쓰지 않음) ────
+// docs/spec/연애_DNA_일치율_공식_v2.1.md §12/§13 — computeRomanticDnaV21()의 반환값을
+// 저장할 슬롯. calibrationVersion을 태깅해 μ̂/σ̂/M행렬이 향후 갱신되어도 과거 결과를
+// 재현/비교할 수 있게 한다(구현명세서 §4.2).
+export interface DnaResult {
+  dnaPct: number;
+  sB5: number;
+  sEn: number;
+  sSt: number;
+  sAtt: number;
+  calibrationVersion: string;
+  computedAt: string;
+}
+
 export interface CoupleState {
   coupleId: string | null;
   partnerUserId: string | null;
@@ -25,6 +39,8 @@ export interface CoupleState {
   /** 내가 생성한 초대 코드 */
   inviteCode: string | null;
   anniversaries: Anniversary[];
+  /** 연애 DNA v2.1 궁합 결과 — Phase 3 전까지는 아무도 읽거나 쓰지 않는 미사용 슬롯 */
+  dnaResult: DnaResult | null;
 }
 
 export interface CoupleActions {
@@ -35,6 +51,7 @@ export interface CoupleActions {
   setInviteCode: (inviteCode: string | null) => void;
   addAnniversary: (anniversary: Anniversary) => void;
   removeAnniversary: (id: string) => void;
+  setDnaResult: (dnaResult: DnaResult | null) => void;
   reset: () => void;
 }
 
@@ -46,6 +63,7 @@ const initialState: CoupleState = {
   isPartnerConnected: false,
   inviteCode: null,
   anniversaries: [],
+  dnaResult: null,
 };
 
 // TODO: EAS Build 환경에서 createJSONStorage(() => AsyncStorage)를
@@ -66,6 +84,7 @@ export const useCoupleStore = create<CoupleState & CoupleActions>()(
         set((state) => ({ anniversaries: [...state.anniversaries, anniversary] })),
       removeAnniversary: (id) =>
         set((state) => ({ anniversaries: state.anniversaries.filter((a) => a.id !== id) })),
+      setDnaResult: (dnaResult) => set({ dnaResult }),
       reset: () => set({ ...initialState }),
     }),
     {

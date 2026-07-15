@@ -18,6 +18,18 @@ import type { ThemeMode } from '../constants/theme';
 export type ActiveTab = 'home' | 'chat' | 'history' | 'settings';
 export type ActiveChatRoom = 'lover' | 'twin' | 'analyst' | null;
 
+// ─── 연애 DNA v2.1 적응형 인터뷰 진행상태 (Phase 1 — 그릇만 준비, 아직 아무도 읽지/쓰지 않음) ─
+// docs/spec/연애_DNA_일치율_공식_v2.1.md §5.3(그리디 선택)/§6(조기종료) — 완료 시점에만
+// userStore.psychProfile/Supabase로 커밋되고, 그 전까지는 이 휘발성 세션 슬롯에만
+// 임시 보관한다(구현명세서 §5). isGenesisInProgress(제네시스 인터뷰 진행 플래그)는 그대로 두고
+// 별도 슬롯으로 분리한다.
+export interface InterviewSessionState {
+  turnsUsed: number;
+  elapsedSeconds: number;
+  nextTargetDimension: string | null;
+  entropySnapshot: Record<string, number>;
+}
+
 // 오라 끄기(§8 FUN-SET-001B)는 privacyLevel과 별도 AsyncStorage 키('twin_aura_settings_v1')로
 // 유지해야 해서, zustand persist의 partialize(단일 스토리지 키)로는 표현할 수 없다.
 // 그래서 이 필드만 아래 setReduceAuraMotion 액션에서 직접 read/write하고, 모듈 로드 시
@@ -29,6 +41,8 @@ export interface SessionState {
   activeTab: ActiveTab;
   activeChatRoom: ActiveChatRoom;
   isGenesisInProgress: boolean; // 제네시스 인터뷰 진행 중
+  /** 연애 DNA v2.1 적응형 인터뷰 진행상태 — Phase 3 전까지는 아무도 읽거나 쓰지 않는 미사용 슬롯 */
+  interviewSession: InterviewSessionState;
   isCrisisMode: boolean; // CrisisMode(FUN-CHA-003) 활성 여부
   crisisModeTriggeredAt: number | null; // timestamp ms
   gateState: GateState | null; // twinResponseEngine 판정 상태
@@ -47,6 +61,9 @@ export interface SessionActions {
   setActiveTab: (tab: ActiveTab) => void;
   setActiveChatRoom: (room: ActiveChatRoom) => void;
   setGenesisInProgress: (inProgress: boolean) => void;
+  /** 지정한 필드만 병합 갱신(부분 업데이트) */
+  setInterviewSession: (update: Partial<InterviewSessionState>) => void;
+  resetInterviewSession: () => void;
   /** true로 설정 시 crisisModeTriggeredAt도 Date.now()로 함께 기록 */
   setCrisisMode: (active: boolean) => void;
   setGateState: (state: GateState | null) => void;
@@ -61,11 +78,19 @@ export interface SessionActions {
   reset: () => void;
 }
 
+const INITIAL_INTERVIEW_SESSION: InterviewSessionState = {
+  turnsUsed: 0,
+  elapsedSeconds: 0,
+  nextTargetDimension: null,
+  entropySnapshot: {},
+};
+
 const initialState: SessionState = {
   isAppReady: false,
   activeTab: 'home',
   activeChatRoom: null,
   isGenesisInProgress: false,
+  interviewSession: INITIAL_INTERVIEW_SESSION,
   isCrisisMode: false,
   crisisModeTriggeredAt: null,
   gateState: null,
@@ -87,6 +112,9 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       setActiveTab: (tab) => set({ activeTab: tab }),
       setActiveChatRoom: (room) => set({ activeChatRoom: room }),
       setGenesisInProgress: (inProgress) => set({ isGenesisInProgress: inProgress }),
+      setInterviewSession: (update) =>
+        set((state) => ({ interviewSession: { ...state.interviewSession, ...update } })),
+      resetInterviewSession: () => set({ interviewSession: INITIAL_INTERVIEW_SESSION }),
       setCrisisMode: (active) =>
         set((state) => ({
           isCrisisMode: active,

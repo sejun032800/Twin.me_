@@ -9,3 +9,11 @@ entrypoint = "./functions/llm-route/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/llm-route/*.html" ]
+
+[functions.adaptive-interview]
+enabled = true
+# llm-route(범용 프록시, verify_jwt=false)와 달리 이 함수는 사용자별 인터뷰 응답을
+# 다루므로 JWT 검증을 켠다 — 구현명세서 §6.
+verify_jwt = true
+import_map = "./functions/adaptive-interview/deno.json"
+entrypoint = "./functions/adaptive-interview/index.ts"
