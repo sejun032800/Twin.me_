@@ -14,9 +14,7 @@ import { useScoreStore } from '@/store/scoreStore';
 import { useSessionStore } from '@/store/sessionStore';
 import { enneagramCoreToTopType } from '@/lib/interview/personaAdapter';
 import { computePersonaBlend } from '@/engine/genesisBlending';
-import { psychProfileToPersonProfileV21 } from '@/lib/matching/psychProfileAdapter';
-import { computeRomanticDnaV21 } from '@/lib/matching/computeRomanticDNA';
-import { getPartnerPsychProfile } from '@/services/psychProfileService';
+import { computeAndSaveCoupleDna } from '@/services/dnaResultService';
 import { buildAuraVector } from '@/engine/auraEngine';
 import { generateBaseScore, getMBTICompatibilityGrade } from '@/engine/scoreCalculator';
 import { INTERVIEW_HARD_CAP_SECONDS } from '@/lib/matching/constants';
@@ -34,6 +32,7 @@ export default function GenesisV21Screen() {
   const setSCurrent = useScoreStore((s) => s.setSCurrent);
   const isPartnerConnected = useCoupleStore((s) => s.isPartnerConnected);
   const partnerUserId = useCoupleStore((s) => s.partnerUserId);
+  const coupleId = useCoupleStore((s) => s.coupleId);
   const setDnaResult = useCoupleStore((s) => s.setDnaResult);
   const interviewSession = useSessionStore((s) => s.interviewSession);
 
@@ -98,28 +97,15 @@ export default function GenesisV21Screen() {
     });
     setLastGenesisAt(new Date().toISOString());
 
-    // (b) 파트너 연동 시 연애 DNA 계산 시도 — 실패/미연결이면 dnaResult는 null 유지(PartnerStatusBar와 동일 패턴).
+    // (b) 파트너 연동 시 연애 DNA 계산 시도 — 실패/미연결/파트너 미완료면 dnaResult는
+    // null 유지(PartnerStatusBar와 동일 패턴). 성공 시 couple_dna_results에도 기록되어,
+    // 나중에 파트너가 완료했을 때 DnaCompatibilityCard가 재시도할 수 있는 근거가 된다.
     let dnaPct: number | null = null;
-    if (isPartnerConnected && partnerUserId) {
-      try {
-        const partnerProfile = await getPartnerPsychProfile(partnerUserId);
-        if (partnerProfile) {
-          const myV21 = psychProfileToPersonProfileV21(profile);
-          const partnerV21 = psychProfileToPersonProfileV21(partnerProfile);
-          const result = computeRomanticDnaV21(myV21, partnerV21);
-          dnaPct = result.dna_pct;
-          setDnaResult({
-            dnaPct: result.dna_pct,
-            sB5: result.S_B5,
-            sEn: result.S_EN,
-            sSt: result.S_ST,
-            sAtt: result.S_ATT,
-            calibrationVersion: 'v2.1',
-            computedAt: new Date().toISOString(),
-          });
-        }
-      } catch {
-        // RLS 미배포/네트워크 오류 등 — dnaResult는 null 유지, 아래 폴백으로 진행.
+    if (isPartnerConnected && partnerUserId && coupleId) {
+      const computed = await computeAndSaveCoupleDna(profile, coupleId, partnerUserId);
+      if (computed) {
+        dnaPct = computed.dnaPct;
+        setDnaResult(computed);
       }
     }
 

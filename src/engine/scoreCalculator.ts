@@ -272,3 +272,120 @@ export function getTierFromScore(score: number): RelationshipTier {
     theme: TIER_THEMES.GLASSMORPHISM_WINE,
   };
 }
+
+// ── 연애 DNA v2.1 티어/무드태그 스케일 재보정 (Phase 5.5) ────────────────────────
+// 통합감사(docs/audit/통합감사_2026-07-16.md §1c) 발견: getTierFromScore()의 컷오프와
+// AICoachingCard/index.tsx의 무드태그 임계값(70/40)은 옛 S_Base 분포(mean=70,sd=7.81)
+// 기준으로 고정돼 있다. v2.1 dna_pct는 다른 분포(mean=75, sd=K_SCALE≈9.7056)를 가지므로
+// 같은 컷오프 숫자를 그대로 쓰면 백분위 의미가 달라진다. 아래는 사용자가 지정한 유도식
+// T_new = 75 + K_SCALE·Φ⁻¹(Φ((T_old−70)/7.81))을 그대로 구현해, 옛 분포에서의 백분위를
+// 그대로 보존하며 새 분포로 컷오프를 재매핑한다. getTierFromScore() 자체는 무수정.
+
+// 표준정규 분위함수(Φ⁻¹) — Peter Acklam의 유리함수 근사(|상대오차| < 1.15e-9).
+// scoreCalculator.ts에 정방향 CDF(normalCdf)만 있고 역함수가 없어 새로 추가한다.
+function inverseNormalCdf(p: number): number {
+  if (p <= 0) return -Infinity;
+  if (p >= 1) return Infinity;
+
+  const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.383577518672690e2, -3.066479806614716e1, 2.506628277459239e0];
+  const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1, -1.328068155288572e1];
+  const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838e0, -2.549732539343734e0, 4.374664141464968e0, 2.938163982698783e0];
+  const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996e0, 3.754408661907416e0];
+
+  const pLow = 0.02425;
+  const pHigh = 1 - pLow;
+
+  if (p < pLow) {
+    const q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  if (p <= pHigh) {
+    const q = p - 0.5;
+    const r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+      (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+  const q = Math.sqrt(-2 * Math.log(1 - p));
+  return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+    ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+}
+
+/** 옛 S_Base 분포(mean=70,sd=7.81) 기준 컷오프를 dna_pct 분포로 백분위 보존 재매핑한다. */
+export function rescaleScoreCutoffToV21(oldCutoff: number): number {
+  const z = (oldCutoff - SCORE_DISTRIBUTION_MEAN) / SCORE_DISTRIBUTION_SD;
+  const p = normalCdf(z, 0, 1);
+  const zBack = inverseNormalCdf(p);
+  return DNA_PCT_CENTER + K_SCALE * zBack;
+}
+
+const V21_TIER_CUTOFF = {
+  T95: rescaleScoreCutoffToV21(95.0),
+  T90: rescaleScoreCutoffToV21(90.0),
+  T85: rescaleScoreCutoffToV21(85.0),
+  T80: rescaleScoreCutoffToV21(80.0),
+  T75: rescaleScoreCutoffToV21(75.0),
+  T70: rescaleScoreCutoffToV21(70.0),
+  T65: rescaleScoreCutoffToV21(65.0),
+  T60: rescaleScoreCutoffToV21(60.0),
+  T55: rescaleScoreCutoffToV21(55.0),
+};
+
+/** getTierFromScore()의 v2.1 전용 버전 — 등급 라벨/테마는 동일, 컷오프만 재보정. */
+export function getTierFromScoreV21(score: number): RelationshipTier {
+  if (score >= V21_TIER_CUTOFF.T95) return {
+    emoji: '🏆', title: '환상 속의 신화적 결합',
+    description: '대화 호흡과 어휘 동기화가 신의 경지에 이른 기적적 상태',
+    theme: TIER_THEMES.GOLD_AURORA,
+  };
+  if (score >= V21_TIER_CUTOFF.T90) return {
+    emoji: '🧬', title: '영혼까지 닮은 도플갱어',
+    description: '문체와 말버릇, 이모티콘 칩셋까지 완벽 대칭인 축복 구간',
+    theme: TIER_THEMES.NEON_VIOLET,
+  };
+  if (score >= V21_TIER_CUTOFF.T85) return {
+    emoji: '💖', title: '기적의 소울메이트',
+    description: '성격 상성 최상 및 지속적 다정함 수집으로 한계령을 돌파한 워너비',
+    theme: TIER_THEMES.DEEP_PURPLE,
+  };
+  if (score >= V21_TIER_CUTOFF.T80) return {
+    emoji: '✨', title: '눈빛만 봐도 아는 사이',
+    description: '단어 몇 개, 이모지 하나로도 속마음을 100% 관통하는 상태',
+    theme: TIER_THEMES.LAVENDER_HEART,
+  };
+  if (score >= V21_TIER_CUTOFF.T75) return {
+    emoji: '🍃', title: '달달한 핑크빛 로맨스',
+    description: '평수기 평균 이상. 서로에 대한 지지와 예쁜 리액션이 당연한 상태',
+    theme: TIER_THEMES.BRIGHT_PASTEL_PINK,
+  };
+  if (score >= V21_TIER_CUTOFF.T70) return {
+    emoji: '🌸', title: '다정다감한 모범 커플',
+    description: '서로가 1순위인 모범 지점. 큰 풍파 없이 예쁜 대화의 정석을 지키는 상태',
+    theme: TIER_THEMES.SOFT_SHELL_PINK,
+  };
+  if (score >= V21_TIER_CUTOFF.T65) return {
+    emoji: '🎭', title: '평소엔 연인, 싸울 땐 웬수',
+    description: '대한민국 커플 80%가 머무는 현실 지대. 삐끗하면 단답형 빌런으로 돌변',
+    theme: TIER_THEMES.SOFT_YELLOW,
+  };
+  if (score >= V21_TIER_CUTOFF.T60) return {
+    emoji: '📉', title: '아슬아슬한 밀당 권태기',
+    description: '읽씹/안읽씹이 길어지고 업무형 연락이 고착화되기 시작한 징후',
+    theme: TIER_THEMES.SILVER_GRAY,
+  };
+  if (score >= V21_TIER_CUTOFF.T55) return {
+    emoji: '⚡', title: '말 한마디가 시한폭탄',
+    description: '날카로운 비난이나 억압 표현이 자주 탐지되어 사소한 톡에도 크게 터질 위기',
+    theme: TIER_THEMES.DIM_CHARCOAL,
+  };
+  return {
+    emoji: '🚨', title: '살얼음판 위 대치 상황',
+    description: '대화 단절이 3시간을 넘어 바닥 가드라인(50.5%)까지 추락한 파국 직전 상태',
+    theme: TIER_THEMES.GLASSMORPHISM_WINE,
+  };
+}
+
+// AICoachingCard.tsx/index.tsx의 무드태그 임계값(70/40)도 동일한 재보정 대상이다 —
+// 둘 다 scoreStore.sBase/sCurrent를 그대로 소비하는 동일 성격의 하드코딩 컷오프였다.
+export const MOOD_TAG_HIGH_THRESHOLD_V21 = rescaleScoreCutoffToV21(70);
+export const MOOD_TAG_MID_THRESHOLD_V21 = rescaleScoreCutoffToV21(40);

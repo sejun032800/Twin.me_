@@ -27,7 +27,15 @@ import { useScoreStore, type EventHistoryEntry } from '@/store/scoreStore';
 import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useWeather } from '@/hooks/useWeather';
-import { getTierFromScore, formatScore } from '@/engine/scoreCalculator';
+import { useFeatureDnaV21 } from '@/config/featureFlags';
+import DnaCompatibilityCard from '@/components/DnaCompatibilityCard';
+import {
+  getTierFromScore,
+  getTierFromScoreV21,
+  formatScore,
+  MOOD_TAG_HIGH_THRESHOLD_V21,
+  MOOD_TAG_MID_THRESHOLD_V21,
+} from '@/engine/scoreCalculator';
 import { shouldShowMasterQuestion, markShownToday, type MasterQuestion } from '@/services/masterQuestionService';
 import { GRADIENT } from '@/constants/colors';
 import type { SigmaTheme, ThemeMode } from '@/constants/theme';
@@ -107,8 +115,9 @@ export default function Home() {
     setAuraScreenKey('main');
   }, [setAuraScreenKey]));
 
+  const dnaV21 = useFeatureDnaV21();
   const displayScore = sLive > 0 ? sLive : (sCurrent > 0 ? sCurrent : sBase);
-  const tier = getTierFromScore(displayScore);
+  const tier = dnaV21 ? getTierFromScoreV21(displayScore) : getTierFromScore(displayScore);
   const dDay = computeDDay(relationshipStartDate);
   const scoreStory = buildScoreStory(eventLog, sLive, sCurrent);
 
@@ -159,9 +168,11 @@ export default function Home() {
     : null;
   const headerSubText = [dDayText, weatherText].filter(Boolean).join(' · ');
 
-  const moodTags = displayScore >= 70
+  const moodTagHighThreshold = dnaV21 ? MOOD_TAG_HIGH_THRESHOLD_V21 : 70;
+  const moodTagMidThreshold = dnaV21 ? MOOD_TAG_MID_THRESHOLD_V21 : 40;
+  const moodTags = displayScore >= moodTagHighThreshold
     ? ['💚 안정적', '☀️ 평온함', '💬 소통 중']
-    : displayScore >= 40
+    : displayScore >= moodTagMidThreshold
     ? ['🌤️ 보통', '💭 생각 중', '⏳ 여유롭게']
     : ['🌧️ 주의 필요', '💔 회복 중', '🤔 돌아보기'];
 
@@ -298,6 +309,9 @@ export default function Home() {
 
         {/* 8. 연동 완료 유저 → Below Fold에 PartnerStatusBar */}
         {isPartnerConnected && <PartnerStatusBar />}
+
+        {/* 8b. FEATURE_DNA_V21 ON + 연동 완료 유저 → 연애 DNA 일치율 카드(Phase 5.5) */}
+        {dnaV21 && isPartnerConnected && <DnaCompatibilityCard />}
 
         {/* 9. OverflowBanner (조건부) */}
         <OverflowBanner />

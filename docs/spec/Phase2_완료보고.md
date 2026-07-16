@@ -110,3 +110,10 @@ $ 기존 파일이 lib/interview 또는 adaptive-interview를 참조 → NONE FO
 ## 남은 이슈 없음 (Phase 2 범위 내)
 
 Phase 2 범위(문항뱅크, 그리디 엔진, Edge Function 골격+계약)에서 막힌 부분은 없다. 다음 Phase 3(기능 플래그 전환 — genesis.tsx 등 기존 화면을 처음 건드리는 단계)로 진행하기 전 지시를 기다린다.
+
+## 부록 — 개별 테스트 파일 목록 (Phase 5.5에서 소급 기재)
+
+통합감사(`docs/audit/통합감사_2026-07-16.md` §5)가 지적한 대로, 위 결과는 "Phase 2 신규 68건"으로만 집계됐고 실제 파일명이 개별적으로 나열되지 않았다. 이 Phase가 만든 테스트 파일은 다음과 같다(코드는 이전부터 그대로, 이 항목은 문서 보완일 뿐):
+
+- `src/lib/interview/__tests__/questionBank.test.ts`
+- `supabase/functions/adaptive-interview/__tests__/parsing.test.ts`

@@ -85,3 +85,10 @@ $ npx jest → 12 suites / 166 tests 전부 통과
 3. **날개 후속질문 UX 미구현** — 위 "설계 결정 #3" 참고. 기능상 결과(wingJoint/wingMarginal)는 정상 산출되지만, "당신은 3w4인가요 3w2인가요?"처럼 사용자에게 직접 확인받는 대화형 턴은 아직 없다.
 4. **실기기/실통화 미검증** — 이번 Phase는 로직 레벨 테스트만 통과했다. `adaptive-interview` Edge Function을 실제로 호출하는 `GenesisV21Screen` 전체 플로우(공급자: Gemini 실제 응답)는 Phase 2때처럼 사람이 실기기에서 한 번 수동 검증해야 한다.
 5. **InterviewCallModal.tsx의 "onClose" 동작** — `GenesisV21Screen`에서는 `router.back()`으로 연결했다(인터뷰 중단). OFF 경로처럼 "타이핑 모드로 전환" 개념이 ON 경로에는 없어(항상 통화형 UI 하나만 사용) 단순화했다 — UX 검토 필요 시 조정 대상.
+
+## 부록 — 개별 테스트 파일 목록 (Phase 5.5에서 소급 기재)
+
+통합감사(`docs/audit/통합감사_2026-07-16.md` §5)가 지적한 대로, 아래 두 테스트 파일은 "이전 세션에서 이미 완료되어 있던 것" 절에서 함수 단위로만 언급됐고 파일명으로는 나열되지 않았다(코드는 이전부터 그대로, 이 항목은 문서 보완일 뿐):
+
+- `src/lib/interview/__tests__/personaAdapter.test.ts`
+- `src/lib/matching/__tests__/psychProfileAdapter.test.ts`

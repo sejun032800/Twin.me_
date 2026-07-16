@@ -9,7 +9,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useScoreStore } from '@/store/scoreStore';
 import { useTheme } from '@/hooks/useTheme';
 import { callLLM } from '@/api/llm';
-import { getTierFromScore } from '@/engine/scoreCalculator';
+import { useFeatureDnaV21 } from '@/config/featureFlags';
+import {
+  getTierFromScore,
+  getTierFromScoreV21,
+  MOOD_TAG_HIGH_THRESHOLD_V21,
+  MOOD_TAG_MID_THRESHOLD_V21,
+} from '@/engine/scoreCalculator';
 import { SYS } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
@@ -35,6 +41,7 @@ export default function AICoachingCard() {
   const sBase = useScoreStore((s) => s.sBase);
   const volatilityIndex = useScoreStore((s) => s.volatilityIndex);
   const crisisMemoryActive = useScoreStore((s) => s.crisisMemoryActive);
+  const dnaV21 = useFeatureDnaV21();
 
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -62,10 +69,12 @@ export default function AICoachingCard() {
       }
 
       const displayScore = sLive > 0 ? sLive : (sCurrent > 0 ? sCurrent : sBase);
-      const tierInfo = getTierFromScore(displayScore);
-      const moodTags = displayScore >= 70
+      const tierInfo = dnaV21 ? getTierFromScoreV21(displayScore) : getTierFromScore(displayScore);
+      const moodTagHighThreshold = dnaV21 ? MOOD_TAG_HIGH_THRESHOLD_V21 : 70;
+      const moodTagMidThreshold = dnaV21 ? MOOD_TAG_MID_THRESHOLD_V21 : 40;
+      const moodTags = displayScore >= moodTagHighThreshold
         ? ['💚 안정적', '☀️ 평온함', '💬 소통 중']
-        : displayScore >= 40
+        : displayScore >= moodTagMidThreshold
         ? ['🌤️ 보통', '💭 생각 중', '⏳ 여유롭게']
         : ['🌧️ 주의 필요', '💔 회복 중', '🤔 돌아보기'];
 

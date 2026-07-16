@@ -62,3 +62,14 @@ package.json/package-lock.json은 금지 목록 밖이라 jest-expo devDependenc
 ## 남은 이슈 없음
 
 Phase 0에서 보고했던 4가지 갭(앵커행렬, M행렬, Readiness, Stability/PursueWithdraw/t^trait)은 v2.1 갱신판으로 전부 해소되었다. 다음 Phase(§4 데이터 모델 확장 등)로 진행하는 데 더 이상의 블로커가 없다.
+
+## 부록 — 개별 테스트 파일 목록 (Phase 5.5에서 소급 기재)
+
+통합감사(`docs/audit/통합감사_2026-07-16.md` §5)가 지적한 대로, 위 "필수 테스트 5종"은 시나리오 단위였고 실제 파일명이 개별적으로 나열되지 않았다. 이 Phase가 만든 테스트 파일은 다음과 같다(코드는 이전부터 그대로, 이 항목은 문서 보완일 뿐):
+
+- `src/lib/inference/__tests__/bayesianUpdate.test.ts`
+- `src/lib/inference/__tests__/enneagramWing.test.ts`
+- `src/lib/inference/__tests__/mbtiPrior.test.ts`
+- `src/lib/inference/__tests__/mbtiReestimate.test.ts`
+- `src/lib/matching/__tests__/dnaCompatibility.test.ts`
+- `src/lib/matching/__tests__/computeRomanticDNA.test.ts`
