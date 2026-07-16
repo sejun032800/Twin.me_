@@ -129,12 +129,9 @@ describe('checkEarlyStop — v2.1 §6 조기종료 3가지 트리거', () => {
   });
 });
 
-describe('estimateTimeCost — v2.1 §4 (A=30초, B=20초, C=10초)', () => {
+describe('estimateTimeCost — v2.1 §4 (A=30초, C=10초; 날개 후속질문은 §7 패치로 인터뷰 턴에서 제외됨)', () => {
   it('유형 A(서사형)는 30초', () => {
     expect(estimateTimeCost('A')).toBe(30);
-  });
-  it('유형 B(날개 후속)는 20초', () => {
-    expect(estimateTimeCost('B')).toBe(20);
   });
   it('유형 C(관계상태 직답)는 10초', () => {
     expect(estimateTimeCost('C')).toBe(10);

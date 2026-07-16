@@ -23,6 +23,12 @@ interface Props {
   confidence: number; // 0~1
   act: 1 | 2 | 3 | 4;
   clayStage?: ClayStage;
+  /** 'progress'면 "{act}막 진행 중" 대신 progressLabel(턴/시간 진행률)을 표시한다. 생략 시 기존과 100% 동일('act'). */
+  mode?: 'act' | 'progress';
+  /** mode==='progress'일 때만 사용되는 진행률 텍스트(예: "3/8턴 · 45초"). */
+  progressLabel?: string;
+  /** true면 답변 파싱/발화 생성 중 — 전송 버튼을 비활성화하고 "생각 중..." 표시를 덧붙인다. */
+  isGenerating?: boolean;
 }
 
 function signalLevel(confidence: number): 0 | 1 | 2 | 3 {
@@ -32,7 +38,18 @@ function signalLevel(confidence: number): 0 | 1 | 2 | 3 {
   return 0;
 }
 
-export default function InterviewCallModal({ visible, onClose, question, onSubmit, confidence, act, clayStage = 3 }: Props) {
+export default function InterviewCallModal({
+  visible,
+  onClose,
+  question,
+  onSubmit,
+  confidence,
+  act,
+  clayStage = 3,
+  mode = 'act',
+  progressLabel,
+  isGenerating = false,
+}: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [text, setText] = useState('');
@@ -68,7 +85,11 @@ export default function InterviewCallModal({ visible, onClose, question, onSubmi
             <View style={styles.connectedDot} />
             <Text style={styles.connectedText}>연결됨</Text>
           </View>
-          <Text style={styles.actText}>{act}막 진행 중</Text>
+          {mode === 'progress' ? (
+            <Text style={styles.actText}>{progressLabel ?? ''}</Text>
+          ) : (
+            <Text style={styles.actText}>{act}막 진행 중</Text>
+          )}
           <View style={styles.signalBars}>
             {[1, 2, 3].map((bar) => (
               <View
@@ -90,6 +111,8 @@ export default function InterviewCallModal({ visible, onClose, question, onSubmi
           </View>
         </View>
 
+        {isGenerating && <Text style={styles.actText}>생각 중...</Text>}
+
         <View style={styles.inputArea}>
           <TextInput
             style={styles.input}
@@ -103,7 +126,7 @@ export default function InterviewCallModal({ visible, onClose, question, onSubmi
             <TouchableOpacity style={styles.endCallBtn} onPress={onClose}>
               <Ionicons name="call" size={26} color={SYS.TEXT_LIGHT} style={styles.endCallIcon} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sendBtn} onPress={handleSubmit} disabled={!text.trim()}>
+            <TouchableOpacity style={styles.sendBtn} onPress={handleSubmit} disabled={!text.trim() || isGenerating}>
               <Ionicons name="call" size={24} color={SYS.TEXT_LIGHT} />
             </TouchableOpacity>
           </View>

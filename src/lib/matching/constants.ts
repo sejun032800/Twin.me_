@@ -75,9 +75,12 @@ export const INTERVIEW_HARD_CAP_SECONDS = 300; // v2.1 §4/§6 "5분 하드 캡"
 export const INTERVIEW_QA_BUDGET_SECONDS = 280; // v2.1 §4 "실질 Q&A 예산 약 280초"
 export const TURN_SECONDS = {
   narrative: 30, // v2.1 §4 유형 A — 서사형 개방질문
-  wingFollowup: 20, // v2.1 §4 유형 B — 날개 판별 후속질문
   sternberg: 10, // v2.1 §4 유형 C — 관계상태 직답 (엔트로피 무관, 고정 포함)
 } as const;
+// v2.1 §4/§7 패치(Phase 4) — 날개 판별 후속질문(구 유형 B)은 인터뷰 턴이 아니라
+// 결과화면 확인용 UX로 재분류되어 시간예산에서 제외됐다. TURN_SECONDS.wingFollowup은
+// 이 패치로 제거했다 — questionBank.ts의 ENNEAGRAM_WING_TEMPLATE 자체는 결과화면용
+// 문구로 그대로 남겨둔다(삭제 아님).
 
 // ── §10 — MBTI 축 재추정 로지스틱 스케일 ─────────────────────────────────────
 export const MBTI_REESTIMATE_SCALE = 0.15; // v2.1 §10 식(6) "s = 0.15"

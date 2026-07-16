@@ -173,12 +173,13 @@ export function checkEarlyStop(elapsedSeconds: number, uncertainty: UncertaintyM
   return { stop: false, reason: 'none' };
 }
 
-export type NarrativeQuestionType = 'A' | 'B' | 'C';
+// v2.1 §4/§7 패치(Phase 4) — 날개 판별 후속질문(구 유형 B)은 인터뷰 턴이 아니라
+// 결과화면 확인용 UX로 재분류되어 시간예산 계산 대상에서 빠졌다(TURN_SECONDS 참고).
+export type NarrativeQuestionType = 'A' | 'C';
 
-/** v2.1 §4 — 유형 A(서사형)=30초, B(날개 후속)=20초, C(관계상태 직답)=10초. */
+/** v2.1 §4 — 유형 A(서사형)=30초, C(관계상태 직답)=10초. */
 export function estimateTimeCost(questionType: NarrativeQuestionType): number {
   if (questionType === 'A') return TURN_SECONDS.narrative;
-  if (questionType === 'B') return TURN_SECONDS.wingFollowup;
   return TURN_SECONDS.sternberg;
 }
 

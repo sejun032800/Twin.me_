@@ -8,6 +8,8 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useGenesisInterview } from '@/hooks/useGenesisInterview';
+import { useFeatureDnaV21 } from '@/config/featureFlags';
+import GenesisV21Screen from '@/components/GenesisV21Screen';
 import InterviewCallModal from '@/components/InterviewCallModal';
 import { useUserStore } from '@/store/userStore';
 import { useScoreStore } from '@/store/scoreStore';
@@ -39,6 +41,9 @@ const AXIS_LABEL_KO: Record<string, string> = {
 };
 
 export default function Genesis() {
+  const dnaV21 = useFeatureDnaV21();
+  if (dnaV21) return <GenesisV21Screen />;
+
   const router = useRouter();
   const mbti = useUserStore((s) => s.mbti);
   const setPersonaMatrix = useUserStore((s) => s.setPersonaMatrix);

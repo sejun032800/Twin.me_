@@ -3,6 +3,8 @@
 // (구 v2.1의 24개 마이크로 이벤트·하드 클램프 필터는 v2.2로 완전히 대체되어
 //  src/engine/metrics.ts 로 이관되었다 — docs/Twin.me.md §4 참고.)
 
+import { DNA_PCT_CENTER, K_SCALE } from '../lib/matching/constants';
+
 export type OverflowStatus = 'CRITICAL_LOSS' | 'EXCESS_GAIN' | 'NONE';
 export type CompatibilityGrade = 'IDEAL' | 'AVERAGE' | 'COLLISION';
 
@@ -102,6 +104,17 @@ function normalCdf(x: number, mean: number, sd: number): number {
 /** score가 전국 커플 분포 상위 몇 %에 위치하는지 반환 (1~99로 클램프). */
 export function computeNationalPercentile(score: number): number {
   const topFraction = 1 - normalCdf(score, SCORE_DISTRIBUTION_MEAN, SCORE_DISTRIBUTION_SD);
+  const topPercent = Math.round(topFraction * 100);
+  return Math.max(1, Math.min(99, topPercent));
+}
+
+// ── 연애 DNA v2.1 전국 백분위 (Phase 3) ─────────────────────────────────────
+// v2.1 §12 식(10)의 역변환: dnaPct = clamp(75 + K_SCALE·z, 50, 100)이므로
+// z = (dnaPct - 75) / K_SCALE는 이미 표준정규(mean=0, sd=1)다.
+// computeNationalPercentile과 동일한 erf 기반 CDF를 표준정규에 그대로 적용한다.
+export function computeDnaNationalPercentile(dnaPct: number): number {
+  const z = (dnaPct - DNA_PCT_CENTER) / K_SCALE;
+  const topFraction = 1 - normalCdf(z, 0, 1);
   const topPercent = Math.round(topFraction * 100);
   return Math.max(1, Math.min(99, topPercent));
 }
