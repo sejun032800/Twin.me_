@@ -8,9 +8,10 @@ import { useUserStore } from '@/store/userStore';
 import { buildSigmaTheme, getDefaultDarkTheme, getLightTheme, type SigmaTheme } from '@/constants/theme';
 import { SYS } from '@/constants/colors';
 
-// §8 FUN-SET-001B — 오라 끄기(reduceAuraMotion) 시 sigma 테마의 accent를 무채색으로
-// 오버라이드한다. light/dark는 애초에 오라와 무관한 고정 팔레트라 대상에서 제외한다.
+// §8 FUN-SET-001B — 오라 끄기(reduceAuraMotion) 시 sigma 테마의 오라 파생 색상을 전부
+// 무채색으로 오버라이드한다. light/dark는 애초에 오라와 무관한 고정 팔레트라 대상에서 제외한다.
 const REDUCED_AURA_ACCENT = SYS.TEXT_MUTED;
+const REDUCED_AURA_GRADIENT_STOPS = [REDUCED_AURA_ACCENT, REDUCED_AURA_ACCENT] as const;
 
 export function useTheme(): SigmaTheme {
   const themeMode = useSessionStore((s) => s.themeMode);
@@ -24,7 +25,16 @@ export function useTheme(): SigmaTheme {
   if (personaMatrix?.auraVector) {
     const sigmaTheme = buildSigmaTheme(personaMatrix.auraVector);
     if (reduceAuraMotion) {
-      return { ...sigmaTheme, accent: REDUCED_AURA_ACCENT };
+      return {
+        ...sigmaTheme,
+        /** @deprecated v2.6까지의 dominant-1축 단색 노출 필드. 신규 소비처는
+         * primaryAuraColor(또는 gradientStops)를 쓸 것 — 기존 소비처 마이그레이션
+         * 전까지 값만 primaryAuraColor와 동일하게 유지한다. */
+        accent: REDUCED_AURA_ACCENT,
+        primaryAuraColor: REDUCED_AURA_ACCENT,
+        secondaryAuraColor: REDUCED_AURA_ACCENT,
+        gradientStops: REDUCED_AURA_GRADIENT_STOPS,
+      };
     }
     return sigmaTheme;
   }

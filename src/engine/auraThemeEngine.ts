@@ -8,22 +8,42 @@
 // 앰비언트 렌더링(메시 합성/모션/화면별 가중치/뮤트 파스텔 게이트)만 담당한다.
 
 import type { AuraChannel, AuraVector } from '../types/genesis';
+import { AURA_GROUP_A_CHANNELS, AURA_GROUP_B_CHANNELS } from '../constants/colors';
 import type { OverflowStatus } from './scoreCalculator';
 
-// ── 1. 뮤트 파스텔 게이트 (§2.2 — 원색/형광 노출 차단) ───────────────────────────
-// auraEngine.scoreToChannel이 이미 saturation ≤90 / lightness 47~71 범위로 산출하지만,
-// 오버플로우 피드백(§4)이 값을 밀어올릴 때도 이 캡을 넘지 않도록 명시적으로 강제한다.
+// ── 1. 뮤트 파스텔 게이트 (§2.2 — 원색/형광 노출 차단, §1.3 hue 안전 클램프) ────────
+// auraEngine의 RGB→HSL 합성이 그룹별 hueSafetyRange 밖으로 새어나가지 않도록
+// saturation/lightness 캡과 함께 hue를 그룹별 안전 대역으로 강제 클램핑한다.
 export const MUTE_PASTEL_GATE = {
   saturationCap: 92,
   lightnessMin: 40,
   lightnessMax: 72,
 } as const;
 
-export function clampToMutePastelGate(channel: AuraChannel): AuraChannel {
+/**
+ * hue를 hueSafetyRange의 중점(mid) 기준 [mid-180, mid+180) 구간으로 wrap-aware 정규화한 뒤 클램프한다.
+ * 고정된 -180~180 정규화를 쓰면 그룹 B([155,260]처럼 0/360 경계를 걸치지 않는 범위)의
+ * 정상값(예: 207°)이 180° 초과라는 이유만으로 반대편으로 잘못 랩핑되어 훼손된다.
+ * 범위 자체의 중점을 기준점으로 잡으면 두 그룹 모두에서 안전하게 동작한다.
+ */
+function clampHueToSafetyRange(hue: number, hueSafetyRange: readonly [number, number]): number {
+  const [lo, hi] = hueSafetyRange;
+  const wrapFloor = (lo + hi) / 2 - 180;
+  const normalizedHue = (((hue - wrapFloor) % 360) + 360) % 360 + wrapFloor;
+  return Math.min(hi, Math.max(lo, normalizedHue));
+}
+
+export function clampToMutePastelGate(
+  hue: number,
+  saturation: number,
+  lightness: number,
+  hueSafetyRange: readonly [number, number],
+): AuraChannel {
+  const clampedHue = clampHueToSafetyRange(hue, hueSafetyRange);
   return {
-    hue: ((channel.hue % 360) + 360) % 360,
-    saturation: Math.min(MUTE_PASTEL_GATE.saturationCap, Math.max(0, channel.saturation)),
-    lightness: Math.min(MUTE_PASTEL_GATE.lightnessMax, Math.max(MUTE_PASTEL_GATE.lightnessMin, channel.lightness)),
+    hue: ((clampedHue % 360) + 360) % 360,
+    saturation: Math.min(MUTE_PASTEL_GATE.saturationCap, Math.max(0, saturation)),
+    lightness: Math.min(MUTE_PASTEL_GATE.lightnessMax, Math.max(MUTE_PASTEL_GATE.lightnessMin, lightness)),
   };
 }
 
@@ -102,12 +122,23 @@ const OVERFLOW_SATURATION_DELTA = { EXCESS_GAIN: 1.12, CRITICAL_LOSS: 0.82, NONE
 export function applyOverflowSaturationFeedback(vector: AuraVector, overflowStatus: OverflowStatus): AuraVector {
   const factor = OVERFLOW_SATURATION_DELTA[overflowStatus] ?? 1.0;
   if (factor === 1.0) return vector;
-  const scaleChannel = (c: AuraChannel): AuraChannel =>
-    clampToMutePastelGate({ ...c, saturation: c.saturation * factor });
-  const channels = Object.fromEntries(
-    Object.entries(vector.channels).map(([axis, c]) => [axis, scaleChannel(c as AuraChannel)]),
-  ) as AuraVector['channels'];
-  return { ...vector, channels, meshStops: vector.meshStops.map(scaleChannel) };
+
+  // colorA/colorB는 서로 다른 hueSafetyRange(그룹 A/B)를 쓰므로 배열 순회로 통합하지 않고
+  // 각각 명시적으로 게이트를 재적용한다.
+  const colorA: AuraChannel = clampToMutePastelGate(
+    vector.colorA.hue,
+    vector.colorA.saturation * factor,
+    vector.colorA.lightness,
+    AURA_GROUP_A_CHANNELS.hueSafety,
+  );
+  const colorB: AuraChannel = clampToMutePastelGate(
+    vector.colorB.hue,
+    vector.colorB.saturation * factor,
+    vector.colorB.lightness,
+    AURA_GROUP_B_CHANNELS.hueSafety,
+  );
+
+  return { ...vector, colorA, colorB };
 }
 
 // ── 6. Dissolve — 재인터뷰/리셋 시 무채색 점토로 (§4.3 4대 모션 중 Dissolve) ──────

@@ -79,10 +79,9 @@ export interface AuraChannel {
 }
 
 export interface AuraVector {
-  axisScores: AuraAxisScores;
-  channels: Record<AuraAxis, AuraChannel>;
-  meshStops: AuraChannel[]; // 그라데이션 렌더용 정렬된 색상 정지점
-  generatedAt: string;
+  colorA: AuraChannel;         // Inner Warmth (expressiveness/attachmentSecurity/trustPace 합성)
+  colorB: AuraChannel;         // Outer Rhythm (conflictResponse/spontaneity/independence 합성)
+  axisScores: AuraAxisScores;  // 6축 원본 점수 보존 — auraStoryPool.ts가 여전히 참조
 }
 
 // scoreBand: 축 점수를 3구간으로 양자화 — Why My Aura 카피 매칭 키

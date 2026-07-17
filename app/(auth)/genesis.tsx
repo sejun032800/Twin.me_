@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGenesisInterview } from '@/hooks/useGenesisInterview';
 import { useFeatureDnaV21 } from '@/config/featureFlags';
@@ -13,6 +14,7 @@ import GenesisV21Screen from '@/components/GenesisV21Screen';
 import InterviewCallModal from '@/components/InterviewCallModal';
 import { useUserStore } from '@/store/userStore';
 import { useScoreStore } from '@/store/scoreStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { buildAuraVector, auraChannelToCss, AURA_AXIS_DIRECTIONS, toScoreBand } from '@/engine/auraEngine';
 import { generateBaseScore, getMBTICompatibilityGrade } from '@/engine/scoreCalculator';
 import { getAllAuraStoryEntries } from '@/data/auraStoryPool';
@@ -51,6 +53,7 @@ export default function Genesis() {
   const setSBase = useScoreStore((s) => s.setSBase);
   const setSCurrent = useScoreStore((s) => s.setSCurrent);
   const setLastGenesisAt = useUserStore((s) => s.setLastGenesisAt);
+  const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
 
   const {
     act,
@@ -79,7 +82,16 @@ export default function Genesis() {
   const dominantAxis = Object.entries(auraVector.axisScores).reduce((a, b) =>
     Math.abs(a[1]) > Math.abs(b[1]) ? a : b,
   )[0] as AuraAxis;
-  const dominantColor = auraChannelToCss(auraVector.channels[dominantAxis]);
+  // v2.7 §1.3 — 세레모니 오라 프리뷰는 dominant 1축 단색이 아니라 colorA/colorB 2색을 함께 쓴다.
+  // dominantAxis 자체는 "핵심 성향" 카피/스토리풀 조회용으로만 남긴다(색상과 무관한 서사 로직).
+  //
+  // 색상 출처는 useTheme()이 아니라 이 화면에서 방금 계산한 로컬 auraVector를 그대로 쓴다 —
+  // useTheme()은 personaMatrix.auraVector(스토어)를 읽는데, 스토어는 handleStart()에서
+  // setPersonaMatrix()가 실행돼야 갱신된다. 세레모니 화면은 그 버튼을 누르기 "전" 단계라,
+  // useTheme()으로 바꾸면 라이트 폴백(또는 재인터뷰 시 이전 오라)이 나오는 회귀가 생긴다.
+  // 대신 reduceAuraMotion(오라 끄기)만 useTheme.ts와 동일한 무채색(SYS.TEXT_MUTED)으로 직접 반영한다.
+  const colorACss = reduceAuraMotion ? SYS.TEXT_MUTED : auraChannelToCss(auraVector.colorA);
+  const colorBCss = reduceAuraMotion ? SYS.TEXT_MUTED : auraChannelToCss(auraVector.colorB);
   const dominantScore = auraVector.axisScores[dominantAxis];
   const dominantDirection = AURA_AXIS_DIRECTIONS[dominantAxis];
   const dominantDirectionLabel = dominantScore > 0 ? dominantDirection.b : dominantDirection.a;
@@ -215,7 +227,16 @@ export default function Genesis() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeIn.duration(800)} style={styles.ceremonyContent}>
-          <View style={[styles.auraPreview, { backgroundColor: dominantColor }]}>
+          <View style={styles.auraPreview}>
+            {/* 빛 번짐 — colorA/colorB가 대각선 반대편 모서리에서 은은하게 새어나온다 */}
+            <View style={[styles.auraGlow, styles.auraGlowA, { backgroundColor: colorACss }]} />
+            <View style={[styles.auraGlow, styles.auraGlowB, { backgroundColor: colorBCss }]} />
+            <LinearGradient
+              colors={[colorACss, colorBCss]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.auraPreviewGradient}
+            />
             <Text style={styles.auraPreviewEmoji}>🪞</Text>
           </View>
           <Text style={styles.ceremonyTitle}>트윈이 완성됐어요 ✨</Text>
@@ -320,9 +341,29 @@ const styles = StyleSheet.create({
   auraPreview: {
     width: 130,
     height: 130,
-    borderRadius: 65,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  auraPreviewGradient: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+  },
+  auraGlow: {
+    position: 'absolute',
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    opacity: 0.55,
+  },
+  auraGlowA: {
+    top: -16,
+    left: -16,
+  },
+  auraGlowB: {
+    bottom: -16,
+    right: -16,
   },
   auraPreviewEmoji: {
     fontSize: 52,

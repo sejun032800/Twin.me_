@@ -4,17 +4,35 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Share, Alert, BackHandler } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { createCouple } from '@/services/coupleService';
-import { auraChannelToCss } from '@/engine/auraEngine';
-import type { AuraAxis } from '@/types/genesis';
+import { useTheme } from '@/hooks/useTheme';
+
+// useTheme().primaryAuraColor는 상황에 따라 `hsl(h, s%, l%)`(정상 오라) 또는 `#rrggbb`
+// (reduceAuraMotion 무채색 SYS.TEXT_MUTED, 또는 오라 미확정 시 BRAND.CORAL 폴백) 두 형식
+// 중 하나로 나온다. 알파 틴트를 만들 때 형식별로 값을 그대로 재사용한다(새 색상 계산이
+// 아니라 useTheme()이 이미 만든 색의 CSS 표현만 알파 포함 형식으로 바꾸는 것).
+function withAlpha(cssColor: string, alpha: number): string {
+  const hslMatch = /^hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)$/i.exec(cssColor);
+  if (hslMatch) {
+    return `hsla(${hslMatch[1]}, ${hslMatch[2]}%, ${hslMatch[3]}%, ${alpha})`;
+  }
+  const hexMatch = /^#([0-9a-f]{6})$/i.exec(cssColor);
+  if (hexMatch) {
+    const r = parseInt(hexMatch[1].slice(0, 2), 16);
+    const g = parseInt(hexMatch[1].slice(2, 4), 16);
+    const b = parseInt(hexMatch[1].slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return `rgba(255, 164, 164, ${alpha})`; // 알 수 없는 형식일 때만 쓰는 최후 폴백
+}
 
 export default function InviteHook() {
   const router = useRouter();
   const navigation = useNavigation();
-  const personaMatrix = useUserStore((s) => s.personaMatrix);
   const name = useUserStore((s) => s.name);
   const userId = useUserStore((s) => s.userId);
   const inviteCode = useCoupleStore((s) => s.inviteCode);
@@ -60,23 +78,20 @@ export default function InviteHook() {
     }, []),
   );
 
-  // 아우라 대표 채널 추출 — auraChannelToCss()는 hsl() 문자열을 반환하므로
-  // (헥스가 아님) 알파 tint는 hsla()로 직접 구성한다.
-  const auraVector = personaMatrix?.auraVector ?? null;
-  const dominantChannel = auraVector
-    ? auraVector.channels[
-        Object.entries(auraVector.axisScores).reduce((a, b) =>
-          Math.abs(a[1]) > Math.abs(b[1]) ? a : b,
-        )[0] as AuraAxis
-      ]
-    : null;
+  // v2.7 §1.3 — 화면 틴트는 dominant 1축 단색이 아니라 colorA/colorB 2색 그라데이션으로 표현한다
+  // (STEP 7 ClayTwinAvatar와 동일한 expo-linear-gradient 대각선 구현 재사용).
+  // 색상 출처는 personaMatrix.auraVector를 직접 읽던 것에서 useTheme()으로 교체 —
+  // useTheme()은 이 화면이 마운트되는 시점엔 이미 setPersonaMatrix()가 끝나 있어(genesis.tsx
+  // handleStart() 참고) personaMatrix.auraVector와 동일한 값을 주면서, reduceAuraMotion(오라
+  // 끄기) 오버라이드까지 함께 적용된 값을 준다.
+  const { primaryAuraColor, secondaryAuraColor } = useTheme();
 
-  const auraColor = dominantChannel ? auraChannelToCss(dominantChannel) : '#FFA4A4';
+  const gradientColors: [string, string] = [primaryAuraColor, secondaryAuraColor];
+  const auraColor = primaryAuraColor;
 
+  // 테두리/칩처럼 그라데이션을 적용하기 부적절한 요소는 대표색(primaryAuraColor) 단색 틴트를 유지한다.
   function auraTint(alpha: number): string {
-    return dominantChannel
-      ? `hsla(${dominantChannel.hue}, ${dominantChannel.saturation}%, ${dominantChannel.lightness}%, ${alpha})`
-      : `rgba(255, 164, 164, ${alpha})`;
+    return withAlpha(primaryAuraColor, alpha);
   }
 
   async function handleShare() {
@@ -102,11 +117,15 @@ export default function InviteHook() {
 
   return (
     <View style={styles.container}>
-      {/* 아우라 글로우 */}
-      <View style={[styles.glowOuter, { backgroundColor: auraTint(0.094) }]}>
-        <View style={[styles.glowInner, { backgroundColor: auraTint(0.145) }]}>
-          <Text style={styles.mirrorEmoji}>🪞</Text>
-        </View>
+      {/* 아우라 글로우 — colorA→colorB 대각선 그라데이션 (ClayTwinAvatar와 동일 구현) */}
+      <View style={styles.glowOuter}>
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.glowGradient}
+        />
+        <Text style={styles.mirrorEmoji}>🪞</Text>
       </View>
 
       {/* 타이틀 */}
@@ -122,7 +141,13 @@ export default function InviteHook() {
 
       {/* 공유 카드 미리보기 */}
       <View style={[styles.previewCard, { borderColor: auraTint(0.188) }]}>
-        <View style={[styles.previewAura, { backgroundColor: auraTint(0.125) }]}>
+        <View style={styles.previewAura}>
+          <LinearGradient
+            colors={gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.previewAuraGradient}
+          />
           <Text style={styles.previewEmoji}>🧬</Text>
         </View>
         <View style={styles.previewText}>
@@ -191,16 +216,14 @@ const styles = StyleSheet.create({
   glowOuter: {
     width: 150,
     height: 150,
-    borderRadius: 75,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glowInner: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
+  glowGradient: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
   },
   mirrorEmoji: {
     fontSize: 48,
@@ -234,10 +257,15 @@ const styles = StyleSheet.create({
   previewAura: {
     width: 56,
     height: 56,
-    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+  },
+  previewAuraGradient: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   previewEmoji: {
     fontSize: 26,

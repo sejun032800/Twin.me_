@@ -1,12 +1,11 @@
-// ─── 6 Sigma 테마 시스템 (Phase 6 1단계) ─────────────────────────────────────
-// 제네시스 인터뷰 완료 후 산출된 AuraVector(6축 오라 벡터)의 dominant 채널을 기반으로
-// 유저 고유의 다크 테마 팔레트를 생성한다. 오라 미확정(온보딩 전/진행 중) 상태에서는
+// ─── 6 Sigma 테마 시스템 (Phase 6 1단계, v2.7 2색 오라 반영) ───────────────────
+// 제네시스 인터뷰 완료 후 산출된 AuraVector(§1.3 3+3 그룹 RGB 합성 결과 colorA/colorB)를
+// 기반으로 유저 고유의 다크 테마 팔레트를 생성한다. 오라 미확정(온보딩 전/진행 중) 상태에서는
 // getDefaultDarkTheme()의 고정 다크 팔레트로 폴백한다.
 
-import type { AuraVector, AuraAxis } from '@/types/genesis';
-import { AURA_AXES } from '@/types/genesis';
+import type { AuraVector } from '@/types/genesis';
 import { auraChannelToCss } from '@/engine/auraEngine';
-import { AURA_BASE_HUE, BRAND, SYS } from '@/constants/colors';
+import { BRAND, SYS } from '@/constants/colors';
 
 export type ThemeMode = 'sigma' | 'light' | 'dark';
 
@@ -20,6 +19,11 @@ export interface SigmaTheme {
   textMuted: string;   // 보조 텍스트, '#888' 계열
   border: string;      // 구분선, 테두리
   tabBar: string;      // 탭바 배경
+
+  // ── v2.7: 2색 오라 (§1.3 그룹 A/B RGB 합성 결과, 그대로 노출) ───────────────
+  primaryAuraColor: string;              // colorA(Inner Warmth) → CSS hsl()
+  secondaryAuraColor: string;            // colorB(Outer Rhythm) → CSS hsl()
+  gradientStops: readonly [string, string]; // [primaryAuraColor, secondaryAuraColor] — 그라데이션 렌더 소비처용
 }
 
 // AuraChannel(hue/saturation/lightness) → hsl() 문자열 변환 헬퍼
@@ -27,40 +31,27 @@ function hsl(hue: number, saturation: number, lightness: number): string {
   return auraChannelToCss({ hue, saturation, lightness });
 }
 
-/** |axisScores| 절댓값이 가장 큰 축을 dominant로 선택한다 — meshStops는 축 순서 고정
- * 배열이라(§auraEngine.ts buildAuraVector 주석 참조) dominant 판별에 쓸 수 없다. */
-function pickDominantAxis(axisScores: AuraVector['axisScores']): { axis: AuraAxis; score: number } {
-  let dominantAxis: AuraAxis = AURA_AXES[0];
-  let dominantScore = axisScores[dominantAxis];
-  for (let i = 1; i < AURA_AXES.length; i++) {
-    const axis = AURA_AXES[i];
-    const score = axisScores[axis];
-    if (Math.abs(score) > Math.abs(dominantScore)) {
-      dominantAxis = axis;
-      dominantScore = score;
-    }
-  }
-  return { axis: dominantAxis, score: dominantScore };
-}
-
 export function buildSigmaTheme(auraVector: AuraVector): SigmaTheme {
-  const { axis: dominantAxis, score: dominantScore } = pickDominantAxis(auraVector.axisScores);
+  const { colorA, colorB } = auraVector;
+  const { hue, saturation, lightness } = colorA;
 
-  const hue = AURA_BASE_HUE[dominantAxis];
-  // auraEngine.scoreToChannel()과 동일한 수식으로 saturation/lightness 산출
-  const saturation = Math.min(92, 55 + Math.abs(dominantScore) * 35);
-  const lightness = Math.max(40, Math.min(72, 55 + dominantScore * 8));
+  const primaryAuraColor = hsl(colorA.hue, colorA.saturation, colorA.lightness);
+  const secondaryAuraColor = hsl(colorB.hue, colorB.saturation, colorB.lightness);
 
   return {
     bg: hsl(hue, saturation * 0.3, 12),
     bgSecondary: hsl(hue, saturation * 0.35, 16),
     card: hsl(hue, saturation * 0.4, 20),
-    accent: hsl(hue, saturation, lightness),
+    accent: primaryAuraColor,
     accentSoft: hsl(hue, saturation * 0.5, 25),
     text: SYS.TEXT_LIGHT,
     textMuted: hsl(hue, 20, 65),
     border: hsl(hue, saturation * 0.4, 25),
     tabBar: hsl(hue, saturation * 0.3, 12),
+
+    primaryAuraColor,
+    secondaryAuraColor,
+    gradientStops: [primaryAuraColor, secondaryAuraColor] as const,
   };
 }
 
@@ -75,6 +66,10 @@ export function getDefaultDarkTheme(): SigmaTheme {
     textMuted: SYS.TEXT_MUTED,
     border: SYS.CARD_DARK,
     tabBar: SYS.BG_DARK_MIDNIGHT,
+
+    primaryAuraColor: BRAND.CORAL,
+    secondaryAuraColor: BRAND.MINT,
+    gradientStops: [BRAND.CORAL, BRAND.MINT] as const,
   };
 }
 
@@ -89,5 +84,9 @@ export function getLightTheme(): SigmaTheme {
     textMuted: SYS.TEXT_MUTED,
     border: '#E8EAED',
     tabBar: SYS.CARD_LIGHT,
+
+    primaryAuraColor: BRAND.CORAL,
+    secondaryAuraColor: BRAND.MINT,
+    gradientStops: [BRAND.CORAL, BRAND.MINT] as const,
   };
 }

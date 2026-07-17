@@ -18,6 +18,7 @@ import PartnerStatusBar from '@/components/PartnerStatusBar';
 import OverflowBanner from '@/components/OverflowBanner';
 import AICoachingCard from '@/components/AICoachingCard';
 import ClayTwinAvatar from '@/components/ClayTwinAvatar';
+import AuraDuskGradient from '@/components/AuraDuskGradient';
 import MemoryRingSection from '@/components/MemoryRingSection';
 import MasterQuestionModal from '@/components/MasterQuestionModal';
 import ShareCard from '@/components/ShareCard';
@@ -28,6 +29,7 @@ import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useWeather } from '@/hooks/useWeather';
 import { useFeatureDnaV21 } from '@/config/featureFlags';
+import { computeContextMultiplier } from '@/engine/auraThemeEngine';
 import DnaCompatibilityCard from '@/components/DnaCompatibilityCard';
 import {
   getTierFromScore,
@@ -109,11 +111,26 @@ export default function Home() {
   const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
   const themeMode = useSessionStore((s) => s.themeMode);
   const setActiveChatRoom = useSessionStore((s) => s.setActiveChatRoom);
+  const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
   const styles = useMemo(() => makeStyles(theme, themeMode), [theme, themeMode]);
+
+  // 이 화면의 화면키('main')는 setAuraScreenKey로 세션에 기록되고, 아래 AuraDuskGradient에
+  // 넘기는 contextMultiplier도 동일한 'main' 키로 computeContextMultiplier를 호출한다 —
+  // 두 값이 서로 다른 화면키를 참조하지 않도록 리터럴을 맞춰뒀다.
+  const auraVector = personaMatrix?.auraVector ?? null;
+  const mainContextMultiplier = computeContextMultiplier('main');
 
   useFocusEffect(useCallback(() => {
     setAuraScreenKey('main');
   }, [setAuraScreenKey]));
+
+  useEffect(() => {
+    console.log('[Home] AuraDuskGradient 연동 상태', {
+      hasAuraVector: !!auraVector,
+      reduceAuraMotion,
+      mainContextMultiplier,
+    });
+  }, [auraVector, reduceAuraMotion, mainContextMultiplier]);
 
   const dnaV21 = useFeatureDnaV21();
   const displayScore = sLive > 0 ? sLive : (sCurrent > 0 ? sCurrent : sBase);
@@ -178,6 +195,16 @@ export default function Home() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
+      {/* 화면 배경 오라 — 다른 컨텐츠보다 먼저 렌더링해서 뒤에 깔리도록 한다(zIndex 불필요,
+          RN은 같은 스택 컨텍스트에서 나중에 렌더링된 형제가 위로 쌓인다). ScrollView/CTA는
+          자체 투명 배경이라 이 레이어가 여백·간격 사이로 비쳐 보인다. */}
+      {auraVector && (
+        <AuraDuskGradient
+          auraVector={auraVector}
+          contextMultiplier={mainContextMultiplier}
+          reduceMotion={reduceAuraMotion}
+        />
+      )}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}

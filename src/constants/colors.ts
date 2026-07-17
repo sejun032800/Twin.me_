@@ -27,14 +27,21 @@ export const MODAL_BACKDROP_LIGHT = 'rgba(0,0,0,0.5)';
 export const MODAL_BACKDROP = 'rgba(0,0,0,0.6)';
 export const MODAL_BACKDROP_HEAVY = 'rgba(0,0,0,0.8)';
 
-// ── Layer 2: 오라 시스템 — 기준 hue 상수만 노출, 실제 색상은 auraEngine이 계산 ──
-export const AURA_BASE_HUE = {
-  attachmentSecurity: 210,
-  conflictResponse:   15,
-  expressiveness:     320,
-  independence:       165,
-  spontaneity:        45,
-  trustPace:          265,
+// ── Layer 2: 오라 시스템 (v2.7) — 그룹별 RGB 채널 range 상수만 노출, 실제 합성은 auraEngine이 계산 ──
+export const AURA_GROUP_A_CHANNELS = {
+  // Inner Warmth — expressiveness/attachmentSecurity/trustPace → R/G/B
+  R: { base: 230, coeff: 35, min: 190, max: 255 }, // expressiveness
+  G: { base: 150, coeff: 70, min: 90,  max: 220 }, // attachmentSecurity
+  B: { base: 140, coeff: 30, min: 105, max: 170 }, // trustPace
+  hueSafety: [-15, 50] as const, // 로즈·코랄·골드 대역 밖으로 탈출 금지
+} as const;
+
+export const AURA_GROUP_B_CHANNELS = {
+  // Outer Rhythm — conflictResponse/spontaneity/independence → R/G/B
+  R: { base: 145, coeff: 15, min: 130, max: 160 }, // conflictResponse
+  G: { base: 190, coeff: 45, min: 145, max: 235 }, // spontaneity
+  B: { base: 210, coeff: 45, min: 165, max: 255 }, // independence
+  hueSafety: [155, 260] as const, // 틸·스카이블루·바이올렛 대역 밖으로 탈출 금지
 } as const;
 
 // ── 그라데이션 (시그니처 요소 전용) ────────────────────────────────────────────
