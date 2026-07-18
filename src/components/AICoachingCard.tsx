@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useScoreStore } from '@/store/scoreStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { callLLM } from '@/api/llm';
 import { useFeatureDnaV21 } from '@/config/featureFlags';
@@ -34,7 +35,8 @@ function todayDateString(): string {
 
 export default function AICoachingCard() {
   const theme = useTheme();
-  const styles = makeStyles(theme);
+  const isSigma = useSessionStore((s) => s.themeMode) === 'sigma';
+  const styles = makeStyles(theme, isSigma);
 
   const sLive = useScoreStore((s) => s.sLive);
   const sCurrent = useScoreStore((s) => s.sCurrent);
@@ -129,12 +131,14 @@ export default function AICoachingCard() {
   );
 }
 
-function makeStyles(theme: SigmaTheme) {
+function makeStyles(theme: SigmaTheme, isSigma: boolean) {
   return StyleSheet.create({
+    // sigma에서는 이 배경을 뚫어서, 바깥을 감싸는 GlassPanel(블러+테두리)이 유일한 카드
+    // 레이어가 되게 한다("카드 안에 카드" 이중 레이어 방지). light/dark는 기존 그대로.
     card: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: theme.card,
+      backgroundColor: isSigma ? 'transparent' : theme.card,
       borderRadius: 16,
       padding: 16,
       gap: 12,
@@ -143,10 +147,18 @@ function makeStyles(theme: SigmaTheme) {
     icon: {
       fontSize: 24,
     },
+    // GlassPanel의 블러+옅은 화이트 오버레이는 theme.card만큼 안정적인 명도 대비를
+    // 보장하지 않으므로(뒤에 계속 움직이는 오라가 비침), sigma에서는 GlassButton과
+    // 동일한 흰색 고정 + textShadow 조합으로 바꾼다.
     message: {
       ...TYPOGRAPHY.body,
-      color: theme.text,
+      color: isSigma ? '#FFFFFF' : theme.text,
       flex: 1,
+      ...(isSigma ? {
+        textShadowColor: 'rgba(0,0,0,0.45)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+      } : null),
     },
     badge: {
       position: 'absolute',

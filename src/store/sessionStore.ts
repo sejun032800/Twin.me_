@@ -12,7 +12,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { GateState } from '../engine/twinResponseEngine';
-import type { AuraScreenKey } from '../engine/auraThemeEngine';
+import type { SigmaAuraScreenKey } from '../engine/auraThemeEngine';
 import type { ThemeMode } from '../constants/theme';
 
 export type ActiveTab = 'home' | 'chat' | 'history' | 'settings';
@@ -46,7 +46,11 @@ export interface SessionState {
   isCrisisMode: boolean; // CrisisMode(FUN-CHA-003) 활성 여부
   crisisModeTriggeredAt: number | null; // timestamp ms
   gateState: GateState | null; // twinResponseEngine 판정 상태
-  currentAuraScreenKey: AuraScreenKey; // 화면별 오라 강도 라우팅용
+  // 화면별 오라 강도 라우팅용 — STEP 11-1의 SigmaAuraScreenKey('mainHero'|'chatList'|
+  // 'chatRoom'|'historyMap'|'helix'|'settings'|'other') 어휘를 그대로 쓴다. sigma
+  // 전용 오라 opacity/freeze 체계를 위한 값이지만, 추적 자체는 기존과 동일하게
+  // themeMode와 무관하게 항상 이루어진다(가벼운 네비게이션 북마크라 무해함).
+  currentAuraScreenKey: SigmaAuraScreenKey;
   themeMode: ThemeMode; // 화면 테마 설정(설정 탭 §8 FUN-SET-001B)
   privacyLevel: 0 | 1 | 2; // AI 학습 범위(설정 탭 §8 프라이버시 슬라이더) — 0=보호 1=최적화 2=완전복제
   reduceAuraMotion: boolean; // 오라 줄이기/끄기(§8 FUN-SET-001B) — true면 정적 무채색 폴백
@@ -69,7 +73,7 @@ export interface SessionActions {
   /** true로 설정 시 crisisModeTriggeredAt도 Date.now()로 함께 기록 */
   setCrisisMode: (active: boolean) => void;
   setGateState: (state: GateState | null) => void;
-  setAuraScreenKey: (key: AuraScreenKey) => void;
+  setAuraScreenKey: (key: SigmaAuraScreenKey) => void;
   setThemeMode: (mode: ThemeMode) => void;
   setPrivacyLevel: (level: 0 | 1 | 2) => void;
   setReduceAuraMotion: (reduce: boolean) => void;

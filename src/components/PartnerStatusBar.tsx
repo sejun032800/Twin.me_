@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useUserStore } from '@/store/userStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { getPartnerMood, setMyMood, MOOD_OPTIONS, type PartnerMood } from '@/services/partnerMoodService';
 import type { SigmaTheme } from '@/constants/theme';
@@ -23,7 +24,8 @@ function statusTagsFor(sLive: number): string[] {
 export default function PartnerStatusBar() {
   const router = useRouter();
   const theme = useTheme();
-  const styles = makeStyles(theme);
+  const isSigma = useSessionStore((s) => s.themeMode) === 'sigma';
+  const styles = makeStyles(theme, isSigma);
   const insets = useSafeAreaInsets();
   const isPartnerConnected = useCoupleStore((s) => s.isPartnerConnected);
   const partnerName = useCoupleStore((s) => s.partnerName);
@@ -123,10 +125,19 @@ export default function PartnerStatusBar() {
   );
 }
 
-function makeStyles(theme: SigmaTheme) {
+function makeStyles(theme: SigmaTheme, isSigma: boolean) {
+  const sigmaTextShadow = isSigma ? {
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  } : null;
+
   return StyleSheet.create({
+    // sigma에서는 이 배경을 뚫어서, 바깥을 감싸는 GlassPanel(블러+테두리)이 유일한 카드
+    // 레이어가 되게 한다("카드 안에 카드" 이중 레이어 방지). light/dark는 기존 그대로.
+    // 미연동 상태(inviteRow)/연동 상태 두 분기 모두 이 card를 공유하므로 함께 적용된다.
     card: {
-      backgroundColor: theme.card,
+      backgroundColor: isSigma ? 'transparent' : theme.card,
       borderRadius: 12,
       padding: 12,
       gap: 10,
@@ -138,12 +149,17 @@ function makeStyles(theme: SigmaTheme) {
     },
     inviteText: {
       ...TYPOGRAPHY.body,
-      color: theme.textMuted,
+      color: isSigma ? '#FFFFFF' : theme.textMuted,
       flex: 1,
+      ...sigmaTextShadow,
     },
+    // CORAL은 아우라의 웜톤 그룹과 색상대가 겹칠 수 있어(같은 계열 위 같은 계열 =
+    // 낮은 대비), textShadow만으로는 대비를 보장할 수 없다 — GlassButton과 동일하게
+    // sigma에서는 브랜드색 대신 흰색+textShadow로 가독성을 우선한다.
     inviteLink: {
       ...TYPOGRAPHY.label,
-      color: BRAND.CORAL,
+      color: isSigma ? '#FFFFFF' : BRAND.CORAL,
+      ...sigmaTextShadow,
     },
     nameRow: {
       flexDirection: 'row',
@@ -159,11 +175,13 @@ function makeStyles(theme: SigmaTheme) {
     },
     partnerName: {
       ...TYPOGRAPHY.bodyMedium,
-      color: theme.text,
+      color: isSigma ? '#FFFFFF' : theme.text,
+      ...sigmaTextShadow,
     },
     partnerMoodText: {
       ...TYPOGRAPHY.caption,
-      color: theme.textMuted,
+      color: isSigma ? '#FFFFFF' : theme.textMuted,
+      ...sigmaTextShadow,
     },
     moodSetBtn: {
       backgroundColor: BRAND.MINT,

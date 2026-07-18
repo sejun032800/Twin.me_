@@ -21,9 +21,10 @@ import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useSessionStore } from '@/store/sessionStore';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme, useSigmaAuraOpacity } from '@/hooks/useTheme';
+import AuraDuskGradient from '@/components/AuraDuskGradient';
 import { BRAND, SYS } from '@/constants/colors';
-import type { SigmaTheme } from '@/constants/theme';
+import type { SigmaTheme, ThemeMode } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
 function generateInviteCode(): string {
@@ -78,7 +79,8 @@ function RowGroup({ items }: { items: SettingsRowItem[] }) {
 
 export default function Settings() {
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const themeMode = useSessionStore((s) => s.themeMode);
+  const styles = useMemo(() => makeStyles(theme, themeMode), [theme, themeMode]);
   const router = useRouter();
   const name = useUserStore((s) => s.name);
   const mbti = useUserStore((s) => s.mbti);
@@ -93,7 +95,6 @@ export default function Settings() {
     setAuraScreenKey('settings');
   }, [setAuraScreenKey]));
 
-  const themeMode = useSessionStore((s) => s.themeMode);
   const setThemeMode = useSessionStore((s) => s.setThemeMode);
   const privacyLevel = useSessionStore((s) => s.privacyLevel);
   const setPrivacyLevel = useSessionStore((s) => s.setPrivacyLevel);
@@ -103,6 +104,11 @@ export default function Settings() {
   const setDevFeatureDnaV21Override = useSessionStore((s) => s.setDevFeatureDnaV21Override);
   const envFeatureDnaV21Default = process.env.EXPO_PUBLIC_FEATURE_DNA_V21 === 'true';
   const hasAuraVector = !!personaMatrix?.auraVector;
+
+  // sigma 전용 오라 배경 — light/dark는 아래 값들을 전혀 참조하지 않는다(렌더링에서
+  // themeMode==='sigma' 게이트로 걸러짐). 움직임은 그대로 유지(정지시키지 않음).
+  const auraVector = personaMatrix?.auraVector ?? null;
+  const settingsAuraOpacity = useSigmaAuraOpacity('settings');
   const inviteCode = useCoupleStore((s) => s.inviteCode);
   const setInviteCode = useCoupleStore((s) => s.setInviteCode);
   const setCoupleId = useCoupleStore((s) => s.setCoupleId);
@@ -203,6 +209,15 @@ export default function Settings() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
+      {/* sigma 전용 오라 배경 — light/dark에서는 마운트 자체를 안 한다(props로 숨기는 게
+          아니라 렌더 트리에서 아예 제외). 움직임은 그대로 유지 — 정지시키지 않는다. */}
+      {themeMode === 'sigma' && auraVector && (
+        <AuraDuskGradient
+          auraVector={auraVector}
+          opacity={typeof settingsAuraOpacity === 'number' ? settingsAuraOpacity : 0}
+          reduceMotion={reduceAuraMotion}
+        />
+      )}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* 1. 프로필 섹션 */}
         <View style={styles.section}>
@@ -562,23 +577,41 @@ export default function Settings() {
   );
 }
 
-function makeStyles(theme: SigmaTheme) {
+// themeMode는 safeArea(오라 비쳐 보이게)와 sectionHeader(가독성 보호)만 실제로 쓴다 —
+// RowGroup도 같은 makeStyles를 재사용하지만 이 두 키를 참조하지 않으므로 기본값
+// (themeMode 생략)으로 호출해도 무해하다.
+function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
+  const isSigma = themeMode === 'sigma';
   return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: theme.bg },
+  // sigma에서만 투명 — 뒤에 깔리는 AuraDuskGradient가 비쳐 보이게 한다. light/dark는
+  // 이 화면에 오라 레이어 자체가 마운트되지 않으므로 theme.bg 그대로(기존과 동일).
+  safeArea: { flex: 1, backgroundColor: isSigma ? 'transparent' : theme.bg },
   scrollContent: {
     paddingTop: 28,
     paddingBottom: 56,
   },
 
   section: { marginBottom: 28 },
+  // sectionHeader는 각 섹션의 rowGroup 카드(불투명 theme.card) 바깥, 화면 배경 위에
+  // 직접 놓인다 — safeArea가 투명해지는 sigma에서는 이 텍스트가 회전하는 오라 위에
+  // 그대로 얹히므로("화면 테마"/"오라 설정" 섹션 헤더 포함), 계속 흔들리는 배경
+  // 밝기에도 대비를 지키도록 흰색 고정 + textShadow 조합(GlassButton/GlassRing과
+  // 동일한 관례)으로 바꾼다. light/dark는 rowGroup 카드 위가 아니라 이 텍스트 자체가
+  // 화면 배경에 직접 놓이는 건 같지만, 그 배경이 정적인 theme.bg라 기존 theme.textMuted로
+  // 충분하다 — 그대로 둔다.
   sectionHeader: {
     fontSize: 11,
-    color: theme.textMuted,
+    color: isSigma ? '#FFFFFF' : theme.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
     paddingHorizontal: 20,
     marginBottom: 8,
     fontWeight: '600',
+    ...(isSigma ? {
+      textShadowColor: 'rgba(0,0,0,0.45)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    } : null),
   },
 
   rowGroup: {

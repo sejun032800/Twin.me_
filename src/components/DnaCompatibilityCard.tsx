@@ -9,14 +9,18 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { getLatestCoupleDnaResult, computeAndSaveCoupleDna } from '@/services/dnaResultService';
 import { useTheme } from '@/hooks/useTheme';
+import GlassPanel from '@/components/glass/GlassPanel';
+import GlassRing from '@/components/glass/GlassRing';
 import { TYPOGRAPHY } from '@/constants/typography';
 import type { SigmaTheme } from '@/constants/theme';
 
 export default function DnaCompatibilityCard() {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const themeMode = useSessionStore((s) => s.themeMode);
   const psychProfile = useUserStore((s) => s.psychProfile);
   const coupleId = useCoupleStore((s) => s.coupleId);
   const partnerUserId = useCoupleStore((s) => s.partnerUserId);
@@ -55,6 +59,52 @@ export default function DnaCompatibilityCard() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [coupleId, partnerUserId]),
   );
+
+  // themeMode==='sigma' 전용 분기(STEP 11-4) — GlassRing을 점수 배경으로 쓴다.
+  // light/dark는 이 분기를 절대 거치지 않고 아래의 기존 렌더링 경로를 그대로 탄다.
+  if (themeMode === 'sigma') {
+    if (loading && !dnaResult) {
+      return (
+        <GlassPanel style={sigmaStyles.card}>
+          <ActivityIndicator color="#FFFFFF" />
+        </GlassPanel>
+      );
+    }
+
+    if (!dnaResult) {
+      return (
+        <GlassPanel style={sigmaStyles.card}>
+          <Text style={sigmaStyles.waitingTitle}>연애 DNA 일치율</Text>
+          <Text style={sigmaStyles.waitingText}>파트너가 인터뷰를 완료하면 결과가 나타나요</Text>
+        </GlassPanel>
+      );
+    }
+
+    return (
+      <GlassPanel style={sigmaStyles.card}>
+        <Text style={sigmaStyles.title}>연애 DNA 일치율</Text>
+        <GlassRing progress={dnaResult.dnaPct} size={140} />
+        <View style={sigmaStyles.breakdownRow}>
+          <View style={sigmaStyles.breakdownItem}>
+            <Text style={sigmaStyles.breakdownLabel}>성격</Text>
+            <Text style={sigmaStyles.breakdownValue}>{Math.round(dnaResult.sB5 * 100)}</Text>
+          </View>
+          <View style={sigmaStyles.breakdownItem}>
+            <Text style={sigmaStyles.breakdownLabel}>애니어그램</Text>
+            <Text style={sigmaStyles.breakdownValue}>{Math.round(dnaResult.sEn * 100)}</Text>
+          </View>
+          <View style={sigmaStyles.breakdownItem}>
+            <Text style={sigmaStyles.breakdownLabel}>스턴버그</Text>
+            <Text style={sigmaStyles.breakdownValue}>{Math.round(dnaResult.sSt * 100)}</Text>
+          </View>
+          <View style={sigmaStyles.breakdownItem}>
+            <Text style={sigmaStyles.breakdownLabel}>애착</Text>
+            <Text style={sigmaStyles.breakdownValue}>{Math.round(dnaResult.sAtt * 100)}</Text>
+          </View>
+        </View>
+      </GlassPanel>
+    );
+  }
 
   if (loading && !dnaResult) {
     return (
@@ -98,6 +148,43 @@ export default function DnaCompatibilityCard() {
     </View>
   );
 }
+
+const sigmaStyles = StyleSheet.create({
+  card: {
+    padding: 16,
+    gap: 8,
+    alignItems: 'center',
+  },
+  title: {
+    ...TYPOGRAPHY.label,
+    color: '#FFFFFF',
+  },
+  waitingTitle: {
+    ...TYPOGRAPHY.label,
+    color: '#FFFFFF',
+  },
+  waitingText: {
+    ...TYPOGRAPHY.body,
+    color: 'rgba(255,255,255,0.75)',
+    textAlign: 'center',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 4,
+  },
+  breakdownItem: {
+    alignItems: 'center',
+  },
+  breakdownLabel: {
+    ...TYPOGRAPHY.caption,
+    color: 'rgba(255,255,255,0.75)',
+  },
+  breakdownValue: {
+    ...TYPOGRAPHY.bodyMedium,
+    color: '#FFFFFF',
+  },
+});
 
 function makeStyles(theme: SigmaTheme) {
   return StyleSheet.create({

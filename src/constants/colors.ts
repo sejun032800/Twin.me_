@@ -9,6 +9,16 @@ export const BRAND = {
   CORAL_DEEP:  '#E07A82',   // 프레스 상태, 선택된 탭
 } as const;
 
+// ── 6sigma 모드 전용 글래스모피즘 accent (STEP 11-3) ─────────────────────────
+// light/dark 모드와는 무관 — themeMode==='sigma'일 때만 쓰는 src/components/glass/*
+// 컴포넌트 전용 색이다. DEFAULT는 rgb(226,120,226)로 분해되며, glass 컴포넌트들이
+// 이 값을 알파 블렌딩해 틴트/테두리를 만든다.
+export const SIGMA_ACCENT = {
+  DEFAULT: '#E278E2',
+  PRESSED: '#D345D3', // GlassButton 눌림 상태 테두리
+  RING:    '#EB84E2', // GlassRing 진행률 아크
+} as const;
+
 // ── Layer 1: 배경 & 시스템 컬러 ───────────────────────────────────────────────
 export const SYS = {
   BG_DARK_MIDNIGHT: '#0A0D1A',   // 다크모드 메인 배경, 스플래시, 딥 인디고 배너

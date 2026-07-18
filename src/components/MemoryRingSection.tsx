@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { loadMemoryWallNodes } from '@/services/kakaoIngestPipeline';
 import type { MemoryNode } from '@/lib/kakaoParser';
 import { useTheme } from '@/hooks/useTheme';
+import { useSessionStore } from '@/store/sessionStore';
 import { BRAND } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
@@ -22,7 +23,8 @@ function ringGlyph(node: MemoryNode): { icon: string; label: string } {
 
 export default function MemoryRingSection() {
   const theme = useTheme();
-  const styles = makeStyles(theme);
+  const isSigma = useSessionStore((s) => s.themeMode) === 'sigma';
+  const styles = makeStyles(theme, isSigma);
   const [nodes, setNodes] = useState<MemoryNode[]>([]);
 
   useEffect(() => {
@@ -68,14 +70,23 @@ export default function MemoryRingSection() {
   );
 }
 
-function makeStyles(theme: SigmaTheme) {
+function makeStyles(theme: SigmaTheme, isSigma: boolean) {
   return StyleSheet.create({
+    // 이 섹션은 애초에 자체 카드 배경(theme.card)이 없다 — 바깥 GlassPanel이 이미
+    // 유일한 배경 레이어라 "카드 안에 카드" 문제 자체가 없다. 다만 title/label 텍스트는
+    // theme.textMuted로 배경(GlassPanel의 블러+옅은 화이트 오버레이, 뒤에 오라가 비침) 위에
+    // 직접 얹히므로, sigma에서는 GlassButton과 동일한 흰색+textShadow로 가독성을 보강한다.
     section: {
       gap: 12,
     },
     title: {
       ...TYPOGRAPHY.label,
-      color: theme.textMuted,
+      color: isSigma ? '#FFFFFF' : theme.textMuted,
+      ...(isSigma ? {
+        textShadowColor: 'rgba(0,0,0,0.45)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+      } : null),
     },
     scrollContent: {
       gap: 16,
@@ -111,8 +122,13 @@ function makeStyles(theme: SigmaTheme) {
     },
     label: {
       ...TYPOGRAPHY.caption,
-      color: theme.textMuted,
+      color: isSigma ? '#FFFFFF' : theme.textMuted,
       textAlign: 'center',
+      ...(isSigma ? {
+        textShadowColor: 'rgba(0,0,0,0.45)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+      } : null),
     },
   });
 }

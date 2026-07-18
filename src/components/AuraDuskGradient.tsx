@@ -6,15 +6,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, type LayoutChangeEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useAuraDuskMotion } from '@/hooks/useAuraDuskMotion';
 import { auraChannelToCss } from '@/engine/auraEngine';
 import type { AuraVector } from '@/types/genesis';
 
 interface AuraDuskGradientProps {
-  auraVector: AuraVector;    // colorA, colorB
-  contextMultiplier: number; // 화면별 오라 강도 (§1.3 화면별 가중치 테이블)
-  reduceMotion: boolean;     // true면 애니메이션 없이 정적 배경
+  auraVector: AuraVector; // colorA, colorB
+  // 이미 해석된 최종 opacity(0~1) — 호출부가 AURA_OPACITY_TIERS/resolveSigmaAuraOpacity
+  // (auraThemeEngine.ts, STEP 11-1)로 화면키별 값을 계산해 그대로 넘긴다. 이 컴포넌트는
+  // 더 이상 자체적으로 배율을 계산하지 않는다 — "화면별 강도 조회"는 단일 진실 공급원
+  // (auraThemeEngine.ts) 책임이고, 이 컴포넌트는 받은 값을 그리기만 한다.
+  opacity: number;
+  reduceMotion: boolean; // true면 애니메이션 없이 정적 배경
+  // true면 각도/색 갱신을 "그 순간 그대로" 멈춘다(STEP 11-2 useAuraDuskMotion(frozen) +
+  // 이미 진행 중이던 회전 트윈 자체도 즉시 취소). reduceMotion과 달리 미리 정해둔 각도로
+  // 스냅하지 않는다 — 멈추는 지점은 매번 다르다. 기본값 false(항상 명시적으로 넘길 필요는
+  // 없는 화면 — 예: 메인 히어로 — 을 위한 안전한 기본값).
+  frozen?: boolean;
 }
 
 // 회전축(피벗): 컨테이너 우측 상단에서 세로 10% 지점.
@@ -35,11 +44,11 @@ interface ContainerSize {
   height: number;
 }
 
-export default function AuraDuskGradient({ auraVector, contextMultiplier, reduceMotion }: AuraDuskGradientProps) {
+export default function AuraDuskGradient({ auraVector, opacity: opacityProp, reduceMotion, frozen = false }: AuraDuskGradientProps) {
   const [containerSize, setContainerSize] = useState<ContainerSize>({ width: 0, height: 0 });
   const rotation = useSharedValue(0);
 
-  const { boundaryAngleTargetDeg, moveDurationMs } = useAuraDuskMotion();
+  const { boundaryAngleTargetDeg, moveDurationMs } = useAuraDuskMotion(frozen);
 
   const handleLayout = useCallback((e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -71,11 +80,13 @@ export default function AuraDuskGradient({ auraVector, contextMultiplier, reduce
     rotation.value = baseAngleDeg;
   }, [reduceMotion, baseAngleDeg, rotation]);
 
-  // reduceMotion=false — 목표(boundaryAngleTargetDeg)가 바뀔 때마다 기준각 + 목표 오프셋으로
-  // 다시 트위닝. moveDurationMs만 의존성에 걸면 span 갱신(60초 간격)에는 반응하지 않아,
-  // 애니메이션 도중 불필요하게 트윈이 재시작(끊김)되는 걸 피한다.
+  // reduceMotion=false, frozen=false — 목표(boundaryAngleTargetDeg)가 바뀔 때마다, 또는
+  // frozen이 풀려 재개될 때마다 기준각 + 목표 오프셋으로 다시 트위닝한다. frozen인 동안은
+  // 이 효과가 아무것도 하지 않는다 — 이미 진행 중이던 트윈을 "그 순간 그대로" 멈추는 건
+  // 아래의 별도 효과가 담당한다. moveDurationMs만 의존성에 걸면 span 갱신(60초 간격)에는
+  // 반응하지 않아, 애니메이션 도중 불필요하게 트윈이 재시작(끊김)되는 걸 피한다.
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion || frozen) return;
     const targetDeg = baseAngleDeg + boundaryAngleTargetDeg;
     // eslint-disable-next-line no-console
     console.log('[AuraDuskGradient] 목표 갱신', { targetAngle: targetDeg, moveDurationMs });
@@ -83,13 +94,23 @@ export default function AuraDuskGradient({ auraVector, contextMultiplier, reduce
       duration: moveDurationMs,
       easing: Easing.inOut(Easing.sin),
     });
-  }, [reduceMotion, baseAngleDeg, boundaryAngleTargetDeg, moveDurationMs, rotation]);
+  }, [reduceMotion, frozen, baseAngleDeg, boundaryAngleTargetDeg, moveDurationMs, rotation]);
+
+  // frozen=true — useAuraDuskMotion(frozen)이 목표/span 갱신만 멈춰줄 뿐, 이미 진행 중이던
+  // 화면 회전 트윈 자체는 그대로 두면 다음 목표까지(최대 ~90초) 계속 움직이다 멈춘다 —
+  // "그 순간 그대로 얼어붙기"가 아니게 된다. cancelAnimation은 트윈을 목표까지 마저 재생하지
+  // 않고 지금 보간된 각도에서 즉시 멈춘다(미리 정해둔 각도로 스냅하는 게 아니라, 매번 다른
+  // "멈춘 순간의 각도"). frozen이 풀리면 위 효과가 이 각도를 새 시작점 삼아 자연스럽게 재개한다.
+  useEffect(() => {
+    if (!frozen) return;
+    cancelAnimation(rotation);
+  }, [frozen, rotation]);
 
   const animatedGradientStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
-  const opacity = Math.min(1, Math.max(0, contextMultiplier));
+  const opacity = Math.max(0, Math.min(1, opacityProp));
   const colorACss = auraChannelToCss(auraVector.colorA);
   const colorBCss = auraChannelToCss(auraVector.colorB);
 

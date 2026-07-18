@@ -19,7 +19,9 @@ import { useMatchEngine } from '@/hooks/useMatchEngine';
 import { useTheme } from '@/hooks/useTheme';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
 import { useCrisisIntelligence, type CrisisMessage } from '@/hooks/useCrisisIntelligence';
+import { useSigmaAuraOpacity } from '@/hooks/useTheme';
 import { callLLMStream } from '@/api/llm';
+import AuraDuskGradient from '@/components/AuraDuskGradient';
 import MagicMirrorModal from '@/components/MagicMirrorModal';
 import MuseSheet from '@/components/MuseSheet';
 import FeedbackSheet from '@/components/FeedbackSheet';
@@ -32,7 +34,7 @@ import { buildPersonaBlendPromptSection } from '@/engine/genesisBlending';
 import { pickFewShotAnchors } from '@/engine/userToneVectorBuilder';
 import { formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS } from '@/constants/colors';
-import type { SigmaTheme } from '@/constants/theme';
+import type { SigmaTheme, ThemeMode } from '@/constants/theme';
 import { FONTS, TYPOGRAPHY } from '@/constants/typography';
 
 const FREE_MONTHLY_LIMIT = 10;
@@ -49,7 +51,6 @@ interface ChatMessage {
 
 export default function Chat() {
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
   const router = useRouter();
   const isPartnerConnected = useCoupleStore((s) => s.isPartnerConnected);
   const inviteCode = useCoupleStore((s) => s.inviteCode);
@@ -64,12 +65,20 @@ export default function Chat() {
   const pendingMsg = useSessionStore((s) => s.pendingChatMessage);
   const setPendingChatMessage = useSessionStore((s) => s.setPendingChatMessage);
   const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
+  const themeMode = useSessionStore((s) => s.themeMode);
+  const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
+  const styles = useMemo(() => makeStyles(theme, themeMode), [theme, themeMode]);
 
+  // STEP 11-1 화면키 어휘로 목록/방을 구분한다('chat' 단일 키였던 기존 로직에는 이 구분이
+  // 없었음) — activeChatRoom이 null이면 목록, 아니면(어느 방이든) 방 안. useFocusEffect의
+  // useCallback deps에 activeChatRoom을 넣어, 포커스 유지 중 방을 드나들 때도(탭 전환 없이)
+  // 즉시 재평가되게 한다.
   useFocusEffect(useCallback(() => {
-    setAuraScreenKey('chat');
-  }, [setAuraScreenKey]));
+    setAuraScreenKey(activeChatRoom === null ? 'chatList' : 'chatRoom');
+  }, [setAuraScreenKey, activeChatRoom]));
   const [showMirrorModal, setShowMirrorModal] = useState(false);
   const name = useUserStore((s) => s.name);
+  const personaMatrix = useUserStore((s) => s.personaMatrix);
   const monthlyChatCount = useUserStore((s) => s.monthlyChatCount);
   const setMonthlyChatCount = useUserStore((s) => s.setMonthlyChatCount);
   const joinedAt = useUserStore((s) => s.joinedAt);
@@ -101,6 +110,16 @@ export default function Chat() {
   const currentRoom = activeChatRoom as RoomKey | null;
   const isLoverLocked = currentRoom === 'lover' && !isPartnerConnected;
   const messages = currentRoom ? messagesByRoom[currentRoom] : [];
+
+  // sigma 전용 오라 배경 — light/dark는 아래 값들을 전혀 참조하지 않는다(렌더링에서
+  // themeMode==='sigma' 게이트로 걸러짐). opacity는 방 안에 들어가도 항상 chatList
+  // 티어(0.35) 값 그대로 유지한다 — "방 진입 직전 값을 그대로 유지하고 opacity 자체를
+  // 바꾸진 마"라는 요구사항대로, 이 화면에서 방에 들어가는 유일한 경로가 목록이므로
+  // chatList 값이 곧 "직전 화면 값"과 항상 같다. 각도/색 갱신만 멈추는 건 frozen prop이
+  // 담당한다.
+  const auraVector = personaMatrix?.auraVector ?? null;
+  const chatAuraOpacity = useSigmaAuraOpacity('chatList');
+  const isInChatRoom = currentRoom !== null;
 
   useEffect(() => {
     if (pendingMsg) {
@@ -800,6 +819,17 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
+      {/* sigma 전용 오라 배경 — light/dark에서는 마운트 자체를 안 한다(props로 숨기는 게
+          아니라 렌더 트리에서 아예 제외). opacity는 목록/방 어디서든 chatList 티어(0.35)
+          그대로 — 방 안(currentRoom!==null)에서만 frozen=true로 각도/색 갱신을 멈춘다. */}
+      {themeMode === 'sigma' && auraVector && (
+        <AuraDuskGradient
+          auraVector={auraVector}
+          opacity={typeof chatAuraOpacity === 'number' ? chatAuraOpacity : 0}
+          reduceMotion={reduceAuraMotion}
+          frozen={isInChatRoom}
+        />
+      )}
       <View style={styles.container}>
         {currentRoom === null ? renderListHeader() : renderChatHeader()}
         {currentRoom === null ? renderRoomList() : renderChatScreen()}
@@ -823,10 +853,12 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
   );
 }
 
-function makeStyles(theme: SigmaTheme) {
+function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
   return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: theme.bg },
-  container: { flex: 1, backgroundColor: theme.bg },
+  // sigma에서만 투명 — 뒤에 깔리는 AuraDuskGradient가 비쳐 보이게 한다. light/dark는
+  // 이 화면에 오라 레이어 자체가 마운트되지 않으므로 theme.bg 그대로(기존과 동일).
+  container: { flex: 1, backgroundColor: themeMode === 'sigma' ? 'transparent' : theme.bg },
 
   // CrisisMode(FUN-CHA-003) — rapidSwing 감지 시 채팅 화면 상단 경고 오버레이
   crisisOverlay: {

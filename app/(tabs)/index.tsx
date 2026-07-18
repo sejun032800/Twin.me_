@@ -18,10 +18,10 @@ import PartnerStatusBar from '@/components/PartnerStatusBar';
 import OverflowBanner from '@/components/OverflowBanner';
 import AICoachingCard from '@/components/AICoachingCard';
 import ClayTwinAvatar from '@/components/ClayTwinAvatar';
-import AuraDuskGradient from '@/components/AuraDuskGradient';
 import MemoryRingSection from '@/components/MemoryRingSection';
 import MasterQuestionModal from '@/components/MasterQuestionModal';
 import ShareCard from '@/components/ShareCard';
+import SigmaMainLayout from '@/components/SigmaMainLayout';
 import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore, type EventHistoryEntry } from '@/store/scoreStore';
@@ -29,7 +29,6 @@ import { useSessionStore } from '@/store/sessionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useWeather } from '@/hooks/useWeather';
 import { useFeatureDnaV21 } from '@/config/featureFlags';
-import { computeContextMultiplier } from '@/engine/auraThemeEngine';
 import DnaCompatibilityCard from '@/components/DnaCompatibilityCard';
 import {
   getTierFromScore,
@@ -39,7 +38,7 @@ import {
   MOOD_TAG_MID_THRESHOLD_V21,
 } from '@/engine/scoreCalculator';
 import { shouldShowMasterQuestion, markShownToday, type MasterQuestion } from '@/services/masterQuestionService';
-import { GRADIENT } from '@/constants/colors';
+import { GRADIENT, SYS } from '@/constants/colors';
 import type { SigmaTheme, ThemeMode } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -112,25 +111,48 @@ export default function Home() {
   const themeMode = useSessionStore((s) => s.themeMode);
   const setActiveChatRoom = useSessionStore((s) => s.setActiveChatRoom);
   const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
-  const styles = useMemo(() => makeStyles(theme, themeMode), [theme, themeMode]);
 
-  // 이 화면의 화면키('main')는 setAuraScreenKey로 세션에 기록되고, 아래 AuraDuskGradient에
-  // 넘기는 contextMultiplier도 동일한 'main' 키로 computeContextMultiplier를 호출한다 —
-  // 두 값이 서로 다른 화면키를 참조하지 않도록 리터럴을 맞춰뒀다.
+  // 이 화면의 화면키('main')는 setAuraScreenKey로 세션에 기록된다(STEP 11 이전부터의
+  // 기존 코드 그대로 유지). sigma 전용 오라 opacity는 더 이상 이 화면키 문자열을 직접
+  // 소비하지 않고, SigmaMainLayout 내부에서 useSigmaAuraOpacity('mainHero')로 조회한다.
   const auraVector = personaMatrix?.auraVector ?? null;
-  const mainContextMultiplier = computeContextMultiplier('main');
+  const hasAuraVector = auraVector !== null;
 
+  // 방어적 폴백 — 설정 화면은 hasAuraVector가 false일 때 '✨ 6 Sigma' 버튼을 disabled 처리해
+  // themeMode==='sigma' 진입 자체를 막지만(정상 흐름), 세션 복원/레이스 컨디션 등으로
+  // themeMode==='sigma'인데 personaMatrix.auraVector가 아직 null인 상태가 잠깐 존재할 수
+  // 있다. 이 엣지케이스는 dark 모드로 취급해 안전하게 폴백한다(useTheme.ts와 달리 여기서는
+  // light가 아니라 dark로 폴백 — 오라 배경 레이어 자체가 dark 계열 전제이기 때문).
+  const effectiveThemeMode: ThemeMode = themeMode === 'sigma' && !hasAuraVector ? 'dark' : themeMode;
+
+  // 메인 탭 베이스 배경 — 3-way(ThemeMode='sigma'|'light'|'dark') 명시 분기.
+  // sigma가 dark와 같은 값(SYS.BG_DARK_MIDNIGHT)을 쓰는 것은 "sigma가 우연히 dark로
+  // 합쳐진 버그"가 아니라 "sigma도 의도적으로 BG_DARK_MIDNIGHT를 베이스로 쓴다"는
+  // 선택이다 — sigma 테마의 오라 색조 tint(theme.bg)에 기대지 않고 항상 이 고정값을
+  // 깔아야, 그 위에 얹는 저-opacity AuraDuskGradient가 유저마다 다른 베이스 명도/색조
+  // 위에서 흔들리지 않고 항상 같은 대비로 보인다. light 모드는 유저가 명시적으로 고른
+  // 라이트 팔레트이므로 그대로 존중한다.
+  const mainBaseBg =
+    effectiveThemeMode === 'light' ? theme.bg :
+    effectiveThemeMode === 'sigma' ? SYS.BG_DARK_MIDNIGHT :
+    SYS.BG_DARK_MIDNIGHT; // dark
+
+  const styles = useMemo(() => makeStyles(theme, themeMode, mainBaseBg), [theme, themeMode, mainBaseBg]);
+
+  // STEP 11-1의 AURA_OPACITY_TIERS 어휘와 일치시킴('main' → 'mainHero').
   useFocusEffect(useCallback(() => {
-    setAuraScreenKey('main');
+    setAuraScreenKey('mainHero');
   }, [setAuraScreenKey]));
 
   useEffect(() => {
-    console.log('[Home] AuraDuskGradient 연동 상태', {
-      hasAuraVector: !!auraVector,
+    console.log('[Home] sigma 레이아웃 분기 상태', {
+      themeMode,
+      effectiveThemeMode,
+      hasAuraVector,
+      mainBaseBg,
       reduceAuraMotion,
-      mainContextMultiplier,
     });
-  }, [auraVector, reduceAuraMotion, mainContextMultiplier]);
+  }, [themeMode, effectiveThemeMode, hasAuraVector, mainBaseBg, reduceAuraMotion]);
 
   const dnaV21 = useFeatureDnaV21();
   const displayScore = sLive > 0 ? sLive : (sCurrent > 0 ? sCurrent : sBase);
@@ -193,18 +215,72 @@ export default function Home() {
     ? ['🌤️ 보통', '💭 생각 중', '⏳ 여유롭게']
     : ['🌧️ 주의 필요', '💔 회복 중', '🤔 돌아보기'];
 
-  return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
-      {/* 화면 배경 오라 — 다른 컨텐츠보다 먼저 렌더링해서 뒤에 깔리도록 한다(zIndex 불필요,
-          RN은 같은 스택 컨텍스트에서 나중에 렌더링된 형제가 위로 쌓인다). ScrollView/CTA는
-          자체 투명 배경이라 이 레이어가 여백·간격 사이로 비쳐 보인다. */}
-      {auraVector && (
-        <AuraDuskGradient
+  // ShareCard 캡처용 오프스크린 뷰 + 마스터 질문 모달 — light/dark·sigma 두 경로 모두 동일하게
+  // 필요해서 분기 밖에 한 번만 둔다. shareCardOffscreen은 top:-9999로 항상 화면 밖이고
+  // MasterQuestionModal은 RN 네이티브 Modal(포털)이라 트리 상 위치가 렌더 픽셀에 영향을
+  // 주지 않는다 — 두 분기에 중복 작성할 필요 없이 여기 한 곳으로 충분하다.
+  const sharedOverlays = (
+    <>
+      <View style={styles.shareCardOffscreen} pointerEvents="none">
+        <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+          <ShareCard score={displayScore} />
+        </ViewShot>
+      </View>
+
+      <MasterQuestionModal
+        visible={mqVisible}
+        question={masterQuestion}
+        onClose={() => {
+          setMqVisible(false);
+          markShownToday();
+        }}
+        onSendToChat={(q) => {
+          useSessionStore.getState().setPendingChatMessage(q);
+          router.push('/(tabs)/chat');
+          setMqVisible(false);
+          markShownToday();
+        }}
+      />
+    </>
+  );
+
+  // sigma 전용 레이아웃 — light/dark 렌더링 경로(아래)와 완전히 분리된 별도 컴포넌트로
+  // 위임한다. auraVector 널 체크는 TS 타입 좁히기 + effectiveThemeMode 계산이 깨지는
+  // 경우에 대비한 이중 방어(effectiveThemeMode==='sigma'는 정의상 이미 auraVector!==null을
+  // 함의하지만, SigmaMainLayout의 auraVector prop이 non-null이라 TS가 이 좁히기를 요구한다).
+  if (effectiveThemeMode === 'sigma' && auraVector) {
+    return (
+      <>
+        <SigmaMainLayout
+          name={name}
+          personaMatrix={personaMatrix}
           auraVector={auraVector}
-          contextMultiplier={mainContextMultiplier}
-          reduceMotion={reduceAuraMotion}
+          reduceAuraMotion={reduceAuraMotion}
+          displayScore={displayScore}
+          tier={tier}
+          scoreStory={scoreStory}
+          moodTags={moodTags}
+          headerSubText={headerSubText}
+          isPartnerConnected={isPartnerConnected}
+          dnaV21={dnaV21}
+          sharing={sharing}
+          onShare={handleShare}
+          onHistoryPress={() => router.push('/(tabs)/history')}
+          onInvitePress={() => router.push('/(tabs)/settings')}
+          onChatPress={() => {
+            setActiveChatRoom('twin');
+            router.push('/(tabs)/chat');
+          }}
         />
-      )}
+        {sharedOverlays}
+      </>
+    );
+  }
+
+  // ── light/dark 렌더링 경로 — STEP 11 이전과 완전히 동일(1px도 변경 없음) ──────────
+  return (
+    <>
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -356,34 +432,15 @@ export default function Home() {
           <Text style={styles.ctaBtnText}>트윈과 대화하기 →</Text>
         </TouchableOpacity>
       </View>
-
-      <View style={styles.shareCardOffscreen} pointerEvents="none">
-        <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
-          <ShareCard score={displayScore} />
-        </ViewShot>
-      </View>
-
-      <MasterQuestionModal
-        visible={mqVisible}
-        question={masterQuestion}
-        onClose={() => {
-          setMqVisible(false);
-          markShownToday();
-        }}
-        onSendToChat={(q) => {
-          useSessionStore.getState().setPendingChatMessage(q);
-          router.push('/(tabs)/chat');
-          setMqVisible(false);
-          markShownToday();
-        }}
-      />
-    </SafeAreaView>
+      </SafeAreaView>
+      {sharedOverlays}
+    </>
   );
 }
 
-function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
+function makeStyles(theme: SigmaTheme, themeMode: ThemeMode, mainBaseBg: string) {
   return StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: theme.bg },
+    safeArea: { flex: 1, backgroundColor: mainBaseBg },
     scroll: {
       flex: 1,
     },
@@ -582,7 +639,7 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
       paddingHorizontal: 20,
       paddingTop: 8,
       paddingBottom: 12,
-      backgroundColor: theme.bg,
+      backgroundColor: mainBaseBg,
       borderTopWidth: 0.5,
       borderTopColor: theme.border,
     },
@@ -592,10 +649,12 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
       paddingVertical: 18,
       alignItems: 'center',
     },
+    // CORAL(#FFA4A4) 배경 위 흰색 텍스트는 명도 대비 ~1.9:1로 WCAG AA(4.5:1)에
+    // 크게 못 미친다 — TEXT_DARK(#1A1A1A)로 바꾸면 ~9.2:1로 다크모드 기준까지 충족.
     ctaBtnText: {
       fontSize: 16,
       fontWeight: '700',
-      color: '#FFFFFF',
+      color: SYS.TEXT_DARK,
     },
     shareCardOffscreen: {
       position: 'absolute',

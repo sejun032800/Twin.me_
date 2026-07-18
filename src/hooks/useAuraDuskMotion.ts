@@ -144,7 +144,14 @@ export interface AuraDuskMotion {
   isDaytime: boolean;
 }
 
-export function useAuraDuskMotion(): AuraDuskMotion {
+/**
+ * @param frozen true인 동안 애니메이션을 "그 순간 그대로" 정지시킨다(STEP 11-2, 예: 채팅방
+ *   진입 중). 미리 정해둔 특정 각도로 스냅하는 게 아니라, span 재계산 인터벌과 t 이동/목표
+ *   재추출 tick을 그대로 멈춰서 마지막으로 계산된 값에서 얼어붙는다. frozen이 다시 false가
+ *   되면 멈췄던 currentTRef/targetTRef/spanRef 값 그대로에서 원래 로직이 재개되므로(강제
+ *   스냅 없음), 얼어붙는 지점은 "그때그때 다른" 임의의 순간이 된다.
+ */
+export function useAuraDuskMotion(frozen: boolean = false): AuraDuskMotion {
   const [currentSpanDeg, setCurrentSpanDeg] = useState<number>(() => computeCurrentSpanDeg(new Date()));
   const [isDaytime, setIsDaytime] = useState<boolean>(() => isWithinDaytime(new Date()));
   const [boundaryAngleTargetDeg, setBoundaryAngleTargetDeg] = useState<number>(0);
@@ -160,12 +167,14 @@ export function useAuraDuskMotion(): AuraDuskMotion {
   }, [currentSpanDeg]);
 
   // 레이어3 — span은 1분 간격으로만 재계산(고빈도 갱신 불필요).
+  // frozen이면 인터벌 자체를 만들지 않는다 — currentSpanDeg는 freeze 직전 마지막 값에 고정된다.
   useEffect(() => {
+    if (frozen) return;
     const id = setInterval(() => {
       setCurrentSpanDeg(computeCurrentSpanDeg(new Date()));
     }, SPAN_REFRESH_INTERVAL_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [frozen]);
 
   // 레이어1+2 — 목표 t 재추출. "목표값이 바뀔 때마다" 그 목표까지 걸리는 duration을 함께 계산해 노출한다.
   function pickNewTarget(now: Date) {
@@ -188,7 +197,12 @@ export function useAuraDuskMotion(): AuraDuskMotion {
   }, []);
 
   // 레이어1+2 — tick마다 현재 t를 목표 방향으로 speed*dt만큼 이동, 도달 시 새 목표 재추출.
+  // frozen이면 인터벌 자체를 만들지 않는다 — currentTRef/targetTRef는 freeze 직전 값 그대로
+  // 유지되고, boundaryAngleTargetDeg/moveDurationMs/isDaytime도 더 이상 갱신되지 않아 정지된다.
+  // frozen이 false로 풀리면 effect가 다시 돌면서 lastTickMs를 그 시점으로 재설정하므로,
+  // 멈춰 있던 시간만큼의 dt가 한꺼번에 몰려 튀는 일 없이 멈춘 지점에서 자연스럽게 이어진다.
   useEffect(() => {
+    if (frozen) return;
     let lastTickMs = Date.now();
     const id = setInterval(() => {
       const nowMs = Date.now();
@@ -212,7 +226,7 @@ export function useAuraDuskMotion(): AuraDuskMotion {
     }, T_TICK_INTERVAL_MS);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [frozen]);
 
   return { boundaryAngleTargetDeg, currentSpanDeg, moveDurationMs, isDaytime };
 }

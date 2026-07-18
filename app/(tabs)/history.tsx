@@ -36,7 +36,7 @@ import { useUserStore } from '@/store/userStore';
 import { useCoupleStore } from '@/store/coupleStore';
 import { useScoreStore } from '@/store/scoreStore';
 import { useSessionStore } from '@/store/sessionStore';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme, useSigmaAuraOpacity } from '@/hooks/useTheme';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
 import { supabase } from '@/lib/supabaseClient';
@@ -44,12 +44,13 @@ import { callLLM } from '@/api/llm';
 import { getPublicCourses, type DateCourse } from '@/services/dateCourseService';
 import { loadDatePlaces, saveDatePlace, deleteDatePlace, optimizePlaces } from '@/services/memoryMapService';
 import type { DatePlace } from '@/services/memoryMapService';
+import AuraDuskGradient from '@/components/AuraDuskGradient';
 import WrappedModal from '@/components/WrappedModal';
 import OOTDArchiveGrid from '@/components/OOTDArchiveGrid';
 import HighlightGallery from '@/components/HighlightGallery';
 import { formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS, MODAL_BACKDROP_LIGHT } from '@/constants/colors';
-import type { SigmaTheme } from '@/constants/theme';
+import type { SigmaTheme, ThemeMode } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
 type SubTab = 'archive' | 'map' | 'feed';
@@ -584,12 +585,22 @@ function AddPlaceModal({
 
 export default function History() {
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const themeMode = useSessionStore((s) => s.themeMode);
+  const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
+  const personaMatrix = useUserStore((s) => s.personaMatrix);
+  const styles = useMemo(() => makeStyles(theme, themeMode), [theme, themeMode]);
   const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
 
   useFocusEffect(useCallback(() => {
     setAuraScreenKey('helix');
   }, [setAuraScreenKey]));
+
+  // sigma 전용 오라 배경 — light/dark는 아래 값들을 전혀 참조하지 않는다(렌더링에서
+  // themeMode==='sigma' 게이트로 걸러짐). 서브탭(아카이브/지도/피드)과 무관하게 항상
+  // historyMap 티어(0.3)를 쓴다 — "나선의 시간탑"(아카이브 헬릭스 뷰)도 예외 없이 동일.
+  // 여기는 움직임을 멈추지 않는 화면이라 frozen은 명시적으로 넘기지 않는다(기본값 false).
+  const auraVector = personaMatrix?.auraVector ?? null;
+  const historyAuraOpacity = useSigmaAuraOpacity('historyMap');
 
   const [subTab, setSubTab] = useState<SubTab>('archive');
   const [aiLoading, setAiLoading] = useState(false);
@@ -777,6 +788,15 @@ export default function History() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
+      {/* sigma 전용 오라 배경 — light/dark에서는 마운트 자체를 안 한다(props로 숨기는 게
+          아니라 렌더 트리에서 아예 제외). 움직임은 그대로 유지 — 정지시키지 않는다. */}
+      {themeMode === 'sigma' && auraVector && (
+        <AuraDuskGradient
+          auraVector={auraVector}
+          opacity={typeof historyAuraOpacity === 'number' ? historyAuraOpacity : 0}
+          reduceMotion={reduceAuraMotion}
+        />
+      )}
       <View style={styles.container}>
         <View style={styles.tabBar}>
           {SUB_TABS.map(({ key, label }) => {
@@ -798,10 +818,15 @@ export default function History() {
   );
 }
 
-function makeStyles(theme: SigmaTheme) {
+// themeMode는 History()(safeArea/container 배경 분기)만 실제로 쓴다 — ArchiveTab/FeedTab/
+// AddPlaceModal도 같은 makeStyles를 재사용하지만 container/safeArea 키를 참조하지 않으므로
+// 기본값(themeMode 생략)으로 호출해도 무해하다.
+function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
   return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: theme.bg },
-  container: { flex: 1, backgroundColor: theme.bg },
+  // sigma에서만 투명 — 뒤에 깔리는 AuraDuskGradient가 비쳐 보이게 한다. light/dark는
+  // 이 화면에 오라 레이어 자체가 마운트되지 않으므로 theme.bg 그대로(기존과 동일).
+  container: { flex: 1, backgroundColor: themeMode === 'sigma' ? 'transparent' : theme.bg },
 
   tabBar: {
     flexDirection: 'row',

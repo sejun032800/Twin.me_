@@ -85,7 +85,11 @@ export function computeContextMultiplier(screenKey: AuraScreenKey, opts: Context
 }
 
 // ── 3. 전역 불투명도 (§3.1 — auraOpacity = base_opacity × contextMultiplier) ─────
-export const AURA_BASE_OPACITY = { dark: 0.12, light: 0.08 } as const;
+// dark: contextMultiplier=1.0(main)이 "완전 불투명"이 아니라 이 낮은 opacity 범위
+// (대략 0.15~0.25) 안에서의 최대 강도를 뜻하도록 재정의됨 — BG_DARK_MIDNIGHT를 항상
+// 베이스로 깔고 그 위에 이 opacity로 오라를 얹는 전제. main(1.0)×0.25=0.25(상한),
+// chat(0.6)×0.25=0.15(하한 부근)로 화면별 가중치 테이블(§1.3)과 자연히 맞물린다.
+export const AURA_BASE_OPACITY = { dark: 0.25, light: 0.08 } as const;
 
 export function computeAuraOpacity(
   isLight: boolean,
@@ -96,6 +100,59 @@ export function computeAuraOpacity(
   if (reduceAuraMotion) return 0;
   const base = isLight ? AURA_BASE_OPACITY.light : AURA_BASE_OPACITY.dark;
   return Math.max(0, Math.min(1, base * computeContextMultiplier(screenKey, opts)));
+}
+
+// ── 3b. 6sigma 전용 화면별 오라 opacity 티어 (STEP 11-1) ────────────────────────
+// themeMode==='sigma' 전용 체계 — light/dark 모드는 AURA_BASE_OPACITY/
+// computeContextMultiplier 쪽 기존 곱셈 방식과 무관하게 계속 별개로 동작하며
+// 이 섹션의 영향을 받지 않는다.
+//
+// 기존 "contextMultiplier × AURA_BASE_OPACITY" 곱셈 방식을 대체한다 — 화면키별로
+// 이미 최종 opacity 값을 담고 있으므로 곱셈 없이 그대로 쓴다(제안대로 채택).
+// 예외: 이번 재정비 대상이 아닌 기존 화면키(helix)는 테이블에 없고, 그 경우엔
+// 기존 곱셈 방식(computeContextMultiplier × AURA_BASE_OPACITY.dark)을 그대로 유지한다
+// — resolveSigmaAuraOpacity()가 이 분기를 함께 처리한다.
+//
+// 'frozen'은 숫자가 아니라 11-2(freeze 로직)가 다루는 특수 상태 마커다: chatRoom
+// 진입 직전의 opacity 값을 그대로 고정 유지하라는 뜻이며, 이 마커를 실제 숫자로
+// resolve하는 로직(마지막 opacity 캐싱 등)은 11-2에서 구현한다. 여기서는 상수/타입/
+// 조회 함수만 준비하고, 아직 어떤 화면(app/(tabs)/*.tsx)에서도 호출하지 않는다 —
+// 실제 반영은 11-4(메인 탭)~11-7(설정)에서 화면별로 이뤄진다.
+export const AURA_OPACITY_TIERS = {
+  mainHero: 0.5,   // 메인 탭 전용 — "오라가 주인공", 기존(0.25)보다 훨씬 강하게
+  chatList: 0.35,  // 채팅 목록 화면
+  chatRoom: 'frozen', // 특수값 — 실제 resolve는 11-2
+  historyMap: 0.3,
+  settings: 0.35,
+  other: 0,
+} as const;
+
+export type AuraOpacityTierKey = keyof typeof AURA_OPACITY_TIERS;
+export type AuraOpacityTierValue = (typeof AURA_OPACITY_TIERS)[AuraOpacityTierKey];
+
+/** AURA_OPACITY_TIERS에 아직 없는 기존 화면키 — 현재는 helix만 해당(기존 곱셈 방식 유지 대상). */
+export type LegacyAuraScreenKey = Exclude<AuraScreenKey, 'main' | 'chat' | 'historyMap' | 'settings' | 'other'>;
+
+export type SigmaAuraScreenKey = AuraOpacityTierKey | LegacyAuraScreenKey;
+
+function isAuraOpacityTierKey(screenKey: SigmaAuraScreenKey): screenKey is AuraOpacityTierKey {
+  return screenKey in AURA_OPACITY_TIERS;
+}
+
+/**
+ * 6sigma 모드 전용 화면별 오라 opacity 조회 — 단일 진실 공급원.
+ * - AURA_OPACITY_TIERS에 있는 화면키는 티어 값을 최종 opacity로 그대로 반환(곱셈 없음).
+ *   chatRoom은 숫자가 아닌 'frozen' 마커를 그대로 반환(11-2가 실제 값으로 resolve).
+ * - 테이블에 없는 화면키(helix)는 기존 방식(contextMultiplier × AURA_BASE_OPACITY.dark)으로 계산.
+ */
+export function resolveSigmaAuraOpacity(
+  screenKey: SigmaAuraScreenKey,
+  opts: ContextMultiplierOptions = {},
+): AuraOpacityTierValue | number {
+  if (isAuraOpacityTierKey(screenKey)) {
+    return AURA_OPACITY_TIERS[screenKey];
+  }
+  return computeContextMultiplier(screenKey, opts) * AURA_BASE_OPACITY.dark;
 }
 
 // ── 4. 추종 보간 (§3.2 — Universal Easing) ──────────────────────────────────────
