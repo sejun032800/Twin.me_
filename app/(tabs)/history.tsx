@@ -587,7 +587,6 @@ export default function History() {
   const theme = useTheme();
   const themeMode = useSessionStore((s) => s.themeMode);
   const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
-  const personaMatrix = useUserStore((s) => s.personaMatrix);
   const styles = useMemo(() => makeStyles(theme, themeMode), [theme, themeMode]);
   const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
 
@@ -599,7 +598,9 @@ export default function History() {
   // themeMode==='sigma' 게이트로 걸러짐). 서브탭(아카이브/지도/피드)과 무관하게 항상
   // historyMap 티어(0.3)를 쓴다 — "나선의 시간탑"(아카이브 헬릭스 뷰)도 예외 없이 동일.
   // 여기는 움직임을 멈추지 않는 화면이라 frozen은 명시적으로 넘기지 않는다(기본값 false).
-  const auraVector = personaMatrix?.auraVector ?? null;
+  // auraVector는 personaMatrix를 store에서 다시 조회하지 않고 useTheme()이 반환하는
+  // 값 하나만 거친다(theme.ts의 buildSigmaTheme가 채워 넣는 동일 원본).
+  const auraVector = theme.auraVector;
   const historyAuraOpacity = useSigmaAuraOpacity('historyMap');
 
   const [subTab, setSubTab] = useState<SubTab>('archive');

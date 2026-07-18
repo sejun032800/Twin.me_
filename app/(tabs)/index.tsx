@@ -115,7 +115,12 @@ export default function Home() {
   // 이 화면의 화면키('main')는 setAuraScreenKey로 세션에 기록된다(STEP 11 이전부터의
   // 기존 코드 그대로 유지). sigma 전용 오라 opacity는 더 이상 이 화면키 문자열을 직접
   // 소비하지 않고, SigmaMainLayout 내부에서 useSigmaAuraOpacity('mainHero')로 조회한다.
-  const auraVector = personaMatrix?.auraVector ?? null;
+  // auraVector는 personaMatrix를 store에서 다시 조회하지 않고 useTheme()이 반환하는
+  // 값 하나만 거친다(theme.ts의 buildSigmaTheme가 채워 넣는 동일 원본) — 단, 여기서는
+  // themeMode==='sigma'일 때만 non-null이라(else엔 theme.auraVector가 null), 아래
+  // hasAuraVector/effectiveThemeMode 폴백 계산에 그대로 써도 기존 personaMatrix 기반
+  // 계산과 동일하게 동작한다(둘 다 "sigma && auraVector 확정" 여부만 판단하면 되므로).
+  const auraVector = theme.auraVector;
   const hasAuraVector = auraVector !== null;
 
   // 방어적 폴백 — 설정 화면은 hasAuraVector가 false일 때 '✨ 6 Sigma' 버튼을 disabled 처리해

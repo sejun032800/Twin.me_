@@ -107,7 +107,9 @@ export default function Settings() {
 
   // sigma 전용 오라 배경 — light/dark는 아래 값들을 전혀 참조하지 않는다(렌더링에서
   // themeMode==='sigma' 게이트로 걸러짐). 움직임은 그대로 유지(정지시키지 않음).
-  const auraVector = personaMatrix?.auraVector ?? null;
+  // auraVector는 personaMatrix를 store에서 다시 조회하지 않고 useTheme()이 반환하는
+  // 값 하나만 거친다(theme.ts의 buildSigmaTheme가 채워 넣는 동일 원본).
+  const auraVector = theme.auraVector;
   const settingsAuraOpacity = useSigmaAuraOpacity('settings');
   const inviteCode = useCoupleStore((s) => s.inviteCode);
   const setInviteCode = useCoupleStore((s) => s.setInviteCode);

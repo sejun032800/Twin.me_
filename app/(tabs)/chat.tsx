@@ -78,7 +78,6 @@ export default function Chat() {
   }, [setAuraScreenKey, activeChatRoom]));
   const [showMirrorModal, setShowMirrorModal] = useState(false);
   const name = useUserStore((s) => s.name);
-  const personaMatrix = useUserStore((s) => s.personaMatrix);
   const monthlyChatCount = useUserStore((s) => s.monthlyChatCount);
   const setMonthlyChatCount = useUserStore((s) => s.setMonthlyChatCount);
   const joinedAt = useUserStore((s) => s.joinedAt);
@@ -117,7 +116,9 @@ export default function Chat() {
   // 바꾸진 마"라는 요구사항대로, 이 화면에서 방에 들어가는 유일한 경로가 목록이므로
   // chatList 값이 곧 "직전 화면 값"과 항상 같다. 각도/색 갱신만 멈추는 건 frozen prop이
   // 담당한다.
-  const auraVector = personaMatrix?.auraVector ?? null;
+  // auraVector는 personaMatrix를 store에서 다시 조회하지 않고 useTheme()이 반환하는
+  // 값 하나만 거친다(theme.ts의 buildSigmaTheme가 채워 넣는 동일 원본).
+  const auraVector = theme.auraVector;
   const chatAuraOpacity = useSigmaAuraOpacity('chatList');
   const isInChatRoom = currentRoom !== null;
 

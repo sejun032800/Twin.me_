@@ -24,6 +24,11 @@ export interface SigmaTheme {
   primaryAuraColor: string;              // colorA(Inner Warmth) → CSS hsl()
   secondaryAuraColor: string;            // colorB(Outer Rhythm) → CSS hsl()
   gradientStops: readonly [string, string]; // [primaryAuraColor, secondaryAuraColor] — 그라데이션 렌더 소비처용
+
+  // AuraDuskGradient 등 raw AuraVector가 필요한 소비처용 — personaMatrix.auraVector를
+  // 화면이 store에서 직접 재조회하지 않고 useTheme() 한 곳만 거치도록 노출한다.
+  // sigma이면서 auraVector가 확정된 경우에만 non-null, 그 외(light/dark, 엣지케이스 폴백)는 null.
+  auraVector: AuraVector | null;
 }
 
 // AuraChannel(hue/saturation/lightness) → hsl() 문자열 변환 헬퍼
@@ -52,6 +57,7 @@ export function buildSigmaTheme(auraVector: AuraVector): SigmaTheme {
     primaryAuraColor,
     secondaryAuraColor,
     gradientStops: [primaryAuraColor, secondaryAuraColor] as const,
+    auraVector,
   };
 }
 
@@ -70,6 +76,7 @@ export function getDefaultDarkTheme(): SigmaTheme {
     primaryAuraColor: BRAND.CORAL,
     secondaryAuraColor: BRAND.MINT,
     gradientStops: [BRAND.CORAL, BRAND.MINT] as const,
+    auraVector: null,
   };
 }
 
@@ -88,5 +95,6 @@ export function getLightTheme(): SigmaTheme {
     primaryAuraColor: BRAND.CORAL,
     secondaryAuraColor: BRAND.MINT,
     gradientStops: [BRAND.CORAL, BRAND.MINT] as const,
+    auraVector: null,
   };
 }
