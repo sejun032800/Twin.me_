@@ -38,7 +38,12 @@ export default function RootLayout() {
 
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        {/* date-recommend-setup/result(FUN-HIS-002 진입 UI) — presentation:'modal'로만
+            등록하면 되고 나머지 라우트는 그대로 파일 기반 자동 등록에 맡긴다. */}
+        <Stack.Screen name="(modals)/date-recommend-setup" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="(modals)/date-recommend-result" options={{ presentation: 'modal' }} />
+      </Stack>
       <StatusBar style={themeMode === 'light' ? 'dark' : 'light'} />
     </>
   );

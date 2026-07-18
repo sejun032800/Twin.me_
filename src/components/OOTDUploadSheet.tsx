@@ -7,6 +7,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/hooks/useTheme';
 import { usePhotoMetadata } from '@/hooks/usePhotoMetadata';
 import { saveOOTDEntry } from '@/services/ootdService';
+import { saveDatePhotoStamp } from '@/services/datePhotoStampService';
+import { useFeatureAiDateRecommend } from '@/config/featureFlags';
+import { useCoupleStore } from '@/store/coupleStore';
 import type { OOTDEntry } from '@/types/ootd';
 import { BRAND, SYS, MODAL_BACKDROP_LIGHT } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
@@ -28,6 +31,8 @@ export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const { extractMetadata } = usePhotoMetadata();
+  const aiDateRecommendEnabled = useFeatureAiDateRecommend();
+  const coupleId = useCoupleStore((s) => s.coupleId);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [mood, setMood] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -35,6 +40,7 @@ export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
   const [dateTaken, setDateTaken] = useState<string | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [placeName, setPlaceName] = useState('');
 
   function reset() {
     setImageUri(null);
@@ -43,6 +49,7 @@ export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
     setDateTaken(null);
     setLatitude(null);
     setLongitude(null);
+    setPlaceName('');
   }
 
   function handleClose() {
@@ -102,6 +109,28 @@ export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
         longitude: longitude ?? undefined,
       };
       await saveOOTDEntry(entry);
+
+      // FUN-HIS-006 — 레이어1(데이터 수집) 범위: 방문 스탬프는 기존 OOTD 저장과
+      // 별개의 부가 기록이라, 실패해도 OOTD 저장 자체(entry)는 그대로 성공 처리한다.
+      // 연인 미연동(coupleId 없음) 상태에서는 스탬프 테이블이 couple_id NOT NULL
+      // FK라 조용히 건너뛴다 — §0.3 싱글플레이어 원칙상 OOTD 저장 자체는 막지 않는다.
+      if (aiDateRecommendEnabled && coupleId) {
+        try {
+          await saveDatePhotoStamp(
+            {
+              photoUri: imageUri,
+              takenAt: dateTaken,
+              lat: latitude,
+              lng: longitude,
+              userInputName: placeName.trim() || null,
+            },
+            coupleId,
+          );
+        } catch (stampError) {
+          console.warn('[OOTDUploadSheet] 방문 스탬프 저장 실패:', stampError);
+        }
+      }
+
       onSaved(entry);
       reset();
       onClose();
@@ -163,6 +192,21 @@ export default function OOTDUploadSheet({ visible, onClose, onSaved }: Props) {
 
           {latitude !== null && longitude !== null && (
             <Text style={styles.locationInfoText}>📍 위치 정보가 감지됐어요</Text>
+          )}
+
+          {aiDateRecommendEnabled && (
+            <View style={styles.placeNameWrap}>
+              <Text style={styles.placeNameHint}>
+                실제 상호명을 지도에 찍어주면 AI 데이트코스 추천 정확도가 늘어나요!
+              </Text>
+              <TextInput
+                style={styles.placeNameInput}
+                placeholder="방문한 장소 이름 (선택)"
+                placeholderTextColor={theme.textMuted}
+                value={placeName}
+                onChangeText={setPlaceName}
+              />
+            </View>
           )}
 
           <TouchableOpacity
@@ -240,6 +284,21 @@ function makeStyles(theme: SigmaTheme) {
     locationInfoText: {
       ...TYPOGRAPHY.caption,
       color: theme.textMuted,
+    },
+    placeNameWrap: {
+      gap: 6,
+    },
+    placeNameHint: {
+      ...TYPOGRAPHY.caption,
+      color: theme.textMuted,
+    },
+    placeNameInput: {
+      backgroundColor: theme.bgSecondary,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      color: theme.text,
+      ...TYPOGRAPHY.body,
     },
     moodRow: {
       gap: 8,

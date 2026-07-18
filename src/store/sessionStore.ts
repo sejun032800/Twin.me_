@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { GateState } from '../engine/twinResponseEngine';
 import type { SigmaAuraScreenKey } from '../engine/auraThemeEngine';
 import type { ThemeMode } from '../constants/theme';
+import type { ComposedCourse } from '../services/dateRecommendationService';
 
 export type ActiveTab = 'home' | 'chat' | 'history' | 'settings';
 export type ActiveChatRoom = 'lover' | 'twin' | 'analyst' | null;
@@ -60,6 +61,15 @@ export interface SessionState {
   overflowBannerDismissedDate: string | null; // OverflowBanner 닫기 상태 — 탭 이동/언마운트에도 유지되도록 스토어에 저장
   /** Phase 3 — FEATURE_DNA_V21 개발자 런타임 재정의(설정 탭 개발자 메뉴). null이면 env 기본값(false)을 따른다. */
   devFeatureDnaV21Override: boolean | null;
+  /** FEATURE_AI_DATE_RECOMMEND(§7 FUN-HIS-002/006/007) 개발자 런타임 재정의. null이면 env 기본값(false)을 따른다. */
+  devFeatureAiDateRecommendOverride: boolean | null;
+  /** date-recommend-setup → date-recommend-result 전달용 — router.replace 전에 여기 담고, result 화면 마운트 시
+   * 읽은 뒤 즉시 비운다(pendingChatMessage와 동일 패턴). URL 파라미터로는 후보 배열(좌표/점수/근거 포함)이
+   * 너무 커서 직렬화하기 부적합해 이 방식을 택했다. */
+  pendingDateRecommendResult: ComposedCourse[] | null;
+  /** map 탭 FAB "📷 사진으로 코스 추가"를 setup 화면의 "스탬프 부족" 안내에서도 유도하기 위한 신호 —
+   * true로 설정 후 router.back()하면 history.tsx가 포커스 시 OOTD 업로드 시트를 자동으로 열고 즉시 false로 되돌린다. */
+  pendingOotdUploadTrigger: boolean;
 }
 
 export interface SessionActions {
@@ -82,6 +92,9 @@ export interface SessionActions {
   setPendingChatMessage: (msg: string | null) => void;
   setOverflowBannerDismissedDate: (date: string | null) => void;
   setDevFeatureDnaV21Override: (value: boolean | null) => void;
+  setDevFeatureAiDateRecommendOverride: (value: boolean | null) => void;
+  setPendingDateRecommendResult: (result: ComposedCourse[] | null) => void;
+  setPendingOotdUploadTrigger: (value: boolean) => void;
   reset: () => void;
 }
 
@@ -110,6 +123,9 @@ const initialState: SessionState = {
   pendingChatMessage: null,
   overflowBannerDismissedDate: null,
   devFeatureDnaV21Override: null,
+  devFeatureAiDateRecommendOverride: null,
+  pendingDateRecommendResult: null,
+  pendingOotdUploadTrigger: false,
 };
 
 export const useSessionStore = create<SessionState & SessionActions>()(
@@ -141,6 +157,10 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       setPendingChatMessage: (pendingChatMessage) => set({ pendingChatMessage }),
       setOverflowBannerDismissedDate: (overflowBannerDismissedDate) => set({ overflowBannerDismissedDate }),
       setDevFeatureDnaV21Override: (devFeatureDnaV21Override) => set({ devFeatureDnaV21Override }),
+      setDevFeatureAiDateRecommendOverride: (devFeatureAiDateRecommendOverride) =>
+        set({ devFeatureAiDateRecommendOverride }),
+      setPendingDateRecommendResult: (pendingDateRecommendResult) => set({ pendingDateRecommendResult }),
+      setPendingOotdUploadTrigger: (pendingOotdUploadTrigger) => set({ pendingOotdUploadTrigger }),
       reset: () => {
         set({ ...initialState });
         AsyncStorage.removeItem(AURA_SETTINGS_KEY).catch(() => {});

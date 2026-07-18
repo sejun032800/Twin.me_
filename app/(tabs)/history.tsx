@@ -6,7 +6,7 @@
 // (좌우 교차 translateX + 중앙 확대/선명 효과)로 근사한다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ import Animated, {
   useAnimatedStyle,
   interpolate,
   Extrapolation,
+  FadeInUp,
   type SharedValue,
 } from 'react-native-reanimated';
 import { useUserStore } from '@/store/userStore';
@@ -39,6 +40,7 @@ import { useSessionStore } from '@/store/sessionStore';
 import { useTheme, useSigmaAuraOpacity } from '@/hooks/useTheme';
 import { usePremiumGate } from '@/hooks/usePremiumGate';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { useFeatureAiDateRecommend } from '@/config/featureFlags';
 import { supabase } from '@/lib/supabaseClient';
 import { callLLM } from '@/api/llm';
 import { getPublicCourses, type DateCourse } from '@/services/dateCourseService';
@@ -47,6 +49,7 @@ import type { DatePlace } from '@/services/memoryMapService';
 import AuraDuskGradient from '@/components/AuraDuskGradient';
 import WrappedModal from '@/components/WrappedModal';
 import OOTDArchiveGrid from '@/components/OOTDArchiveGrid';
+import OOTDUploadSheet from '@/components/OOTDUploadSheet';
 import HighlightGallery from '@/components/HighlightGallery';
 import { formatScore } from '@/engine/scoreCalculator';
 import { BRAND, SYS, MODAL_BACKDROP_LIGHT } from '@/constants/colors';
@@ -62,6 +65,70 @@ const SUB_TABS: Array<{ key: SubTab; label: string }> = [
 ];
 
 const KAKAO_MAP_API_KEY = process.env.EXPO_PUBLIC_KAKAO_MAP_API_KEY ?? '';
+
+// ─── FUN-HIS-002 진입 UI — 지도 탭 FAB (FEATURE_AI_DATE_RECOMMEND 전용) ───────────
+// date-recommend-architecture.md "UI/UX 구조 — 지도 탭" 그대로: 탭하면 아이콘+라벨
+// pill 3개가 아래→위 순서로 staggered fade+slide. "장소 직접 추가"는 기존
+// AddPlaceModal(memoryMapService.saveDatePlace)에, "사진으로 코스 추가"는 레이어1의
+// OOTDUploadSheet(상호명 입력 스텝 포함)에 그대로 연결한다 — 이번 작업은 신규 화면만
+// 만들 뿐, 그 둘의 로직은 전혀 건드리지 않았다.
+type FabAction = 'ai-recommend' | 'add-place' | 'add-photo-course';
+
+const FAB_PILLS: Array<{ key: FabAction; label: string }> = [
+  { key: 'ai-recommend', label: '✨ AI 추천 데이트코스' },
+  { key: 'add-place', label: '📍 장소 직접 추가' },
+  { key: 'add-photo-course', label: '📷 사진으로 코스 추가' },
+];
+
+function MapFab({
+  onSelect,
+  styles,
+}: {
+  onSelect: (action: FabAction) => void;
+  styles: HistoryStyles;
+}) {
+  const [open, setOpen] = useState(false);
+
+  function handleSelect(action: FabAction) {
+    setOpen(false);
+    onSelect(action);
+  }
+
+  return (
+    <View style={styles.fabWrap} pointerEvents="box-none">
+      {open && (
+        <TouchableOpacity
+          style={styles.fabBackdrop}
+          activeOpacity={1}
+          onPress={() => setOpen(false)}
+        />
+      )}
+      {open &&
+        // pill이 3개 다 "아래→위"로 나타나야 하므로, 화면에는 위→아래 순서로 쌓되
+        // FAB 본체에서 가장 먼 pill(맨 위, 배열 인덱스 0)이 가장 늦게 뜨도록
+        // delay를 역순으로 부여한다 — 인덱스가 낮을수록(더 위) 더 늦게, 즉 나중에
+        // 도착하는 pill이 위쪽이라 "아래에서 위로 펼쳐지는" 인상을 준다.
+        FAB_PILLS.map((pill, index) => (
+          <Animated.View
+            key={pill.key}
+            entering={FadeInUp.delay((FAB_PILLS.length - 1 - index) * 70).springify().damping(14)}
+            style={styles.fabPillWrap}
+          >
+            <TouchableOpacity style={styles.fabPill} onPress={() => handleSelect(pill.key)} activeOpacity={0.85}>
+              <Text style={styles.fabPillText}>{pill.label}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        ))}
+      <TouchableOpacity
+        style={styles.fabButton}
+        onPress={() => setOpen((prev) => !prev)}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.fabButtonIcon}>{open ? '✕' : '+'}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 // ─── 아카이브(Helix) ──────────────────────────────────────────────────────────
 const CARD_WIDTH = 180;
@@ -608,13 +675,48 @@ export default function History() {
   const [places, setPlaces] = useState<DatePlace[]>([]);
   const [optimizing, setOptimizing] = useState(false);
   const [addPlaceVisible, setAddPlaceVisible] = useState(false);
+  const [ootdFromMapVisible, setOotdFromMapVisible] = useState(false);
   const { location, requestLocation } = useGeoLocation();
+  const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const aiDateRecommendEnabled = useFeatureAiDateRecommend();
+  const pendingOotdUploadTrigger = useSessionStore((s) => s.pendingOotdUploadTrigger);
+  const setPendingOotdUploadTrigger = useSessionStore((s) => s.setPendingOotdUploadTrigger);
 
   useEffect(() => {
     loadDatePlaces()
       .then(setPlaces)
       .catch(() => console.warn('장소 목록 로드 실패'));
   }, []);
+
+  // date-recommend-result.tsx의 "이 코스 담기" 완료 후 router.replace('/(tabs)/history?tab=map')로
+  // 돌아왔을 때 지도 서브탭에 바로 착지하기 위한 쿼리 파라미터 지원 — subTab의 기본값(archive)은
+  // 그대로 두고, tab=map일 때만 오버라이드한다.
+  useEffect(() => {
+    if (tab === 'map') setSubTab('map');
+  }, [tab]);
+
+  // setup 화면의 "아직 데이트 기록이 부족해요" 안내에서 "사진 추가하러 가기"를 눌러
+  // router.back()으로 돌아왔을 때, 이 화면 포커스 시 OOTD 업로드 시트를 자동으로 연다.
+  useFocusEffect(
+    useCallback(() => {
+      if (pendingOotdUploadTrigger) {
+        setSubTab('map');
+        setOotdFromMapVisible(true);
+        setPendingOotdUploadTrigger(false);
+      }
+    }, [pendingOotdUploadTrigger, setPendingOotdUploadTrigger]),
+  );
+
+  function handleFabSelect(action: 'ai-recommend' | 'add-place' | 'add-photo-course') {
+    if (action === 'ai-recommend') {
+      router.push('/(modals)/date-recommend-setup');
+    } else if (action === 'add-place') {
+      setAddPlaceVisible(true);
+    } else {
+      setOotdFromMapVisible(true);
+    }
+  }
 
   function handlePlaceSaved(place: DatePlace) {
     setPlaces((prev) => [place, ...prev]);
@@ -814,7 +916,19 @@ export default function History() {
         {subTab === 'archive' && <ArchiveTab />}
         {subTab === 'map' && renderMap()}
         {subTab === 'feed' && <FeedTab onAddToMap={handleAddCourseToMap} />}
+
+        {/* FEATURE_AI_DATE_RECOMMEND OFF면 이 블록 전체가 렌더 트리에서 빠진다 — 지도
+            서브탭은 플래그 도입 이전과 동일하게 동작한다(회귀 없음). */}
+        {subTab === 'map' && aiDateRecommendEnabled && <MapFab onSelect={handleFabSelect} styles={styles} />}
       </View>
+
+      {aiDateRecommendEnabled && (
+        <OOTDUploadSheet
+          visible={ootdFromMapVisible}
+          onClose={() => setOotdFromMapVisible(false)}
+          onSaved={() => setOotdFromMapVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -956,6 +1070,53 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
   optimizeBtnSolid: { backgroundColor: '#BADFDB', borderRadius: 14, padding: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginBottom: 8 },
   disabledBtn: { opacity: 0.4 },
   aiRecommendText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+
+  // FUN-HIS-002 진입 UI — 지도 탭 FAB(우측 하단 고정, FEATURE_AI_DATE_RECOMMEND 전용)
+  fabWrap: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    alignItems: 'flex-end',
+  },
+  fabBackdrop: {
+    position: 'absolute',
+    top: -1000,
+    left: -1000,
+    right: -1000,
+    bottom: -1000,
+    backgroundColor: MODAL_BACKDROP_LIGHT,
+  },
+  fabButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: BRAND.CORAL,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  fabButtonIcon: { fontSize: 26, color: SYS.TEXT_LIGHT, fontWeight: '700' },
+  fabPillWrap: { marginBottom: 12 },
+  fabPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.card,
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderWidth: 0.5,
+    borderColor: theme.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  fabPillText: { fontSize: 14, fontWeight: '600', color: theme.text },
 
   // 장소 추가 모달
   overlay: { flex: 1, justifyContent: 'flex-end' },
