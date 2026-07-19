@@ -127,3 +127,45 @@ export async function getPublicCourses(): Promise<PublicCoursesResult> {
     return { courses: MOCK_COURSES, isMock: true };
   }
 }
+
+interface CoupleScoreRow {
+  my_score: number | null;
+  partner_score: number | null;
+}
+
+function average(values: number[]): number {
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+function roundToOneDecimal(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+// 커플 자신의 date_courses.my_score/partner_score 실제 평균을 계산한다("본인 코스
+// 관리" RLS 정책 덕에 couple_id 스코프 조회는 is_public 여부와 무관하게 허용된다).
+// 신규 커플처럼 평점을 매긴 자기 코스가 아직 없으면(coupleId 미연동, 행 없음, 점수
+// 전부 null) 근거 없는 고정값 대신 공개 코스 전체 평균으로 대체한다 —
+// getPublicCourses()는 조회 실패 시에도 MOCK_COURSES로 폴백하므로 이 함수는 항상
+// 유한한 값을 반환한다.
+export async function getCoupleAvgRatingBand(coupleId: string | null): Promise<number> {
+  if (coupleId) {
+    try {
+      const { data, error } = await supabase
+        .from('date_courses')
+        .select('my_score, partner_score')
+        .eq('couple_id', coupleId);
+
+      if (!error && data) {
+        const scores = (data as CoupleScoreRow[])
+          .flatMap((row) => [row.my_score, row.partner_score])
+          .filter((score): score is number => score !== null);
+        if (scores.length > 0) return roundToOneDecimal(average(scores));
+      }
+    } catch {
+      // 조회 실패는 아래 플랫폼 평균 폴백으로 흡수한다.
+    }
+  }
+
+  const { courses } = await getPublicCourses();
+  return roundToOneDecimal(average(courses.flatMap((c) => [c.myScore, c.partnerScore])));
+}

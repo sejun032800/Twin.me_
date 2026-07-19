@@ -9,6 +9,7 @@ const CONTEXT: AnonymizedCoupleContext = {
   avgRatingBand: 4.5,
   areaLabel: '마포구 홍대',
   budgetLabel: '3~7만',
+  timeSlotLabel: '저녁',
   unvisitedCategories: ['AT4'],
 };
 
@@ -29,12 +30,13 @@ describe('buildComposePrompt', () => {
     expect(prompt).toContain('스타벅스');
   });
 
-  it('익명화 규칙에 따른 5개 필드(태그/평점대/지역/예산대/안해본카테고리)만 프롬프트에 노출한다', () => {
+  it('익명화 규칙에 따른 6개 필드(태그/평점대/지역/예산대/시간대/안해본카테고리)만 프롬프트에 노출한다', () => {
     const prompt = buildComposePrompt([], CONTEXT);
     expect(prompt).toContain('카페, 음식점');
     expect(prompt).toContain('4.5');
     expect(prompt).toContain('마포구 홍대');
     expect(prompt).toContain('3~7만');
+    expect(prompt).toContain('저녁');
     expect(prompt).toContain('AT4');
   });
 

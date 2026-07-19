@@ -298,13 +298,19 @@ export async function findNearbyAlternatives(
 // functions/를 import하지 않는다), 요청 바디로 주고받는 "계약"만 양쪽이 구조적으로
 // 맞추면 된다.
 
-// MASTER.md §7 익명화 규칙 — 이 5개 필드만 Edge Function으로 전송한다. couple_id/
-// user_id/리뷰 원문은 이 타입에 필드 자체가 없다.
+// MASTER.md §7 익명화 규칙 — 이 6개 필드만 Edge Function으로 전송한다(timeSlotLabel은
+// MASTER 원문의 5개 필드 목록에는 없던 것을 이번에 추가함 — couple_id/user_id/리뷰
+// 원문처럼 익명화 규칙이 금지하는 정보는 아니다). couple_id/user_id/리뷰 원문은 이
+// 타입에 필드 자체가 없다.
 export interface AnonymizedCoupleContext {
   tags: string[];
   avgRatingBand: number;
   areaLabel: string;
   budgetLabel: string;
+  // 가능한 시간대 라벨(낮/저녁/종일). 카카오 로컬 API 카테고리 검색 응답(RawKakaoDocument)에는
+  // 영업시간 필드가 없어 후보 자체를 시간대로 필터링하지는 않는다 — LLM 컨텍스트로만 전달하고,
+  // place-detail API(영업시간 포함) 연동 시 후보 필터링 로직 추가를 재검토한다.
+  timeSlotLabel: string;
   unvisitedCategories: string[];
 }
 

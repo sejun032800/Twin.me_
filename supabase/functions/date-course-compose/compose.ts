@@ -31,6 +31,9 @@ export interface AnonymizedCoupleContext {
   avgRatingBand: number; // 평균 평점대(숫자만)
   areaLabel: string; // 지역(구/동 단위까지)
   budgetLabel: string; // 예산대 라벨
+  // 가능한 시간대 라벨(낮/저녁/종일). 카카오 로컬 API 카테고리 검색 응답에는 영업시간
+  // 필드가 없어 후보 자체를 시간대로 필터링하지는 않는다 — 프롬프트 컨텍스트로만 전달.
+  timeSlotLabel: string;
   unvisitedCategories: string[]; // 안 해본 카테고리 목록
 }
 
@@ -70,6 +73,7 @@ export function buildComposePrompt(candidates: PromptCandidate[], context: Anony
     `평균 평점대: ${context.avgRatingBand}`,
     `지역: ${context.areaLabel}`,
     `예산대: ${context.budgetLabel}`,
+    `가능한 시간대: ${context.timeSlotLabel}`,
     `안 해본 카테고리: ${context.unvisitedCategories.join(', ') || '없음'}`,
     '',
     '[후보 리스트]',

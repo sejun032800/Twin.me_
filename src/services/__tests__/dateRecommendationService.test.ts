@@ -307,6 +307,7 @@ const CONTEXT: AnonymizedCoupleContext = {
   avgRatingBand: 4.5,
   areaLabel: '마포구 홍대',
   budgetLabel: '3~7만',
+  timeSlotLabel: '저녁',
   unvisitedCategories: ['AT4'],
 };
 

@@ -1,7 +1,11 @@
 // ─── date-recommend-setup — AI 추천 데이트코스 조건 입력 (FUN-HIS-002 "화면 흐름" 1단계) ──
 // date-recommend-architecture.md "UI/UX 구조 — 지도 탭" 전체 플로우 참고. 이 화면은
 // 레이어1~5(수집/매칭/클러스터링/후보군 생성/LLM 구성)의 기존 함수를 호출만 한다 —
-// 그 함수들의 로직은 이번 작업에서 전혀 수정하지 않았다.
+// 후보군 생성/LLM 구성 로직(findSimilarCourses/findNearbyAlternatives/
+// composeDateCourse 본체) 자체는 건드리지 않았다. 다만 이 화면의 예산대/시간대 칩이
+// 실제로 반영되게 하려고 AnonymizedCoupleContext(레이어4/5)에 timeSlotLabel 필드를
+// 추가했고, avgRatingBand를 조회하는 dateCourseService.getCoupleAvgRatingBand()를
+// 새로 추가했다 — 두 변경 모두 이 화면의 요구사항 때문에 파생된 것이다.
 //
 // 후보 리스트 생성은 "유사한 곳 ↔ 안 해본 곳" 토글값에 따라 레이어4의 두 함수 중
 // 하나만 호출한다(둘을 섞지 않는다 — 사용자 지시 그대로).
@@ -16,6 +20,7 @@ import { useCoupleStore } from '@/store/coupleStore';
 import { useSessionStore } from '@/store/sessionStore';
 import { useFeatureAiDateRecommend } from '@/config/featureFlags';
 import { fetchDateRecommendSetupContext, type DateRecommendSetupContext } from '@/services/dateRecommendSetupService';
+import { getCoupleAvgRatingBand } from '@/services/dateCourseService';
 import {
   findSimilarCourses,
   findNearbyAlternatives,
@@ -42,13 +47,6 @@ const MIN_VERIFIED_STAMPS = 3;
 const BUDGET_OPTIONS = ['~3만', '3~7만', '7만+'] as const;
 const TIME_OPTIONS = ['낮', '저녁', '종일'] as const;
 type RecommendMode = 'similar' | 'novel';
-
-// 커플의 실제 평균 평점 데이터를 조회하는 기존 함수가 없다(date_courses.my_score/
-// partner_score는 "다른 커플들의 공개 코스" 평점이지 "이 커플이 평소 매기는 평점"이
-// 아니다) — 이번 작업은 신규 조회 로직을 추가하지 않기로 했으므로, 익명화 컨텍스트의
-// avgRatingBand는 중립값 고정 플레이스홀더를 쓴다. 실제 "이 커플의 평균 평점" 데이터
-// 소스가 생기면 교체돼야 한다.
-const PLACEHOLDER_AVG_RATING_BAND = 4.5;
 
 export default function DateRecommendSetupScreen() {
   const theme = useTheme();
@@ -111,12 +109,16 @@ export default function DateRecommendSetupScreen() {
         return;
       }
 
-      const location = await requestLocation();
+      const [location, avgRatingBand] = await Promise.all([
+        requestLocation(),
+        getCoupleAvgRatingBand(coupleId),
+      ]);
       const anonymizedContext: AnonymizedCoupleContext = {
         tags: categoryCodesToTags(context.latestCourse?.categoryCodes ?? []),
-        avgRatingBand: PLACEHOLDER_AVG_RATING_BAND,
+        avgRatingBand,
         areaLabel: location?.district ?? location?.city ?? '지역 정보 없음',
         budgetLabel: budget,
+        timeSlotLabel: timeSlot,
         unvisitedCategories: computeUnvisitedCategories(context.visitedStamps),
       };
 
