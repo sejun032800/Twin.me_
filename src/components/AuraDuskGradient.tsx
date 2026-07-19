@@ -88,8 +88,6 @@ export default function AuraDuskGradient({ auraVector, opacity: opacityProp, red
   useEffect(() => {
     if (reduceMotion || frozen) return;
     const targetDeg = baseAngleDeg + boundaryAngleTargetDeg;
-    // eslint-disable-next-line no-console
-    console.log('[AuraDuskGradient] 목표 갱신', { targetAngle: targetDeg, moveDurationMs });
     rotation.value = withTiming(targetDeg, {
       duration: moveDurationMs,
       easing: Easing.inOut(Easing.sin),

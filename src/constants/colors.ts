@@ -30,6 +30,7 @@ export const SYS = {
   TEXT_DARK:        '#1A1A1A',
   TEXT_LIGHT:       '#FFFFFF',
   TEXT_MUTED:       '#888888',   // 보조 텍스트 (라벨/캡션 회색조)
+  TAB_INACTIVE_LIGHT: '#C0C0C0', // 라이트모드 탭바 비활성 아이콘/라벨
 } as const;
 
 // ── 모달 백드롭 — 테마 무관 고정 딤 배경 (스크림은 관례적으로 항상 검정 계열) ──────

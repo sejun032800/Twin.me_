@@ -263,19 +263,19 @@ export default function Settings() {
                 onPress={() => { if (hasAuraVector) setThemeMode('sigma'); }}
                 disabled={!hasAuraVector}
               >
-                <Text style={[styles.themeBtnText, { color: themeMode === 'sigma' ? '#FFFFFF' : theme.text }]}>✨ 6 Sigma</Text>
+                <Text style={[styles.themeBtnText, { color: themeMode === 'sigma' ? SYS.TEXT_LIGHT : theme.text }]}>✨ 6 Sigma</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.themeBtn, themeMode === 'light' && styles.themeBtnSelected]}
                 onPress={() => setThemeMode('light')}
               >
-                <Text style={[styles.themeBtnText, { color: themeMode === 'light' ? '#FFFFFF' : theme.text }]}>☀️ 라이트</Text>
+                <Text style={[styles.themeBtnText, { color: themeMode === 'light' ? SYS.TEXT_LIGHT : theme.text }]}>☀️ 라이트</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.themeBtn, themeMode === 'dark' && styles.themeBtnSelected]}
                 onPress={() => setThemeMode('dark')}
               >
-                <Text style={[styles.themeBtnText, { color: themeMode === 'dark' ? '#FFFFFF' : theme.text }]}>🌙 다크</Text>
+                <Text style={[styles.themeBtnText, { color: themeMode === 'dark' ? SYS.TEXT_LIGHT : theme.text }]}>🌙 다크</Text>
               </TouchableOpacity>
             </View>
             {!hasAuraVector && (
@@ -319,9 +319,9 @@ export default function Settings() {
                 step={1}
                 value={privacyLevel}
                 onValueChange={(v) => setPrivacyLevel(Math.round(v) as 0 | 1 | 2)}
-                minimumTrackTintColor="#FFA4A4"
+                minimumTrackTintColor={BRAND.CORAL}
                 maximumTrackTintColor={theme.border}
-                thumbTintColor="#FFA4A4"
+                thumbTintColor={BRAND.CORAL}
                 style={styles.slider}
               />
               <Text style={styles.privacyLevelText}>
@@ -603,7 +603,7 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
   // 충분하다 — 그대로 둔다.
   sectionHeader: {
     fontSize: 11,
-    color: isSigma ? '#FFFFFF' : theme.textMuted,
+    color: isSigma ? SYS.TEXT_LIGHT : theme.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
     paddingHorizontal: 20,
@@ -644,18 +644,18 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#FFA4A4',
+    backgroundColor: BRAND.CORAL,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
+  avatarText: { fontSize: 20, fontWeight: '700', color: SYS.TEXT_LIGHT },
   profileInfo: { flex: 1, gap: 4 },
   profileName: { fontSize: 17, fontWeight: '700', color: theme.text },
   profileMbti: { fontSize: 12, color: theme.textMuted, marginTop: 3 },
 
   themeBtnRow: { flexDirection: 'row', gap: 10, padding: 14 },
   themeBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: theme.card },
-  themeBtnSelected: { backgroundColor: '#FFA4A4' },
+  themeBtnSelected: { backgroundColor: BRAND.CORAL },
   themeBtnDisabled: { opacity: 0.35 },
   themeBtnText: { fontSize: 12, fontWeight: '600', color: theme.text },
   themeHint: {
@@ -746,16 +746,16 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
   vipModalCancelText: { fontSize: 14, fontWeight: '600', color: theme.textMuted },
   vipModalConfirmBtn: {
     flex: 1,
-    backgroundColor: '#FFA4A4',
+    backgroundColor: BRAND.CORAL,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  vipModalConfirmText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  vipModalConfirmText: { fontSize: 14, fontWeight: '700', color: SYS.TEXT_LIGHT },
 
   upgradeCard: {
     marginHorizontal: 20,
-    backgroundColor: '#FFA4A4',
+    backgroundColor: BRAND.CORAL,
     borderRadius: 16,
     padding: 18,
     gap: 10,
@@ -765,7 +765,7 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  upgradeCardTitle: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
+  upgradeCardTitle: { fontSize: 17, fontWeight: '700', color: SYS.TEXT_LIGHT },
   upgradeCardPrice: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 3 },
   upgradeCardBadge: {
     backgroundColor: 'rgba(255,255,255,0.20)',
@@ -773,7 +773,7 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
-  upgradeCardBadgeText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  upgradeCardBadgeText: { fontSize: 13, fontWeight: '700', color: SYS.TEXT_LIGHT },
   upgradeCardDesc: { fontSize: 12, color: 'rgba(255,255,255,0.70)', lineHeight: 18 },
 
   devBtn: {

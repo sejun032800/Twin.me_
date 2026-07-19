@@ -19,7 +19,32 @@ export default function Splash() {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.9);
 
-  function navigate() {
+  // AsyncStorage 복원(onRehydrateStorage)이 끝나기 전에 isOnboardingComplete를 읽으면
+  // 재방문 유저가 초기값(false)으로 오판되어 웰컴 화면으로 튕길 수 있다. _hasHydrated가
+  // true가 될 때까지 대기하되, 저장소 손상 등으로 하이드레이션 이벤트가 영영 안 오는
+  // 극단적 케이스를 대비해 3초 타임아웃 안전장치를 둔다.
+  function waitForHydration(): Promise<void> {
+    return new Promise((resolve) => {
+      if (useUserStore.getState()._hasHydrated) {
+        resolve();
+        return;
+      }
+      const timeout = setTimeout(() => {
+        unsubscribe();
+        resolve();
+      }, 3000);
+      const unsubscribe = useUserStore.subscribe((state) => {
+        if (state._hasHydrated) {
+          clearTimeout(timeout);
+          unsubscribe();
+          resolve();
+        }
+      });
+    });
+  }
+
+  async function navigate() {
+    await waitForHydration();
     const isComplete = useUserStore.getState().isOnboardingComplete;
     if (isComplete) {
       router.replace('/(tabs)');

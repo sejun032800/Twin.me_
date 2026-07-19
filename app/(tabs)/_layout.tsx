@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { useSessionStore } from '@/store/sessionStore';
+import { SYS } from '@/constants/colors';
 
 export default function TabsLayout() {
   const theme = useTheme();
@@ -14,7 +15,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle: isLight
           ? {
-              backgroundColor: '#FBF8F3',
+              backgroundColor: theme.bg,
               borderTopWidth: 0,
               elevation: 0,
               shadowOpacity: 0,
@@ -30,8 +31,8 @@ export default function TabsLayout() {
               paddingBottom: 8,
               paddingTop: 4,
             },
-        tabBarActiveTintColor: isLight ? '#FFA4A4' : theme.accent,
-        tabBarInactiveTintColor: isLight ? '#C0C0C0' : theme.textMuted,
+        tabBarActiveTintColor: theme.accent,
+        tabBarInactiveTintColor: isLight ? SYS.TAB_INACTIVE_LIGHT : theme.textMuted,
         tabBarLabelStyle: isLight
           ? { fontSize: 10, fontWeight: '500', marginTop: 2 }
           : { fontSize: 11, marginTop: 2 },

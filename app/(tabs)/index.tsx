@@ -149,16 +149,6 @@ export default function Home() {
     setAuraScreenKey('mainHero');
   }, [setAuraScreenKey]));
 
-  useEffect(() => {
-    console.log('[Home] sigma 레이아웃 분기 상태', {
-      themeMode,
-      effectiveThemeMode,
-      hasAuraVector,
-      mainBaseBg,
-      reduceAuraMotion,
-    });
-  }, [themeMode, effectiveThemeMode, hasAuraVector, mainBaseBg, reduceAuraMotion]);
-
   const dnaV21 = useFeatureDnaV21();
   const displayScore = sLive > 0 ? sLive : (sCurrent > 0 ? sCurrent : sBase);
   const tier = dnaV21 ? getTierFromScoreV21(displayScore) : getTierFromScore(displayScore);
