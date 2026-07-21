@@ -14,19 +14,35 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  function proceedAfterLogin() {
+    const isOnboardingComplete = useUserStore.getState().isOnboardingComplete;
+    if (isOnboardingComplete) {
+      router.replace('/(tabs)');
+    } else {
+      router.replace('/(auth)/profile');
+    }
+  }
+
   async function handleLogin() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      Alert.alert('로그인 실패', error.message);
-    } else {
-      const isOnboardingComplete = useUserStore.getState().isOnboardingComplete;
-      if (isOnboardingComplete) {
-        router.replace('/(tabs)');
+      const isEmailNotConfirmed = /email not confirmed/i.test(error.message);
+      if (isEmailNotConfirmed && __DEV__) {
+        // 개발 전용 데모 우회 — 실제 Supabase 세션은 발급되지 않는다(서버가 이메일
+        // 미인증 계정엔 세션 자체를 내주지 않음). 화면 전환만 흉내낼 뿐이라 이후
+        // supabase.auth.getUser()를 쓰는 기능(초대코드 생성 등)은 여전히 실패한다 —
+        // __DEV__ 분기이므로 프로덕션 빌드에는 이 버튼이 아예 생성되지 않는다.
+        Alert.alert('로그인 실패', error.message, [
+          { text: '확인', style: 'cancel' },
+          { text: '건너뛰기(개발용)', onPress: proceedAfterLogin },
+        ]);
       } else {
-        router.replace('/(auth)/profile');
+        Alert.alert('로그인 실패', error.message);
       }
+    } else {
+      proceedAfterLogin();
     }
   }
 

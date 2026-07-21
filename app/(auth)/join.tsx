@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabaseClient';
 import { joinCouple } from '@/services/coupleService';
 import { useCoupleStore } from '@/store/coupleStore';
+import { useUserStore } from '@/store/userStore';
 import { useTheme } from '@/hooks/useTheme';
 import { BRAND } from '@/constants/colors';
 import type { SigmaTheme } from '@/constants/theme';
@@ -40,8 +41,15 @@ export default function Join() {
       const { coupleId } = await joinCouple(inputCode, user.id);
       setCoupleId(coupleId);
       setPartnerConnected(true);
+
+      // 온보딩 인터뷰(제네시스) 미완료 상태로 코드부터 입력한 파트너는 (tabs)로 보내지
+      // 않고 인터뷰로 유도한다 — (tabs)는 온보딩 완료 가드가 없어 그대로 두면 personaMatrix
+      // 없는 상태로 홈/DNA 카드 등이 렌더링된다.
+      const isOnboardingComplete = useUserStore.getState().isOnboardingComplete;
+      const nextRoute = isOnboardingComplete ? '/(tabs)' : '/(auth)/genesis';
+
       Alert.alert('연동 완료 🎉', '연인과 연결됐어요!', [
-        { text: '확인', onPress: () => router.replace('/(tabs)') },
+        { text: '확인', onPress: () => router.replace(nextRoute) },
       ]);
     } catch (e) {
       Alert.alert('오류', e instanceof Error ? e.message : '연동에 실패했어요.');

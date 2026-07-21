@@ -4,6 +4,7 @@
 // 3채널 블렌딩·6색 오라 산출을 하나의 세션으로 오케스트레이션한다.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 import { computePersonaBlend } from '../engine/genesisBlending';
 import {
   didHypothesisSwitch,
@@ -101,10 +102,12 @@ export function useGenesisInterview(mbti: MbtiType): UseGenesisInterviewResult {
 
   useEffect(() => clearSilenceTimer, [clearSilenceTimer]);
 
+  // inputMode는 여기서 건드리지 않는다 — 전화 수신 UI(voice)는 세션당 1회(start())만
+  // 트리거되어야 하고, 이후 질문 전환에서 사용자가 이미 타이핑 모드로 전환했다면
+  // 그 선택이 다음 질문에도 유지돼야 한다(매 질문마다 콜 UI가 재노출되는 버그 방지).
   const presentQuestion = useCallback(
     (question: GenesisQuestion | null) => {
       setCurrentQuestion(question);
-      setInputMode('voice');
       setPhase(question ? 'asking' : 'act-transition');
       if (question) armSilenceTimer();
     },
@@ -139,6 +142,7 @@ export function useGenesisInterview(mbti: MbtiType): UseGenesisInterviewResult {
   const start = useCallback(() => {
     setAct(1);
     setClayStage(0);
+    setInputMode('voice'); // 세션 시작 시 1회만 — 이후는 presentQuestion이 유지한다
     setBayesianState(initBayesianState(mbti));
     act1QueueRef.current = getIcebreakQuestions();
     cursorRef.current = 0;
@@ -209,11 +213,20 @@ export function useGenesisInterview(mbti: MbtiType): UseGenesisInterviewResult {
       }
 
       const archetype = matchArchetype(currentQuestion, text);
-      if (!archetype) return;
+      if (!archetype) {
+        // 저신뢰 답변("잘 모르겠어요" 등 키워드 매칭 0건) — 확정 해석 대신 재질문한다.
+        // 같은 질문에 머무르므로 currentQuestion/phase는 그대로 두고 침묵 타이머만 재무장한다.
+        Alert.alert(
+          '조금 더 말해줄 수 있을까요?',
+          '방금 답변에서 확실한 힌트를 찾지 못했어요. 조금 더 구체적으로 다시 답해주세요.',
+        );
+        armSilenceTimer();
+        return;
+      }
       setPendingConfirm({ question: currentQuestion, archetype, transcript: text });
       setPhase('confirming');
     },
-    [act, advanceAct1, clearSilenceTimer, currentQuestion],
+    [act, advanceAct1, armSilenceTimer, clearSilenceTimer, currentQuestion],
   );
 
   const confirmArchetype = useCallback(
@@ -234,6 +247,11 @@ export function useGenesisInterview(mbti: MbtiType): UseGenesisInterviewResult {
   const switchToTyping = useCallback(() => {
     clearSilenceTimer();
     setInputMode('typing');
+    // confirming 단계("다시 답하기")에서 호출된 경우 AI의 재해석을 취소하고 같은
+    // 질문의 재입력 상태로 되돌린다. asking/act-transition 단계에서 호출되면(콜 UI
+    // 종료 버튼) 이미 phase==='asking'이라 아래 두 줄은 사실상 no-op이다.
+    setPendingConfirm(null);
+    setPhase((prev) => (prev === 'confirming' ? 'asking' : prev));
   }, [clearSilenceTimer]);
 
   const switchToVoice = useCallback(() => {

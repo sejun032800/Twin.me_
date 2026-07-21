@@ -5,7 +5,18 @@
 // themeMode와 무관하게 SYS.BG_DARK_MIDNIGHT / SYS.CARD_DARK / SYS.TEXT_LIGHT 고정.
 
 import { useEffect, useState } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  Modal,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Keyboard,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ClayTwinAvatar from '@/components/ClayTwinAvatar';
@@ -73,6 +84,7 @@ export default function InterviewCallModal({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
         >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.container}>
         <View style={styles.callerInfo}>
           <ClayTwinAvatar size={100} auraVector={null} clayStage={clayStage} />
@@ -136,6 +148,7 @@ export default function InterviewCallModal({
           <View style={[styles.progressFill, { width: `${Math.round(confidence * 100)}%` }]} />
         </View>
         </View>
+        </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>

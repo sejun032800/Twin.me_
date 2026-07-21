@@ -4,7 +4,9 @@
 // v2.1 §6 카피: 인터뷰는 최대 5분, 대부분 3~4분 내 자연 종료된다.
 
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import InterviewCallModal from '@/components/InterviewCallModal';
 import { useAdaptiveInterview } from '@/hooks/useAdaptiveInterview';
@@ -15,12 +17,34 @@ import { useSessionStore } from '@/store/sessionStore';
 import { enneagramCoreToTopType } from '@/lib/interview/personaAdapter';
 import { computePersonaBlend } from '@/engine/genesisBlending';
 import { computeAndSaveCoupleDna } from '@/services/dnaResultService';
-import { buildAuraVector } from '@/engine/auraEngine';
+import { buildAuraVector, auraChannelToCss, AURA_AXIS_DIRECTIONS, toScoreBand } from '@/engine/auraEngine';
 import { generateBaseScore, getMBTICompatibilityGrade } from '@/engine/scoreCalculator';
+import { getAllAuraStoryEntries } from '@/data/auraStoryPool';
 import { INTERVIEW_HARD_CAP_SECONDS } from '@/lib/matching/constants';
-import { ENNEAGRAM_TYPES, type ProbabilityVector } from '@/types/genesis';
+import { ENNEAGRAM_TYPES, ENNEAGRAM_TYPE_NAME, type ProbabilityVector, type AuraAxis, type EnneagramType } from '@/types/genesis';
+import { SYS } from '@/constants/colors';
 
 const MBTI_RE = /^[EI][SN][TF][JP]$/i;
+
+// genesis.tsx(레거시 ceremony phase)와 동일한 6축 한국어 라벨 — 표시 목적 매핑일 뿐,
+// 계산 로직이 아니라 이 화면에도 그대로 복제해 둔다.
+const AXIS_LABEL_KO: Record<string, string> = {
+  attachmentSecurity: '애착 안정성',
+  conflictResponse: '갈등 반응',
+  expressiveness: '감정 표현성',
+  independence: '자율성',
+  spontaneity: '즉흥성',
+  trustPace: '신뢰 속도',
+};
+
+interface PersonaSummary {
+  dominantAxis: AuraAxis;
+  dominantDirectionLabel: string;
+  colorACss: string;
+  colorBCss: string;
+  enneagramType: EnneagramType;
+  storyTitle: string | null;
+}
 
 export default function GenesisV21Screen() {
   const router = useRouter();
@@ -35,10 +59,12 @@ export default function GenesisV21Screen() {
   const coupleId = useCoupleStore((s) => s.coupleId);
   const setDnaResult = useCoupleStore((s) => s.setDnaResult);
   const interviewSession = useSessionStore((s) => s.interviewSession);
+  const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
 
   const { phase, questionText, isGenerating, error, start, submitAnswer } = useAdaptiveInterview(mbti ?? '');
   const [finishing, setFinishing] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [personaSummary, setPersonaSummary] = useState<PersonaSummary | null>(null);
   const startedRef = useRef(false);
   const finishStartedRef = useRef(false);
 
@@ -77,6 +103,27 @@ export default function GenesisV21Screen() {
     }, {} as ProbabilityVector);
     const ranked = [...ENNEAGRAM_TYPES].sort((a, b) => probabilities[b] - probabilities[a]);
     const auraVector = buildAuraVector(probabilities);
+
+    // 'done' 화면에 표시할 개인 성향 요약 — genesis.tsx(레거시) ceremony phase와 동일한
+    // 파생값(dominantAxis/방향 레이블/스토리)을 여기서도 그대로 계산해 state에 담아둔다.
+    // 새 엔진 로직이 아니라 이미 계산된 auraVector를 화면 표시용으로 가공하는 것뿐이다.
+    const dominantAxis = Object.entries(auraVector.axisScores).reduce((a, b) =>
+      Math.abs(a[1]) > Math.abs(b[1]) ? a : b,
+    )[0] as AuraAxis;
+    const dominantScore = auraVector.axisScores[dominantAxis];
+    const dominantDirection = AURA_AXIS_DIRECTIONS[dominantAxis];
+    const dominantDirectionLabel = dominantScore > 0 ? dominantDirection.b : dominantDirection.a;
+    const dominantStory = getAllAuraStoryEntries().find(
+      (e) => e.axis === dominantAxis && e.band === toScoreBand(dominantScore),
+    );
+    setPersonaSummary({
+      dominantAxis,
+      dominantDirectionLabel,
+      colorACss: reduceAuraMotion ? SYS.TEXT_MUTED : auraChannelToCss(auraVector.colorA),
+      colorBCss: reduceAuraMotion ? SYS.TEXT_MUTED : auraChannelToCss(auraVector.colorB),
+      enneagramType: type,
+      storyTitle: dominantStory?.title ?? null,
+    });
 
     setPersonaMatrix({
       enneagramType: type,
@@ -162,11 +209,33 @@ export default function GenesisV21Screen() {
       {finishing ? (
         <Text style={styles.desc}>결과를 계산하는 중...</Text>
       ) : (
-        finished && (
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleFinish}>
-            <Text style={styles.primaryBtnText}>시작하기</Text>
-          </TouchableOpacity>
+        finished &&
+        personaSummary && (
+          <Animated.View entering={FadeIn.duration(800)} style={styles.summaryContent}>
+            <View style={styles.auraPreview}>
+              <View style={[styles.auraGlow, styles.auraGlowA, { backgroundColor: personaSummary.colorACss }]} />
+              <View style={[styles.auraGlow, styles.auraGlowB, { backgroundColor: personaSummary.colorBCss }]} />
+              <LinearGradient
+                colors={[personaSummary.colorACss, personaSummary.colorBCss]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.auraPreviewGradient}
+              />
+              <Text style={styles.auraPreviewEmoji}>🪞</Text>
+            </View>
+            <Text style={styles.summaryAxis}>당신의 핵심 성향: {AXIS_LABEL_KO[personaSummary.dominantAxis]}</Text>
+            <Text style={styles.summaryType}>
+              에니어그램 {personaSummary.enneagramType}유형 · {ENNEAGRAM_TYPE_NAME[personaSummary.enneagramType]}
+            </Text>
+            <Text style={styles.summaryDirection}>당신은 {personaSummary.dominantDirectionLabel} 성향이에요</Text>
+            {personaSummary.storyTitle && <Text style={styles.summaryStory}>✨ {personaSummary.storyTitle}</Text>}
+          </Animated.View>
         )
+      )}
+      {finished && (
+        <TouchableOpacity style={styles.primaryBtn} onPress={handleFinish}>
+          <Text style={styles.primaryBtnText}>시작하기</Text>
+        </TouchableOpacity>
       )}
     </ScrollView>
   );
@@ -199,6 +268,63 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FCA5A5',
     textAlign: 'center',
+  },
+  summaryContent: {
+    alignItems: 'center',
+    gap: 18,
+  },
+  auraPreview: {
+    width: 130,
+    height: 130,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  auraPreviewGradient: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+  },
+  auraGlow: {
+    position: 'absolute',
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    opacity: 0.55,
+  },
+  auraGlowA: {
+    top: -16,
+    left: -16,
+  },
+  auraGlowB: {
+    bottom: -16,
+    right: -16,
+  },
+  auraPreviewEmoji: {
+    fontSize: 52,
+  },
+  summaryAxis: {
+    fontSize: 15,
+    color: '#5A6480',
+    textAlign: 'center',
+  },
+  summaryType: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#E8E4DC',
+    textAlign: 'center',
+  },
+  summaryDirection: {
+    fontSize: 15,
+    color: '#E8E4DC',
+    textAlign: 'center',
+  },
+  summaryStory: {
+    fontSize: 13,
+    color: '#5A6480',
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 20,
   },
   primaryBtn: {
     backgroundColor: '#FFA4A4',

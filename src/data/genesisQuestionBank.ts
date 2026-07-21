@@ -300,9 +300,9 @@ export function getRomanticQuestions(type: EnneagramType, mix: RomanticMix, tota
 
 /**
  * 자유 발화/타이핑 텍스트를 질문의 답변 archetype에 매칭한다.
- * 키워드 겹침 점수가 가장 높은 archetype을 선택하고, 매칭이 전혀 없으면
- * (STT 왜곡 등으로 키워드가 안 잡힌 경우) 첫 번째 archetype으로 안전 폴백한다 —
- * 곧이어 트윈이 되짚는 confirm 단계에서 사용자가 직접 정정할 수 있다.
+ * 키워드 겹침 점수가 가장 높은 archetype을 선택한다. 매칭이 전혀 없으면
+ * ("잘 모르겠어요" 같은 저신뢰 답변, STT 왜곡 등) null을 반환해 호출부가
+ * 확정 해석 대신 재질문/명확화를 시도하도록 한다.
  */
 export function matchArchetype(question: GenesisQuestion, transcript: string) {
   if (!question.archetypes || question.archetypes.length === 0) {
@@ -324,5 +324,6 @@ export function matchArchetype(question: GenesisQuestion, transcript: string) {
       best = archetype;
     }
   }
+  if (bestScore === 0) return null;
   return best;
 }

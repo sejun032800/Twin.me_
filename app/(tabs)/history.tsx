@@ -799,7 +799,7 @@ export default function History() {
 
   function handleFabSelect(action: 'ai-recommend' | 'add-place' | 'add-photo-course') {
     if (action === 'ai-recommend') {
-      router.push('/(modals)/date-recommend-setup');
+      router.push({ pathname: '/(modals)/date-recommend-setup', params: { entry: 'fab' } });
     } else if (action === 'add-place') {
       setAddPlaceVisible(true);
     } else {

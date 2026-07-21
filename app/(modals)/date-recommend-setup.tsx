@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
@@ -52,6 +52,7 @@ export default function DateRecommendSetupScreen() {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const router = useRouter();
+  const params = useLocalSearchParams<{ entry?: string }>();
   const featureEnabled = useFeatureAiDateRecommend();
   const coupleId = useCoupleStore((s) => s.coupleId);
   const setPendingOotdUploadTrigger = useSessionStore((s) => s.setPendingOotdUploadTrigger);
@@ -71,6 +72,15 @@ export default function DateRecommendSetupScreen() {
   useEffect(() => {
     if (!featureEnabled) router.back();
   }, [featureEnabled, router]);
+
+  // 안드로이드 콜드스타트 시 history.tsx FAB 클릭(entry='fab' 파라미터 동반) 없이
+  // 이 모달이 정상 스택 히스토리 없이 단독 마운트되는 사례 방어. 이 경우 back()은
+  // 갈 곳이 없어 'GO_BACK not handled'를 내므로 홈으로 replace한다.
+  useEffect(() => {
+    if (params.entry !== 'fab') {
+      router.replace('/(tabs)');
+    }
+  }, [params.entry, router]);
 
   useEffect(() => {
     let cancelled = false;

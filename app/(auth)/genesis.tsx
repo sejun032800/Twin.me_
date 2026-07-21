@@ -4,7 +4,18 @@
 // genesis 화면은 아우라/테마 생성 이전 온보딩 단계이므로 항상-다크 고정.
 
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  ScrollView,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Keyboard,
+  Platform,
+} from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -162,35 +173,43 @@ export default function Genesis() {
 
         {/* G.4 무음 폴백 — 텍스트 입력 UI */}
         {inputMode === 'typing' && (
-          <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progress}%` }]} />
-            </View>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+              <ScrollView
+                style={styles.container}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                </View>
 
-            <Text style={styles.clayEmoji}>{CLAY_EMOJI[dynamicClayStage]}</Text>
-            <Text style={styles.actLabel}>{ACT_LABEL[act]}</Text>
+                <Text style={styles.clayEmoji}>{CLAY_EMOJI[dynamicClayStage]}</Text>
+                <Text style={styles.actLabel}>{ACT_LABEL[act]}</Text>
 
-            <Text style={styles.questionText}>{currentQuestion?.prompt ?? ''}</Text>
+                <Text style={styles.questionText}>{currentQuestion?.prompt ?? ''}</Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="답변을 입력하세요"
-              placeholderTextColor={SYS.TEXT_MUTED}
-              value={inputText}
-              onChangeText={setInputText}
-            />
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleSubmit}>
-              <Text style={styles.primaryBtnText}>제출</Text>
-            </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  placeholder="답변을 입력하세요"
+                  placeholderTextColor={SYS.TEXT_MUTED}
+                  value={inputText}
+                  onChangeText={setInputText}
+                />
+                <TouchableOpacity style={styles.primaryBtn} onPress={handleSubmit}>
+                  <Text style={styles.primaryBtnText}>제출</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity onPress={switchToVoice}>
-              <Text style={styles.linkText}>🎙️ 음성으로 답할게요</Text>
-            </TouchableOpacity>
-          </ScrollView>
+                <TouchableOpacity onPress={switchToVoice}>
+                  <Text style={styles.linkText}>🎙️ 음성으로 답할게요</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </TouchableWithoutFeedback>
         )}
       </>
     );
