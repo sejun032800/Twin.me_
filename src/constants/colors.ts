@@ -9,14 +9,16 @@ export const BRAND = {
   CORAL_DEEP:  '#E07A82',   // 프레스 상태, 선택된 탭
 } as const;
 
-// ── 6sigma 모드 전용 글래스모피즘 accent (STEP 11-3) ─────────────────────────
+// ── 6sigma 모드 전용 글래스모피즘 accent (v2.8 — 오키드→틸-시안 재배치, MASTER §1.3/§1.7) ──
 // light/dark 모드와는 무관 — themeMode==='sigma'일 때만 쓰는 src/components/glass/*
-// 컴포넌트 전용 색이다. DEFAULT는 rgb(226,120,226)로 분해되며, glass 컴포넌트들이
-// 이 값을 알파 블렌딩해 틴트/테두리를 만든다.
+// 컴포넌트 전용 색이다. 그룹 B(Outer Rhythm)가 보라 계열(hue 255°~300°)로 이동하면서
+// 기존 오키드(hue 300°)와 겹치게 돼, 그룹 B가 비운 틸-시안(hue ~175°~190°)으로 재배치했다.
 export const SIGMA_ACCENT = {
-  DEFAULT: '#E278E2',
-  PRESSED: '#D345D3', // GlassButton 눌림 상태 테두리
-  RING:    '#EB84E2', // GlassRing 진행률 아크
+  DEFAULT: '#5FD4C8',
+  PRESSED: '#3FB3A6', // GlassButton 눌림 상태 테두리
+  ON_ACCENT_TEXT: '#1A1A1A', // SYS.TEXT_DARK
+  RING: '#7AE0D6', // GlassRing 진행률 아크
+  RING_NUMERAL: '#F8F9FA', // 일치율 숫자 (모드 무관 고정)
 } as const;
 
 // ── Layer 1: 배경 & 시스템 컬러 ───────────────────────────────────────────────
@@ -38,21 +40,27 @@ export const MODAL_BACKDROP_LIGHT = 'rgba(0,0,0,0.5)';
 export const MODAL_BACKDROP = 'rgba(0,0,0,0.6)';
 export const MODAL_BACKDROP_HEAVY = 'rgba(0,0,0,0.8)';
 
-// ── Layer 2: 오라 시스템 (v2.7) — 그룹별 RGB 채널 range 상수만 노출, 실제 합성은 auraEngine이 계산 ──
+// ── Layer 2: 오라 시스템 (v2.8) — 여름밤 노을, 그룹별 RGB 채널 range 상수만 노출, 실제 합성은 auraEngine이 계산 ──
 export const AURA_GROUP_A_CHANNELS = {
-  // Inner Warmth — expressiveness/attachmentSecurity/trustPace → R/G/B
-  R: { base: 230, coeff: 35, min: 190, max: 255 }, // expressiveness
-  G: { base: 150, coeff: 70, min: 90,  max: 220 }, // attachmentSecurity
-  B: { base: 140, coeff: 30, min: 105, max: 170 }, // trustPace
+  // Inner Warmth — 지평선 노을. expressiveness/attachmentSecurity/trustPace → R/G/B
+  R: { base: 150, coeff: 35, min: 115, max: 185 }, // expressiveness
+  G: { base: 70,  coeff: 35, min: 40,  max: 105 }, // attachmentSecurity
+  B: { base: 55,  coeff: 18, min: 38,  max: 73  }, // trustPace
   hueSafety: [-15, 50] as const, // 로즈·코랄·골드 대역 밖으로 탈출 금지
 } as const;
 
 export const AURA_GROUP_B_CHANNELS = {
-  // Outer Rhythm — conflictResponse/spontaneity/independence → R/G/B
-  R: { base: 145, coeff: 15, min: 130, max: 160 }, // conflictResponse
-  G: { base: 190, coeff: 45, min: 145, max: 235 }, // spontaneity
-  B: { base: 210, coeff: 45, min: 165, max: 255 }, // independence
-  hueSafety: [155, 260] as const, // 틸·스카이블루·바이올렛 대역 밖으로 탈출 금지
+  // Outer Rhythm — 어두운 밤하늘(보라 계열). conflictResponse/spontaneity/independence → R/G/B
+  R: { base: 28, coeff: 10, min: 18, max: 38  }, // conflictResponse
+  G: { base: 40, coeff: 22, min: 18, max: 62  }, // spontaneity
+  B: { base: 78, coeff: 35, min: 43, max: 113 }, // independence
+  hueSafety: [255, 300] as const, // 딥블루·보라·마젠타 대역 밖으로 탈출 금지 (v2.8 변경 — 기존 155~260 틸~바이올렛에서 이동)
+} as const;
+
+// ── 고정 하늘 그라데이션 앵커 (사진 픽셀 샘플링 기반, 성향과 무관하게 고정, v2.8 신규) ──
+export const DUSK_SKY_ANCHOR = {
+  HORIZON_PURPLE: '#663479', // 지평선 근처(그룹 B 하단, 곡선 경계 바로 위), hue 283° L34%
+  ZENITH_BLACK_PURPLE: '#180E20', // 천정(화면 최상단), hue 272° L9%
 } as const;
 
 // ── 그라데이션 (시그니처 요소 전용) ────────────────────────────────────────────

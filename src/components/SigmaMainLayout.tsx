@@ -10,6 +10,7 @@ import { Pressable, View, Text, ScrollView, StyleSheet, ActivityIndicator } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AuraDuskGradient from '@/components/AuraDuskGradient';
+import ShootingStarField from '@/components/ShootingStarField';
 import ClayTwinAvatar from '@/components/ClayTwinAvatar';
 import CircularGauge from '@/components/CircularGauge';
 import AICoachingCard from '@/components/AICoachingCard';
@@ -90,6 +91,9 @@ export default function SigmaMainLayout({
           opacity={typeof heroOpacity === 'number' ? heroOpacity : 0}
           reduceMotion={reduceAuraMotion}
         />
+        {/* FUN-HOM-004 — 별똥별. AuraDuskGradient와 같은 레이어(그 위), 메인 탭 히어로에서만.
+            SigmaMainLayout 자체가 이미 themeMode==='sigma' 전용이라 별도 분기가 필요 없다. */}
+        <ShootingStarField />
         <View style={styles.heroContent}>
           <View style={styles.headerTextGroup}>
             <Text style={[styles.headerName, heroTextShadow]}>{name ?? '안녕하세요'}</Text>

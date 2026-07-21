@@ -22,6 +22,8 @@ import { useCrisisIntelligence, type CrisisMessage } from '@/hooks/useCrisisInte
 import { useSigmaAuraOpacity } from '@/hooks/useTheme';
 import { callLLMStream } from '@/api/llm';
 import AuraDuskGradient from '@/components/AuraDuskGradient';
+import GlassPanel from '@/components/glass/GlassPanel';
+import GlassButton from '@/components/glass/GlassButton';
 import MagicMirrorModal from '@/components/MagicMirrorModal';
 import MuseSheet from '@/components/MuseSheet';
 import FeedbackSheet from '@/components/FeedbackSheet';
@@ -66,6 +68,7 @@ export default function Chat() {
   const setPendingChatMessage = useSessionStore((s) => s.setPendingChatMessage);
   const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
   const themeMode = useSessionStore((s) => s.themeMode);
+  const isSigma = themeMode === 'sigma';
   const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
   const styles = useMemo(() => makeStyles(theme, themeMode), [theme, themeMode]);
 
@@ -450,29 +453,56 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
             연인방이 열리고 일치율도 더 정확해져요
           </Text>
 
-          {/* 초대 코드 표시 */}
+          {/* 초대 코드 표시 — sigma에서는 GlassPanel(카드 안에 카드 방지를 위해 loverCodeCard
+              자체 배경은 makeStyles에서 투명 처리). */}
           {inviteCode ? (
-            <View style={styles.loverCodeCard}>
-              <Text style={styles.loverCodeLabel}>내 초대 코드</Text>
-              <Text style={styles.loverCodeValue}>{inviteCode}</Text>
-            </View>
+            isSigma ? (
+              <GlassPanel style={{ width: '100%', borderRadius: 14 }}>
+                <View style={styles.loverCodeCard}>
+                  <Text style={styles.loverCodeLabel}>내 초대 코드</Text>
+                  <Text style={styles.loverCodeValue}>{inviteCode}</Text>
+                </View>
+              </GlassPanel>
+            ) : (
+              <View style={styles.loverCodeCard}>
+                <Text style={styles.loverCodeLabel}>내 초대 코드</Text>
+                <Text style={styles.loverCodeValue}>{inviteCode}</Text>
+              </View>
+            )
           ) : null}
 
           {/* 공유 버튼 */}
-          <TouchableOpacity
-            style={styles.loverShareBtn}
-            onPress={async () => {
-              const code = inviteCode ?? '설정에서 확인';
-              await Share.share({
-                message:
-                  `나 Twin.me 써보고 있는데 같이 해볼래? 🧬\n` +
-                  `초대 코드: ${code}\n` +
-                  `Twin.me 설치 후 설정 → 커플 연동 → 코드 입력해줘 💌`,
-              });
-            }}
-          >
-            <Text style={styles.loverShareBtnText}>💌 연인에게 보내기</Text>
-          </TouchableOpacity>
+          {isSigma ? (
+            <GlassButton
+              style={styles.loverShareBtnGlass}
+              onPress={async () => {
+                const code = inviteCode ?? '설정에서 확인';
+                await Share.share({
+                  message:
+                    `나 Twin.me 써보고 있는데 같이 해볼래? 🧬\n` +
+                    `초대 코드: ${code}\n` +
+                    `Twin.me 설치 후 설정 → 커플 연동 → 코드 입력해줘 💌`,
+                });
+              }}
+            >
+              <Text style={styles.loverShareBtnText}>💌 연인에게 보내기</Text>
+            </GlassButton>
+          ) : (
+            <TouchableOpacity
+              style={styles.loverShareBtn}
+              onPress={async () => {
+                const code = inviteCode ?? '설정에서 확인';
+                await Share.share({
+                  message:
+                    `나 Twin.me 써보고 있는데 같이 해볼래? 🧬\n` +
+                    `초대 코드: ${code}\n` +
+                    `Twin.me 설치 후 설정 → 커플 연동 → 코드 입력해줘 💌`,
+                });
+              }}
+            >
+              <Text style={styles.loverShareBtnText}>💌 연인에게 보내기</Text>
+            </TouchableOpacity>
+          )}
 
           {/* 설정으로 이동 */}
           <TouchableOpacity
@@ -498,8 +528,8 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
 
   function renderReportSection() {
     if (lastReport) {
-      return (
-        <View style={styles.reportCard}>
+      const content = (
+        <>
           <Text style={styles.reportTitle}>📊 주간 연애 리포트</Text>
           <Text style={styles.reportPeriod}>{lastReport.weekStart} ~ {lastReport.weekEnd}</Text>
           <View style={styles.reportStats}>
@@ -516,24 +546,48 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
           {lastReport.fullAnalysis && (
             <Text style={styles.reportFull}>{lastReport.fullAnalysis}</Text>
           )}
-        </View>
+        </>
+      );
+      // sigma에서는 GlassPanel(margin/radius만 지닌 얇은 외곽 래퍼)이 카드 레이어를 맡고,
+      // reportCard(내부 padding, 투명 배경)는 콘텐츠 레이아웃만 담당한다 — GlassPanel에
+      // padding까지 넘기면 블러 표면 자체가 줄어드는 문제를 피하기 위함.
+      return isSigma ? (
+        <GlassPanel style={{ margin: 8, borderRadius: 16 }}>
+          <View style={styles.reportCard}>{content}</View>
+        </GlassPanel>
+      ) : (
+        <View style={styles.reportCard}>{content}</View>
       );
     }
 
     return (
       <View style={styles.reportEmptyState}>
         <Text style={styles.placeholderText}>아직 이번 주 리포트가 없어요</Text>
-        <TouchableOpacity
-          style={styles.primaryReportBtn}
-          onPress={handleGenerateReport}
-          disabled={reportLoading}
-        >
-          {reportLoading ? (
-            <ActivityIndicator color={SYS.TEXT_LIGHT} />
-          ) : (
-            <Text style={styles.primaryReportBtnText}>리포트 생성하기</Text>
-          )}
-        </TouchableOpacity>
+        {isSigma ? (
+          <GlassButton
+            style={styles.primaryReportBtnGlass}
+            onPress={handleGenerateReport}
+            disabled={reportLoading}
+          >
+            {reportLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryReportBtnText}>리포트 생성하기</Text>
+            )}
+          </GlassButton>
+        ) : (
+          <TouchableOpacity
+            style={styles.primaryReportBtn}
+            onPress={handleGenerateReport}
+            disabled={reportLoading}
+          >
+            {reportLoading ? (
+              <ActivityIndicator color={SYS.TEXT_LIGHT} />
+            ) : (
+              <Text style={styles.primaryReportBtnText}>리포트 생성하기</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -542,8 +596,8 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
     if (!coachingReport) return null;
     const { weekSummary, strengthPoints, growthPoints, thisWeekChallenge } = coachingReport;
 
-    return (
-      <View style={styles.coachingCard}>
+    const content = (
+      <>
         <Text style={styles.coachingTitle}>🎯 이번 주 코칭</Text>
         <Text style={styles.reportSummary}>{weekSummary}</Text>
 
@@ -561,7 +615,17 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
           <Text style={styles.challengeTitle}>✅ 이번 주 실천 과제</Text>
           <Text style={styles.challengeText}>{thisWeekChallenge}</Text>
         </View>
-      </View>
+      </>
+    );
+
+    // sigma에서는 GlassPanel(margin/radius만 지닌 얇은 외곽 래퍼)이 카드 레이어를 맡고,
+    // coachingCard(내부 padding, 투명 배경)는 콘텐츠 레이아웃만 담당한다.
+    return isSigma ? (
+      <GlassPanel style={{ margin: 8, borderRadius: 16 }}>
+        <View style={styles.coachingCard}>{content}</View>
+      </GlassPanel>
+    ) : (
+      <View style={styles.coachingCard}>{content}</View>
     );
   }
 
@@ -623,31 +687,57 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
   function renderRoomList() {
     return (
       <ScrollView bounces={true} alwaysBounceVertical={true}>
-        {ROOMS.map((room) => (
-          <TouchableOpacity
-            key={room.key}
-            style={[styles.dmItem, { backgroundColor: room.cardBg }]}
-            onPress={() => !room.locked && setActiveChatRoom(room.key)}
-            activeOpacity={room.locked ? 1 : 0.7}
-          >
-            <View style={[styles.dmAvatar, { backgroundColor: room.color + '40' }]}>
-              <Text style={styles.dmAvatarText}>{room.icon}</Text>
-              {!room.locked && <View style={[styles.dmOnlineDot, { backgroundColor: room.color }]} />}
-            </View>
-
-            <View style={styles.dmContent}>
-              <View style={styles.dmTop}>
-                <Text style={[styles.dmName, room.locked && { color: theme.textMuted }]}>
-                  {room.label}
-                </Text>
-                {room.locked && <Text style={styles.dmTime}>초대 필요</Text>}
+        {ROOMS.map((room) => {
+          const inner = (
+            <>
+              <View style={[styles.dmAvatar, { backgroundColor: room.color + '40' }]}>
+                <Text style={styles.dmAvatarText}>{room.icon}</Text>
+                {!room.locked && <View style={[styles.dmOnlineDot, { backgroundColor: room.color }]} />}
               </View>
-              <Text style={[styles.dmPreview, room.locked && { color: theme.textMuted }]} numberOfLines={1}>
-                {room.subtitle}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+
+              <View style={styles.dmContent}>
+                <View style={styles.dmTop}>
+                  <Text style={[styles.dmName, isSigma && styles.dmNameSigma, room.locked && { color: theme.textMuted }]}>
+                    {room.label}
+                  </Text>
+                  {room.locked && <Text style={styles.dmTime}>초대 필요</Text>}
+                </View>
+                <Text
+                  style={[styles.dmPreview, isSigma && styles.dmPreviewSigma, room.locked && { color: theme.textMuted }]}
+                  numberOfLines={1}
+                >
+                  {room.subtitle}
+                </Text>
+              </View>
+            </>
+          );
+
+          // UIredesign_v2.md §6-Sigma 각주 — 룸 카드 3개(연인방/트윈방/분석가방)의 flat
+          // tint 배경(Pink/Mint/Coral)은 sigma에서 GlassPanel로 대체된다("이중 카드" 방지를
+          // 위해 room.cardBg 틴트는 sigma에서 전달하지 않는다). GlassPanel은 margin/radius만
+          // 지닌 얇은 외곽 래퍼이고, 실제 padding/레이아웃은 안쪽 TouchableOpacity(dmItemInner)가
+          // 맡는다 — GlassPanel에 padding까지 넘기면 블러 표면 자체가 줄어드는 문제를 피한다.
+          return isSigma ? (
+            <GlassPanel key={room.key} style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 16 }}>
+              <TouchableOpacity
+                style={styles.dmItemInner}
+                onPress={() => !room.locked && setActiveChatRoom(room.key)}
+                activeOpacity={room.locked ? 1 : 0.7}
+              >
+                {inner}
+              </TouchableOpacity>
+            </GlassPanel>
+          ) : (
+            <TouchableOpacity
+              key={room.key}
+              style={[styles.dmItem, { backgroundColor: room.cardBg }]}
+              onPress={() => !room.locked && setActiveChatRoom(room.key)}
+              activeOpacity={room.locked ? 1 : 0.7}
+            >
+              {inner}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     );
   }
@@ -726,28 +816,48 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
 
             {currentRoom === 'analyst' && (
               <View style={styles.analystBtnRow}>
-                <TouchableOpacity
-                  style={[styles.generateReportBtn, styles.analystBtnFlex]}
-                  onPress={handleGenerateReport}
-                  disabled={reportLoading}
-                >
-                  {reportLoading ? (
-                    <ActivityIndicator color={BRAND.CORAL} />
-                  ) : (
-                    <Text style={styles.generateReportBtnText}>이번 주 리포트 생성</Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.generateReportBtn, styles.analystBtnFlex]}
-                  onPress={handleGenerateCoaching}
-                  disabled={coachingLoading}
-                >
-                  {coachingLoading ? (
-                    <ActivityIndicator color={BRAND.CORAL} />
-                  ) : (
-                    <Text style={styles.generateReportBtnText}>이번 주 코칭 받기</Text>
-                  )}
-                </TouchableOpacity>
+                {isSigma ? (
+                  <GlassButton style={styles.analystBtnFlex} onPress={handleGenerateReport} disabled={reportLoading}>
+                    {reportLoading ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.generateReportBtnText}>이번 주 리포트 생성</Text>
+                    )}
+                  </GlassButton>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.generateReportBtn, styles.analystBtnFlex]}
+                    onPress={handleGenerateReport}
+                    disabled={reportLoading}
+                  >
+                    {reportLoading ? (
+                      <ActivityIndicator color={BRAND.CORAL} />
+                    ) : (
+                      <Text style={styles.generateReportBtnText}>이번 주 리포트 생성</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+                {isSigma ? (
+                  <GlassButton style={styles.analystBtnFlex} onPress={handleGenerateCoaching} disabled={coachingLoading}>
+                    {coachingLoading ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.generateReportBtnText}>이번 주 코칭 받기</Text>
+                    )}
+                  </GlassButton>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.generateReportBtn, styles.analystBtnFlex]}
+                    onPress={handleGenerateCoaching}
+                    disabled={coachingLoading}
+                  >
+                    {coachingLoading ? (
+                      <ActivityIndicator color={BRAND.CORAL} />
+                    ) : (
+                      <Text style={styles.generateReportBtnText}>이번 주 코칭 받기</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
@@ -855,6 +965,15 @@ ${name ?? '사용자'}의 말투와 성격을 그대로 흉내 내서 대화해.
 }
 
 function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
+  const isSigma = themeMode === 'sigma';
+  // GlassPanel/GlassButton은 계속 움직이는 오라 위에 반투명하게 얹히므로, 그 위의 텍스트는
+  // 고정 테마색 대신 흰색 고정 + textShadow 조합으로 가독성을 보장한다(SigmaMainLayout/
+  // PartnerStatusBar와 동일 관례).
+  const sigmaTextShadow = isSigma ? {
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  } : null;
   return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: theme.bg },
   // sigma에서만 투명 — 뒤에 깔리는 AuraDuskGradient가 비쳐 보이게 한다. light/dark는
@@ -923,6 +1042,18 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
     borderRadius: 16,
     gap: 14,
   },
+  // sigma 전용 — GlassPanel(카드 안에 카드 방지를 위한 얇은 외곽 래퍼)이 margin/radius를,
+  // 이 스타일(dmItem에서 margin만 뺀 버전)이 내부 콘텐츠 padding/레이아웃을 담당한다.
+  // GlassPanel에 padding까지 있는 스타일을 그대로 넘기면 블러 표면 자체가 안으로
+  // 줄어들어(그 안의 텍스트는 여백 없이 유리 테두리에 바싹 붙어 보임) 이렇게 분리한다.
+  dmItemInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 14,
+  },
   dmAvatar: {
     width: 52,
     height: 52,
@@ -945,8 +1076,10 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
   dmContent: { flex: 1, gap: 4 },
   dmTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dmName: { fontSize: 15, fontWeight: '600', color: theme.text },
+  dmNameSigma: { color: '#FFFFFF', ...sigmaTextShadow },
   dmTime: { ...TYPOGRAPHY.caption, color: theme.textMuted },
   dmPreview: { fontSize: 12, color: theme.textMuted, marginTop: 2 },
+  dmPreviewSigma: { color: '#FFFFFF', ...sigmaTextShadow },
 
   // 룸 안 채팅 화면 헤더 (뒤로가기 + 룸 아바타/이름)
   chatHeader: {
@@ -1009,27 +1142,33 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
     textAlign: 'center',
     lineHeight: 22,
   },
+  // sigma에서는 이 배경을 뚫어서, GlassPanel(블러+테두리)이 유일한 카드 레이어가 되게 한다
+  // ("카드 안에 카드" 이중 레이어 방지 — GlassPanel은 전달받은 style의 borderRadius를
+  // 그대로 채택하므로 이 스타일 객체를 그대로 재사용해도 모양이 어긋나지 않는다).
   loverCodeCard: {
-    backgroundColor: theme.card,
+    backgroundColor: isSigma ? 'transparent' : theme.card,
     borderRadius: 14,
     paddingVertical: 16,
     paddingHorizontal: 28,
     alignItems: 'center',
     gap: 6,
-    borderWidth: 0.5,
+    borderWidth: isSigma ? 0 : 0.5,
     borderColor: 'rgba(255, 189, 189, 0.20)',
     width: '100%',
   },
   loverCodeLabel: {
     fontSize: 11,
-    color: theme.textMuted,
+    color: isSigma ? '#FFFFFF' : theme.textMuted,
     letterSpacing: 1,
+    ...sigmaTextShadow,
   },
   loverCodeValue: {
     fontSize: 24,
     fontWeight: '900',
-    color: BRAND.PINK,
+    // PINK는 아우라의 웜톤 그룹과 색상대가 겹칠 수 있어 sigma에서는 흰색+textShadow로 대체.
+    color: isSigma ? '#FFFFFF' : BRAND.PINK,
     letterSpacing: 4,
+    ...sigmaTextShadow,
   },
   loverShareBtn: {
     backgroundColor: BRAND.PINK,
@@ -1038,10 +1177,16 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
     alignItems: 'center',
     width: '100%',
   },
+  // GlassButton은 자체 borderRadius(22)/padding을 쓰므로, 전달하는 style은 레이아웃 속성만
+  // 남긴다(backgroundColor/borderRadius/paddingVertical을 넘기면 모양이 어긋난다).
+  loverShareBtnGlass: {
+    width: '100%',
+  },
   loverShareBtnText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+    ...sigmaTextShadow,
   },
   loverSettingsBtn: {
     paddingVertical: 8,
@@ -1054,7 +1199,7 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
 
   // 분석가 룸 — 주간 리포트(§6)
   reportSection: { maxHeight: 320 },
-  reportCard: { backgroundColor: theme.card, borderRadius: 16, padding: 16, gap: 8, margin: 8 },
+  reportCard: { backgroundColor: isSigma ? 'transparent' : theme.card, borderRadius: 16, padding: 16, gap: 8, margin: 8 },
   reportTitle: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
   reportPeriod: { ...TYPOGRAPHY.caption, color: theme.textMuted },
   reportStats: { flexDirection: 'row', gap: 12 },
@@ -1071,7 +1216,9 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
     paddingHorizontal: 20,
     alignItems: 'center',
   },
-  primaryReportBtnText: { ...TYPOGRAPHY.button, color: SYS.TEXT_LIGHT },
+  // GlassButton은 자체 borderRadius/padding을 쓰므로 레이아웃 속성만 남긴다.
+  primaryReportBtnGlass: {},
+  primaryReportBtnText: { ...TYPOGRAPHY.button, color: isSigma ? '#FFFFFF' : SYS.TEXT_LIGHT, ...sigmaTextShadow },
   analystBtnRow: {
     flexDirection: 'row',
     gap: 8,
@@ -1091,14 +1238,16 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode) {
     paddingVertical: 10,
     alignItems: 'center',
   },
-  generateReportBtnText: { ...TYPOGRAPHY.label, color: BRAND.CORAL },
+  generateReportBtnText: { ...TYPOGRAPHY.label, color: isSigma ? '#FFFFFF' : BRAND.CORAL, ...sigmaTextShadow },
 
-  coachingCard: { backgroundColor: theme.card, borderRadius: 16, padding: 16, gap: 10, margin: 8 },
+  coachingCard: { backgroundColor: isSigma ? 'transparent' : theme.card, borderRadius: 16, padding: 16, gap: 10, margin: 8 },
   coachingTitle: { ...TYPOGRAPHY.bodyMedium, color: theme.text },
-  coachingSection: { ...TYPOGRAPHY.label, color: theme.accent, marginTop: 4 },
+  // theme.accent는 오라 벡터마다 임의의 hue를 가져(§1.3) 배경(같은 오라 색 계열)과
+  // 대비가 보장되지 않으므로, sigma에서는 GlassButton과 동일하게 흰색+textShadow로 고정.
+  coachingSection: { ...TYPOGRAPHY.label, color: isSigma ? '#FFFFFF' : theme.accent, marginTop: 4, ...sigmaTextShadow },
   coachingItem: { ...TYPOGRAPHY.body, color: theme.text, paddingLeft: 8 },
-  challengeBox: { backgroundColor: theme.accentSoft, borderRadius: 12, padding: 12, gap: 6 },
-  challengeTitle: { ...TYPOGRAPHY.label, color: theme.accent },
+  challengeBox: { backgroundColor: isSigma ? 'rgba(255,255,255,0.10)' : theme.accentSoft, borderRadius: 12, padding: 12, gap: 6 },
+  challengeTitle: { ...TYPOGRAPHY.label, color: isSigma ? '#FFFFFF' : theme.accent, ...sigmaTextShadow },
   challengeText: { ...TYPOGRAPHY.body, color: theme.text },
 
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12, paddingHorizontal: 16, gap: 8 },

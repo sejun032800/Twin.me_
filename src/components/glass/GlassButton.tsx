@@ -14,8 +14,18 @@ import { SIGMA_ACCENT } from '@/constants/colors';
 const DEFAULT_INTENSITY = 35;
 const BORDER_RADIUS = 22;
 
-// SIGMA_ACCENT.DEFAULT(#E278E2) → rgb(226,120,226) 분해값. 상태별로 알파만 바꿔 쓴다.
-const TINT_RGB = '226,120,226';
+// SIGMA_ACCENT.DEFAULT를 "r,g,b" 문자열로 분해 — 상태별로 알파만 바꿔 rgba()에 꽂아 쓴다.
+// 하드코딩된 분해값을 직접 유지하지 않고 상수에서 매번 파생시켜, colors.ts의 팔레트가
+// 바뀌어도 이 파일을 따로 손보지 않게 한다.
+function hexToRgbString(hex: string): string {
+  const value = hex.replace('#', '');
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return `${r},${g},${b}`;
+}
+
+const TINT_RGB = hexToRgbString(SIGMA_ACCENT.DEFAULT);
 const TINT_DEFAULT = `rgba(${TINT_RGB},0.16)`;
 const TINT_PRESSED = `rgba(${TINT_RGB},0.26)`;
 const BORDER_DEFAULT = `rgba(${TINT_RGB},0.4)`;

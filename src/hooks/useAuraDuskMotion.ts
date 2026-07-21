@@ -1,204 +1,70 @@
-// ─── useAuraDuskMotion — 오라 노을 경계선 모션 상태 훅 (렌더링 로직 없음) ──────────
-// 하루 중 태양의 위치(일출/태양남중/일몰/태양자정)를 4개 앵커로 삼아
-// "경계선 부채꼴 반각(span/2)"과 "경계선 각도 목표치"를 계산해 반환한다.
-// 실제 화면 보간(프레임 단위 애니메이션)은 다음 단계에서 Reanimated의
-// useAnimatedStyle/withTiming이 이 훅의 반환값(목표 각도 + duration)을 받아 처리한다.
-//
-// 레이어 구성:
-//   레이어 1+2 — t(-1~1) 상태 머신: 낮(0~1)/밤(-1~0) 구간에서 랜덤 목표를 뽑고
-//                고정 속도(180초에 전체 구간 -1~1을 주파)로 이동, 도달 시 재추출.
-//   레이어 3   — span(부채꼴 전체 폭, SPAN_MIN~SPAN_MAX): 4개 태양 앵커 사이를
-//                코사인 이징으로 보간, 1분 간격으로만 재계산(고빈도 갱신 불필요).
+// ─── useAuraDuskMotion — 오라 노을 수평선 "숨쉬기" 모션 상태 훅 (렌더링 로직 없음) ──
+// v2.8(MASTER.md §1.3): 일출/일몰 실시간 연동(하루 리듬)은 완전히 폐기하고, 항상
+// "저녁 7~9시" 무드로 고정한다. 대신 화면 세로 45%~65% 밴드 안에서 수평선 높이가
+// 3분(180초) 주기로 랜덤 목표 지점을 향해 부드럽게 오르내리는 숨쉬기 메커니즘만
+// v2.7과 동일하게 유지한다. 실제 화면 보간(프레임 단위 애니메이션)은 다음 단계에서
+// Reanimated의 useAnimatedStyle/withTiming이 이 훅의 반환값(목표 t + duration)을 받아
+// 처리한다.
 
 import { useEffect, useRef, useState } from 'react';
-import * as SunCalc from 'suncalc';
 
-// 위치: 대전 — 추후 위치 권한 연동 시 이 상수만 교체하면 된다.
-export const SUNCALC_LOCATION = { latitude: 36.3504, longitude: 127.3845 } as const;
+// 수평선 높이 밴드 — 화면 세로 기준 비율(0~1). MASTER §1.3: "화면 세로 45%~65% 사이
+// 밴드에서 수평선 높이가 결정".
+export const HORIZON_T_MIN = 0.45;
+export const HORIZON_T_MAX = 0.65;
+const HORIZON_T_MID = (HORIZON_T_MIN + HORIZON_T_MAX) / 2;
 
-// 레이어 3 — span(부채꼴 전체 폭) 범위.
-export const SPAN_MIN = 3;
-export const SPAN_MAX = 10;
-
-// 레이어 1+2 — t 이동 속도: 전체 구간(-1~1, 거리 2)을 180초에 주파.
+// 숨쉬기 이동 속도: 밴드 전체 폭을 180초에 주파(v2.7과 동일 주기 유지).
 export const T_TRAVERSAL_SECONDS = 180;
-export const T_SPEED_PER_SEC = 2 / T_TRAVERSAL_SECONDS; // t단위/초
+const T_SPEED_PER_SEC = (HORIZON_T_MAX - HORIZON_T_MIN) / T_TRAVERSAL_SECONDS; // t단위/초
 
-const T_ARRIVAL_EPSILON = 0.01; // |현재t - 목표t|가 이보다 작으면 도달로 간주
-const T_TICK_INTERVAL_MS = 150; // 레이어1+2 도달 감지 tick 간격
-const SPAN_REFRESH_INTERVAL_MS = 60_000; // 레이어3 재계산 간격(1분)
-
-export type AnchorKind = 'MAX' | 'MIN';
-export interface DuskAnchor {
-  timeMs: number;
-  kind: AnchorKind;
-}
-
-/** 코사인 이징: 0→0, 1→1, 중간에서 부드러운 S커브(선형이 아님). */
-export function easeCosine(progress: number): number {
-  const clamped = Math.max(0, Math.min(1, progress));
-  return (1 - Math.cos(clamped * Math.PI)) / 2;
-}
-
-/**
- * 앵커 A→B 사이에서 현재 시각(nowMs)의 span 값을 코사인 이징으로 보간한다.
- * nowMs가 정확히 anchorA/anchorB 시각과 같으면 각 앵커의 kind(MAX/MIN)에 대응하는
- * SPAN_MAX/SPAN_MIN 값을 그대로 반환한다 — 순수 함수라 anchor만 조작하면 독립적으로 테스트 가능.
- */
-export function interpolateSpan(nowMs: number, anchorA: DuskAnchor, anchorB: DuskAnchor): number {
-  const vA = anchorA.kind === 'MAX' ? SPAN_MAX : SPAN_MIN;
-  const vB = anchorB.kind === 'MAX' ? SPAN_MAX : SPAN_MIN;
-  const span = anchorB.timeMs - anchorA.timeMs;
-  const progress = span === 0 ? 0 : (nowMs - anchorA.timeMs) / span;
-  const eased = easeCosine(progress);
-  return vA + (vB - vA) * eased;
-}
-
-/**
- * 특정 날짜(date)의 4개 태양 앵커: sunrise(MAX) → solarNoon(MIN) → sunset(MAX) → solarMidnight(MIN).
- * solarMidnight은 suncalc의 nadir(태양이 가장 낮은 지점 = 태양남중의 반대편, 태양남중 ±12시간)를 그대로 쓴다.
- * ("전날/다음날 solarNoon ±24시간"으로는 태양자정이 아니라 solarNoon 자신이 재현될 뿐이라
- * 실제로는 태양남중에서 12시간 떨어진 지점을 써야 한다 — suncalc가 이를 nadir로 직접 제공한다.)
- */
-// suncalc는 sunrise/sunset을 `Date | null`로 타입핑한다(극지방 백야/극야에서 해당 이벤트가
-// 아예 발생하지 않을 수 있기 때문). SUNCALC_LOCATION은 대전(위도 36.35°N, 온대 지역)으로
-// 고정돼 있어 이 경우가 절대 발생하지 않으므로, non-null 단언으로 처리한다.
-
-// 대전(SUNCALC_LOCATION) 고정 — 한국은 DST가 없어 연중 고정 오프셋(UTC+9)으로 안전하다.
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
-/**
- * suncalc.getTimes()는 입력 Date의 "UTC 정오 기준" 태양일로 그날의 sunrise/sunset을 계산한다
- * (내부 toDays()의 정수부가 UTC 자정이 아니라 UTC 정오에서 바뀐다). 그래서 KST 새벽~오전
- * 시각(UTC로는 전날 오후~자정에 해당)을 그대로 넘기면 하루 전 날짜의 sunrise/sunset이
- * 반환되는 버그가 생긴다 — 실제로 07:25 KST를 넘기면 전날 05:24~19:47 KST 값이 나옴을 확인했다.
- * 이를 피하려면 쿼리 시각의 "KST 캘린더 날짜"를 먼저 구하고, 그 날짜의 KST 정오(=UTC 03:00)를
- * suncalc에 넘겨야 한다 — UTC 03:00은 어떤 날짜든 그날의 UTC-정오 기준 앵커 창 안에 안전하게
- * 들어가므로, 항상 의도한 KST 캘린더 날짜의 sunrise/sunset이 나온다.
- */
-export function resolveKstNoonAnchor(date: Date): Date {
-  const kstShifted = new Date(date.getTime() + KST_OFFSET_MS);
-  const year = kstShifted.getUTCFullYear();
-  const month = kstShifted.getUTCMonth();
-  const day = kstShifted.getUTCDate();
-  return new Date(Date.UTC(year, month, day, 3, 0, 0, 0)); // KST 정오 = UTC 03:00
-}
-
-function getDayAnchors(date: Date): DuskAnchor[] {
-  const times = SunCalc.getTimes(resolveKstNoonAnchor(date), SUNCALC_LOCATION.latitude, SUNCALC_LOCATION.longitude);
-  return [
-    { timeMs: times.sunrise!.getTime(), kind: 'MAX' },
-    { timeMs: times.solarNoon.getTime(), kind: 'MIN' },
-    { timeMs: times.sunset!.getTime(), kind: 'MAX' },
-    { timeMs: times.nadir.getTime(), kind: 'MIN' },
-  ];
-}
-
-/**
- * 자정 전후로 "가장 가까운 두 앵커"가 어제/오늘/내일에 걸쳐 있을 수 있으므로
- * 3일치 앵커를 모아 시간순 정렬한다.
- */
-function getAnchorsAroundNow(now: Date): DuskAnchor[] {
-  const oneDayMs = 24 * 60 * 60 * 1000;
-  const anchors = [
-    ...getDayAnchors(new Date(now.getTime() - oneDayMs)),
-    ...getDayAnchors(now),
-    ...getDayAnchors(new Date(now.getTime() + oneDayMs)),
-  ];
-  return anchors.sort((a, b) => a.timeMs - b.timeMs);
-}
-
-/** now를 감싸는 두 앵커(직전 A, 직후 B)를 찾는다. */
-function findBracket(now: Date): [DuskAnchor, DuskAnchor] {
-  const anchors = getAnchorsAroundNow(now);
-  const nowMs = now.getTime();
-  for (let i = 0; i < anchors.length - 1; i++) {
-    if (anchors[i].timeMs <= nowMs && nowMs <= anchors[i + 1].timeMs) {
-      return [anchors[i], anchors[i + 1]];
-    }
-  }
-  // 방어적 폴백(대전 위치에서는 이론상 도달하지 않음) — 첫 구간으로 대체.
-  return [anchors[0], anchors[1]];
-}
-
-// export: scripts/exportAuraDayPreview.ts 등 dev 검증 스크립트가 훅과 동일한 로직으로
-// 임의 시각의 span/낮밤 여부를 재현할 수 있도록 노출한다(로직 재구현으로 인한 드리프트 방지).
-export function computeCurrentSpanDeg(now: Date): number {
-  const [a, b] = findBracket(now);
-  return interpolateSpan(now.getTime(), a, b);
-}
-
-export function isWithinDaytime(now: Date): boolean {
-  const times = SunCalc.getTimes(resolveKstNoonAnchor(now), SUNCALC_LOCATION.latitude, SUNCALC_LOCATION.longitude);
-  return now.getTime() >= times.sunrise!.getTime() && now.getTime() <= times.sunset!.getTime();
-}
+const T_ARRIVAL_EPSILON = 0.001; // |현재t - 목표t|가 이보다 작으면 도달로 간주
+const T_TICK_INTERVAL_MS = 150; // 도달 감지 tick 간격
 
 function randomInRange(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
 export interface AuraDuskMotion {
-  boundaryAngleTargetDeg: number; // t_target * (currentSpanDeg / 2) — "기준각" 오프셋. 절대각은 다음 단계에서 기준각을 더해 조합한다.
-  currentSpanDeg: number;
+  horizonTargetT: number; // HORIZON_T_MIN~HORIZON_T_MAX 사이 목표치 — 화면 세로 기준 수평선 높이
   moveDurationMs: number;
-  isDaytime: boolean;
 }
 
 /**
  * @param frozen true인 동안 애니메이션을 "그 순간 그대로" 정지시킨다(STEP 11-2, 예: 채팅방
- *   진입 중). 미리 정해둔 특정 각도로 스냅하는 게 아니라, span 재계산 인터벌과 t 이동/목표
- *   재추출 tick을 그대로 멈춰서 마지막으로 계산된 값에서 얼어붙는다. frozen이 다시 false가
- *   되면 멈췄던 currentTRef/targetTRef/spanRef 값 그대로에서 원래 로직이 재개되므로(강제
- *   스냅 없음), 얼어붙는 지점은 "그때그때 다른" 임의의 순간이 된다.
+ *   진입 중). 미리 정해둔 특정 높이로 스냅하는 게 아니라, 목표 재추출 tick을 그대로 멈춰서
+ *   마지막으로 계산된 값에서 얼어붙는다. frozen이 다시 false가 되면 멈췄던
+ *   currentTRef/targetTRef 값 그대로에서 원래 로직이 재개되므로(강제 스냅 없음), 얼어붙는
+ *   지점은 "그때그때 다른" 임의의 순간이 된다.
  */
 export function useAuraDuskMotion(frozen: boolean = false): AuraDuskMotion {
-  const [currentSpanDeg, setCurrentSpanDeg] = useState<number>(() => computeCurrentSpanDeg(new Date()));
-  const [isDaytime, setIsDaytime] = useState<boolean>(() => isWithinDaytime(new Date()));
-  const [boundaryAngleTargetDeg, setBoundaryAngleTargetDeg] = useState<number>(0);
+  const [horizonTargetT, setHorizonTargetT] = useState<number>(HORIZON_T_MID);
   const [moveDurationMs, setMoveDurationMs] = useState<number>(0);
 
   // 렌더 트리거 없이 tick 루프에서 읽고 쓰는 내부 상태.
-  const currentTRef = useRef(0);
-  const targetTRef = useRef(0);
-  const spanRef = useRef(currentSpanDeg);
+  const currentTRef = useRef(HORIZON_T_MID);
+  const targetTRef = useRef(HORIZON_T_MID);
 
-  useEffect(() => {
-    spanRef.current = currentSpanDeg;
-  }, [currentSpanDeg]);
-
-  // 레이어3 — span은 1분 간격으로만 재계산(고빈도 갱신 불필요).
-  // frozen이면 인터벌 자체를 만들지 않는다 — currentSpanDeg는 freeze 직전 마지막 값에 고정된다.
-  useEffect(() => {
-    if (frozen) return;
-    const id = setInterval(() => {
-      setCurrentSpanDeg(computeCurrentSpanDeg(new Date()));
-    }, SPAN_REFRESH_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [frozen]);
-
-  // 레이어1+2 — 목표 t 재추출. "목표값이 바뀔 때마다" 그 목표까지 걸리는 duration을 함께 계산해 노출한다.
-  function pickNewTarget(now: Date) {
-    const daytime = isWithinDaytime(now);
-    setIsDaytime(daytime);
-
-    const newTargetT = daytime ? randomInRange(0, 1) : randomInRange(-1, 0);
+  // 목표 t 재추출. "목표값이 바뀔 때마다" 그 목표까지 걸리는 duration을 함께 계산해 노출한다.
+  function pickNewTarget() {
+    const newTargetT = randomInRange(HORIZON_T_MIN, HORIZON_T_MAX);
     targetTRef.current = newTargetT;
 
     const distance = Math.abs(newTargetT - currentTRef.current);
     const durationMs = (distance / T_SPEED_PER_SEC) * 1000;
 
     setMoveDurationMs(durationMs);
-    setBoundaryAngleTargetDeg(newTargetT * (spanRef.current / 2));
+    setHorizonTargetT(newTargetT);
   }
 
   useEffect(() => {
-    pickNewTarget(new Date());
+    pickNewTarget();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 레이어1+2 — tick마다 현재 t를 목표 방향으로 speed*dt만큼 이동, 도달 시 새 목표 재추출.
+  // tick마다 현재 t를 목표 방향으로 speed*dt만큼 이동, 도달 시 새 목표 재추출.
   // frozen이면 인터벌 자체를 만들지 않는다 — currentTRef/targetTRef는 freeze 직전 값 그대로
-  // 유지되고, boundaryAngleTargetDeg/moveDurationMs/isDaytime도 더 이상 갱신되지 않아 정지된다.
+  // 유지되고, horizonTargetT/moveDurationMs도 더 이상 갱신되지 않아 정지된다.
   // frozen이 false로 풀리면 effect가 다시 돌면서 lastTickMs를 그 시점으로 재설정하므로,
   // 멈춰 있던 시간만큼의 dt가 한꺼번에 몰려 튀는 일 없이 멈춘 지점에서 자연스럽게 이어진다.
   useEffect(() => {
@@ -221,12 +87,12 @@ export function useAuraDuskMotion(frozen: boolean = false): AuraDuskMotion {
 
       if (Math.abs(target - nextT) < T_ARRIVAL_EPSILON) {
         currentTRef.current = target;
-        pickNewTarget(new Date(nowMs));
+        pickNewTarget();
       }
     }, T_TICK_INTERVAL_MS);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frozen]);
 
-  return { boundaryAngleTargetDeg, currentSpanDeg, moveDurationMs, isDaytime };
+  return { horizonTargetT, moveDurationMs };
 }

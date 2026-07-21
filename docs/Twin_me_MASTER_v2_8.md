@@ -1,8 +1,8 @@
 # Twin.me — 통합 기능 명세서 (SRS) MASTER
 
-**Product Version:** 2.7 (§1.3/§1.7 오라 색상 시스템 3+3 그룹 RGB 합성으로 전면 재설계)
+**Product Version:** 2.8 (§1.3/§1.7 오라 시스템 — 여름밤 노을 팔레트 + 위로 볼록한 수평선 형태 + 별똥별 기능 신규)
 **Target Platform:** React Native (iOS / Android, Expo Managed Workflow)
-**문서 일자:** 2026.07.17 (최초 작성 2026.07.05)
+**문서 일자:** 2026.07.21 (최초 작성 2026.07.05)
 
 ### 기술 스택 확정 (v2.6) — 클로드 코드 구현 기준
 
@@ -140,70 +140,81 @@ const { data, error } = await supabase.functions.invoke('llm-route', {
 
 **그라데이션 사용 제한:** 시그니처 요소(로고·DNA 링·일치율 숫자·스플래시·프리미엄 스토어 배너)에만 허용. 일반 버튼·칩·토글에는 솔리드 Coral 사용.
 
-### 1.3 Layer 2: 6축 오라 시스템 (Aura System) ★ v2.7 전면 재정의
+### 1.3 Layer 2: 오라 시스템 (Aura System) ★ v2.8 전면 재설계 — 여름밤 노을
 
 제네시스 인터뷰 베이지안 추론 결과에서 **결정론적으로** 자동 도출. 사용자마다 유일한 조합.
 
-> **v2.7 색상 정책 확정 — 6개 개별 hue 방식 폐기, 3+3 그룹 RGB 합성 방식으로 전환:**  
-> v2.6까지는 6축이 각자 독립된 hue를 가져 6개 RadialGradient가 겹치는 메시 배경(`6sigma_mesh_gradient_spec.md`)을 설계했으나, 실제로는 구현되지 않았고 모든 소비처(`theme.ts`, `ClayTwinAvatar.tsx`, `genesis.tsx`, `invite-hook.tsx`)가 "6축 중 절댓값이 가장 큰 축 1개"만 골라 단색으로 쓰는 임시 로직에 머물러 있었다(§1.3 통합감사 발견 사항). v2.7은 이 축소 로직을 폐기하고, **6축을 의미 단위로 3+3 그룹으로 묶어 그룹당 정확히 1색을 합성**하는 방식으로 전환한다. 최종적으로 웜톤(그룹 A) ↔ 쿨톤(그룹 B) 2색이 노을처럼 일렁이는 그라데이션 배경의 두 정지점(stop)이 된다.
+> **v2.8 색상/형태 정책 확정:**
+> v2.7까지는 "밝은 파스텔 노을(로즈~골드 × 틸~바이올렛, lightness 40~72%)"이 회전하는 사선 경계를 그리는 방식이었다. 이는 다크 모드 배경(`BG_DARK_MIDNIGHT #0A0D1A`)과 명도 대비가 커서 이질감이 있었고, 밝은 무드가 "노을"보다는 "정오의 하늘"에 가까웠다. v2.8은 실제 사진(여름 저녁 노을·보라빛 하늘) 픽셀 샘플링을 기반으로 **어둡고 채도 낮은 "저녁 7~9시" 톤**으로 전면 하향하고, 경계 형태도 회전하는 직선 대신 **수평선이 위로 볼록하게 부풀어 오르는 곡선**으로 바꾼다. 일출/일몰 실시간 연동(하루 리듬)은 폐기하고, 항상 "저녁" 무드로 고정한다 — 대신 3분 주기의 미세한 숨쉬기(수평선 높이가 랜덤하게 오르내림)는 유지한다.
 
-#### 6축의 3+3 그룹 분리 (코드 변수명 기준 — 단일 진실 공급원)
+#### 그룹 분리 (변경 없음 — v2.7과 동일)
 
-| 그룹 | 코드 변수명 | 한국어 개념 | 담당 RGB 채널 |
-|---|---|---|---|
-| **A. Inner Warmth**(마음을 다루는 방식) | `expressiveness` | 감정 표현성 | R |
-| | `attachmentSecurity` | 애착 안정성 | G |
-| | `trustPace` | 신뢰 형성 속도 | B |
-| **B. Outer Rhythm**(관계에서 움직이는 방식) | `conflictResponse` | 갈등 반응 | R |
-| | `spontaneity` | 즉흥성/계획성 | G |
-| | `independence` | 자율성/의존성 | B |
+| 그룹 | 코드 변수명 | 한국어 개념 | 담당 RGB 채널 | 시각 위치 (v2.8) |
+|---|---|---|---|---|
+| **A. Inner Warmth**(마음을 다루는 방식) | `expressiveness` | 감정 표현성 | R | 화면 하단 — 지평선 노을 |
+| | `attachmentSecurity` | 애착 안정성 | G | |
+| | `trustPace` | 신뢰 형성 속도 | B | |
+| **B. Outer Rhythm**(관계에서 움직이는 방식) | `conflictResponse` | 갈등 반응 | R | 화면 상단 — 어두운 밤하늘 |
+| | `spontaneity` | 즉흥성/계획성 | G | |
+| | `independence` | 자율성/의존성 | B | |
 
-> **주의:** 축 라벨은 반드시 위 코드 변수명을 기준으로 사용한다. `genesis.ts`, `auraEngine.ts`, `auraStoryPool.ts`, `auraThemeEngine.ts` 전 파일이 이 6개 변수명으로 연동되어 있다. UI 텍스트·주석·문서에서 다른 이름(예: "불안-회피 애착", "논리-분석" 등)을 사용하면 충돌이 발생한다. 그룹 분리는 색상 합성 단계에서만 적용되며, 축 자체의 베이지안 갱신·블렌딩 로직(§3, `genesisInference.ts`)에는 영향을 주지 않는다.
+> **v2.8 변경점:** 그룹 B의 hue 대역이 155°~260°(틸~바이올렛)에서 **255°~300°(딥블루~보라~마젠타)로 이동**했다. 실제 여름밤 노을 사진에서 하늘의 보랏빛을 픽셀 샘플링한 결과 hue 272°~286° 구간이었고, 이 대역을 그룹 B 전체의 중심으로 재조정했다. 그룹 A(hue -15°~50°, 로즈~코랄~골드)는 대역 자체는 유지하되 lightness만 하향한다.
 
-#### RGB 채널 합성 수식
-
-각 축 점수(score ∈ [-1, +1])를 아래 1차식으로 R/G/B 채널값(0~255)에 대응시킨다.
+#### RGB 채널 합성 수식 (v2.8 — 값 전면 하향)
 
 ```
-// 그룹 A — Inner Warmth
-R_A = clamp(230 + expressiveness      × 35, 190, 255)
-G_A = clamp(150 + attachmentSecurity  × 70,  90, 220)   // 범위가 가장 넓다 — hue 변주의 핵심 레버
-B_A = clamp(140 + trustPace           × 30, 105, 170)
+// 그룹 A — Inner Warmth (지평선 노을)
+R_A = clamp(150 + expressiveness      × 35, 115, 185)
+G_A = clamp(70  + attachmentSecurity  × 35,  40, 105)
+B_A = clamp(55  + trustPace           × 18,  38,  73)
 
-// 그룹 B — Outer Rhythm
-R_B = clamp(145 + conflictResponse    × 15, 130, 160)   // 좁게 유지 — 항상 쿨톤 안에 가둔다
-G_B = clamp(190 + spontaneity         × 45, 145, 235)
-B_B = clamp(210 + independence        × 45, 165, 255)
+// 그룹 B — Outer Rhythm (밤하늘, 보라 계열로 이동)
+R_B = clamp(28  + conflictResponse    × 10,  18,  38)
+G_B = clamp(40  + spontaneity         × 22,  18,  62)
+B_B = clamp(78  + independence        × 35,  43, 113)
 ```
 
-합성된 RGB를 HSL로 변환한 뒤, 아래 뮤트 파스텔 게이트로 최종 클램핑한다.
+합성된 RGB를 HSL로 변환한 뒤, 아래 게이트로 최종 클램핑한다 (기존 "뮤트 파스텔 게이트"에서 명도를 대폭 낮춘 "덕 게이트"로 전면 교체).
 
 ```
-saturation ≤ 92%
-lightness  40% ~ 72%
-hue(그룹 A) ∈ [-15°, 50°]   (345°~360°/0°~50° — 로즈 · 코랄 · 골드 대역)
-hue(그룹 B) ∈ [155°, 260°]  (틸 · 스카이블루 · 바이올렛 대역)
+saturation ≤ 75%   (기존 92% → 하향, 네온처럼 튀지 않게)
+lightness  12% ~ 52% (기존 40~72% → 전면 하향, "어둑어둑함" 확보)
+hue(그룹 A) ∈ [-15°, 50°]    (변경 없음 — 로즈·코랄·골드 대역)
+hue(그룹 B) ∈ [255°, 300°]  (v2.8 변경 — 딥블루·보라·마젠타 대역)
 ```
 
-hue 안전 클램프는 `auraThemeEngine.clampToMutePastelGate()`에 그룹별 파라미터로 추가되며, RGB 계수를 얼마나 넓게 잡아도 그룹 A가 쿨톤으로, 그룹 B가 웜톤으로 새어나가는 것을 원천 차단한다. 극단치(모든 축이 ±1) 검증 결과 그룹 A는 `#C35A6E`(딥로즈)~`#F9C376`(골드), 그룹 B는 `#8291A5`(슬레이트블루)~`#76DEF9`(스카이시안) 범위 안에서 안정적으로 수렴함을 확인했다.
+극단치(모든 축이 ±1) 검증 결과 그룹 A는 `#732826`(딥브릭)~`#B96949`(구운 앰버), 그룹 B는 `#12122B`(거의 검정 남보라)~`#263E71`(딥인디고) 범위 안에서 수렴함을 확인했다.
 
-**오라 적용 범위:** Deep Talk Night 공유 카드 배경, 제네시스 완료 후 스플래시 화면 아우라 링, 트윈 프로필 아바타 배경. (v2.6까지의 "dominant 1축 단색" 방식은 폐기 — 항상 `colorA`/`colorB` 2색을 함께 사용한다.)
+**고정 하늘 그라데이션 앵커 (사진 픽셀 샘플링 기반, 성향과 무관하게 고정):**
+- 지평선 근처(그룹 B 하단, 곡선 경계 바로 위): `#663479` (hue 283°, L 34%)
+- 천정(화면 최상단): `#180E20` (hue 272°, L 9% — "시간이 더 지난, 더 검은" 보라)
 
-**화면별 오라 강도 (contextMultiplier):**
+#### 경계 형태 — 위로 볼록한 곡선 (v2.8 신규)
 
-| 화면 | 가중치 | 비고 |
+기존 "피벗에서 뻗어나가는 회전하는 사선"을 폐기하고, **수평선이 화면 가운데를 향해 위로 부풀어 오르는 2차 곡선**으로 교체한다. 화면 세로 45%~65% 사이 밴드에서 수평선 높이가 결정되며, 3분(180초) 주기로 랜덤 목표 지점을 향해 부드럽게 이동하는 숨쉬기 메커니즘은 v2.7과 동일하게 유지한다. 하루 리듬(일출/일몰 기반 span 변화)은 완전히 제거 — 항상 "저녁 7~9시" 무드로 고정.
+
+**오라 적용 범위 (v2.8 확장):** 메인 탭(히어로, 가장 강하게) / 채팅 목록 / 히스토리 / 설정 4개 탭 전체 배경. 채팅방 내부에서는 진입 시점 그대로 정지(freeze)한다. Deep Talk Night 공유 카드, 스플래시 아우라 링, 트윈 프로필 아바타 배경에도 동일 팔레트 적용.
+
+**화면별 오라 강도:** §11 UI 개편 스펙(별도 문서 `step11_sigma_ui_overhaul_prompts.md`) 참조 — main(히어로) / chatList / chatRoom(정지) / historyMap / settings 5개 화면키로 세분화됨. `contextMultiplier` 단일 표는 v2.8부터 참조용으로만 유지.
+
+**오라 끄기:** 설정에서 오라 줄이기/끄기 토글 제공. 끄기(`reduceAuraMotion=true`) 시 애니메이션(숨쉬기)만 정지 — 색상 자체는 그대로 유지(hue 오버라이드 없음). 이 동작은 애니메이션과 색상을 분리하는 v2.7 원칙을 그대로 승계한다.
+
+#### SIGMA_ACCENT — 버튼/일치율 링 전용 액센트 (v2.8 위치 변경)
+
+그룹 B가 보라 계열(255°~300°)로 이동하면서, 기존 SIGMA_ACCENT(오키드-마젠타, hue 300°)가 그룹 B와 겹치게 됐다. **SIGMA_ACCENT를 그룹 B가 비운 틸-시안 계열(hue ~175°~190°)로 재배치**한다 — 보라색 밤하늘 위에서 시각적으로 또렷하게 대비되며, 기존 `SYS.BADGE_AI`(hue 166°)와도 계열이 통일된다.
+
+| 토큰 | 색상값 | 용도 |
 |---|---|---|
-| `main` | 1.0 | 기본 |
-| `helix` | 1.3 | DNA 나선 뷰 — 가장 강하게 |
-| `settings` | 0.8 | — |
-| `chat` (연인방) | 0.6 | — |
-| `chat` (트윈방) | 0.72 | chat × 1.2 부스트 |
-| `historyMap` | 0.5 | — |
-| `other` (온보딩/auth) | 0.0 | 인터뷰 몰입 방해 방지 — 오라 완전 미노출 |
+| `SIGMA_ACCENT.DEFAULT` | `#5FD4C8` | 6sigma 모드 전용 버튼/CTA |
+| `SIGMA_ACCENT.PRESSED` | `#3FB3A6` | 눌림/선택 상태 |
+| `SIGMA_ACCENT.RING` | `#7AE0D6` | 연애 DNA 일치율 원형 진행률 |
+| `SIGMA_ACCENT.RING_NUMERAL` | `#F8F9FA` | 일치율 숫자 (모드 무관 고정) |
 
-**추종 보간 (Universal Easing):** `value_display ← value_display + η × (value_target − value_display)`, η = 0.1. Reanimated `withTiming` 기반으로 근사.
+light/dark 모드는 이 상수와 무관 — 기존 `BRAND.CORAL`/`CORAL_DEEP` 그대로 유지한다. **SIGMA_ACCENT는 6sigma 모드에서만 적용된다.**
 
-**오라 끄기:** 설정에서 오라 줄이기/끄기 토글 제공. 끄기(`reduceAuraMotion=true`) 시 opacity=0 → 정적 스냅샷 배경으로 폴백. WCAG 명도 대비 표준 충족. Dissolve 모션 적용 시 `NEUTRAL_CLAY_CHANNEL` (hue:230, sat:6, light:55) 무채색으로 보간.
+#### 글래스모피즘 UI (v2.8 — 홈 탭 한정에서 4개 탭 전체로 확장)
+
+6sigma 모드에서 콘텐츠 카드·버튼·연애 DNA 일치율 원형은 전부 글래스모피즘(반투명 블러 패널 + 얇은 테두리)으로 렌더링한다. 이 처리는 메인 탭뿐 아니라 **채팅·히스토리·설정 탭까지 4개 탭 전체에 적용**되며, light/dark 모드의 기존 불투명 카드/버튼 스타일은 전혀 변경하지 않는다. 구현 상세는 `GlassPanel`/`GlassButton`/`GlassRing` 공용 컴포넌트(§14.1 이식 대상 아님 — 6sigma 신규 컴포넌트) 참조.
 
 ### 1.4 배경 및 시스템 컬러
 
@@ -260,21 +271,36 @@ export const SYS = {
   TEXT_LIGHT:       '#FFFFFF',
 } as const;
 
-// ── Layer 2: 오라 시스템 (v2.7) — 그룹별 RGB 채널 range 상수만 노출, 실제 합성은 auraEngine이 계산 ──
+// ── Layer 2: 오라 시스템 (v2.8) — 여름밤 노을, 그룹별 RGB 채널 range 상수만 노출 ──
 export const AURA_GROUP_A_CHANNELS = {
-  // Inner Warmth — expressiveness/attachmentSecurity/trustPace → R/G/B
-  R: { base: 230, coeff: 35, min: 190, max: 255 }, // expressiveness
-  G: { base: 150, coeff: 70, min: 90,  max: 220 }, // attachmentSecurity
-  B: { base: 140, coeff: 30, min: 105, max: 170 }, // trustPace
+  // Inner Warmth — 지평선 노을. expressiveness/attachmentSecurity/trustPace → R/G/B
+  R: { base: 150, coeff: 35, min: 115, max: 185 }, // expressiveness
+  G: { base: 70,  coeff: 35, min: 40,  max: 105 }, // attachmentSecurity
+  B: { base: 55,  coeff: 18, min: 38,  max: 73  }, // trustPace
   hueSafety: [-15, 50] as const, // 로즈·코랄·골드 대역 밖으로 탈출 금지
 } as const;
 
 export const AURA_GROUP_B_CHANNELS = {
-  // Outer Rhythm — conflictResponse/spontaneity/independence → R/G/B
-  R: { base: 145, coeff: 15, min: 130, max: 160 }, // conflictResponse
-  G: { base: 190, coeff: 45, min: 145, max: 235 }, // spontaneity
-  B: { base: 210, coeff: 45, min: 165, max: 255 }, // independence
-  hueSafety: [155, 260] as const, // 틸·스카이블루·바이올렛 대역 밖으로 탈출 금지
+  // Outer Rhythm — 어두운 밤하늘(보라 계열). conflictResponse/spontaneity/independence → R/G/B
+  R: { base: 28, coeff: 10, min: 18, max: 38  }, // conflictResponse
+  G: { base: 40, coeff: 22, min: 18, max: 62  }, // spontaneity
+  B: { base: 78, coeff: 35, min: 43, max: 113 }, // independence
+  hueSafety: [255, 300] as const, // 딥블루·보라·마젠타 대역 밖으로 탈출 금지 (v2.8 변경)
+} as const;
+
+// ── 고정 하늘 그라데이션 앵커 (사진 픽셀 샘플링 기반, v2.8 신규) ──
+export const DUSK_SKY_ANCHOR = {
+  HORIZON_PURPLE: '#663479', // 지평선 근처, hue 283° L34%
+  ZENITH_BLACK_PURPLE: '#180E20', // 천정, hue 272° L9%
+} as const;
+
+// ── 6sigma 전용 액센트 (버튼/일치율 링, v2.8 위치 변경: 오키드 → 틸-시안) ──
+export const SIGMA_ACCENT = {
+  DEFAULT: '#5FD4C8',
+  PRESSED: '#3FB3A6',
+  ON_ACCENT_TEXT: '#1A1A1A', // SYS.TEXT_DARK
+  RING: '#7AE0D6',
+  RING_NUMERAL: '#F8F9FA',
 } as const;
 
 // ── 그라데이션 (시그니처 요소 전용) ────────────────────────────────────────────
@@ -447,6 +473,19 @@ export function getText(isDark: boolean) {
 | 50.0~54.9% | 살얼음판 위 대치 상황 | 글래스모피즘 와인 |
 
 티어는 모집단 기준 상위 백분위로도 동시 표기 (예: "전국 커플 상위 23%"). 공유 카드(§10) 핵심 입력값.
+
+### FUN-HOM-004 — 별똥별 & 다정한 한마디 ★ v2.8 신규
+
+**정의:** 6sigma 모드 메인 탭 배경(밤하늘 영역)에 네온톤 별똥별이 8~15초 랜덤 간격으로 하나씩 낙하한다. 낙하 중 터치하면 별이 멈추고, `rawKakaoText`(§2 FUN-ONB-002 — 대화 속 가장 다정했던 한 문장, 온디바이스 추출·영구 보관)에서 랜덤으로 하나를 뽑아 오버레이로 보여준다.
+
+**UI 연출:**
+- 별 색상: 네온 라벤더(`#C9A8FF`) · 네온 시안(`#7FE8E0`) · 네온 골드(`#FFD98A`) · 네온 핑크(`#FF9ED6`) 중 랜덤 1개, glow 효과 동반.
+- 낙하: 화면 상단(그룹 B 밤하늘 영역)에서 무작위 x좌표로 시작, 대각선 아래로 1.5~2.5초 낙하하며 옅은 궤적 남김.
+- 클릭 안 되고 수평선에 닿으면 그대로 소멸 (다시 안 뜨지 않음 — 다음 랜덤 간격에 새 별 등장).
+
+**데이터 소스:** `rawKakaoText`가 아직 없는 유저(카톡 업로드 미완료 등)를 위한 폴백 임시 문구 풀을 별도로 둔다 — 최소 8~10개, 추후 실제 데이터로 자동 대체.
+
+**6sigma 전용:** light/dark 모드에서는 이 기능이 노출되지 않는다 (오라 배경 자체가 없으므로).
 
 ---
 
@@ -988,10 +1027,10 @@ VIP 코드 입력 화면 (`/settings/vip-code.tsx`). 유효한 코드 입력 시
 | 2026.07.01~04 | v2.4 | 스프린트 시리즈: FUN-HIS-001/005 dead code 정리, Wrapped 게이팅, Founding VIP 구현, Magic Mirror 옵트인, rawKakaoText 프라이버시 재설계, ViewShot PNG 전환, CrisisMode 헤지드 언어, 변동성 지수(V) 구현, 무드피드 듀얼모드, Wrapped 2카드 추가, FUN-ONB-004(Instagram DM) 스코프 추가 |
 | 2026.07.05 | v2.5 | 디자인 시스템 전면 재정의 (§1): 브랜드 팔레트 4색 확정(Mint/Cream/Pink/Coral), 6축 오라 시스템 색상 조정(Deep Rose·Soft Amber·Sage Mint), 2-레이어 컬러 아키텍처 공식화. FUN-HIS-001/005 탭 구조 최종 확정(A안). Wrapped 게이팅 긴급 수정 요구사항 명시. 전체 분산 문서를 단일 정본으로 통합. |
 | 2026.07.05 | v2.6 | 엔진 파일 교차 감사 반영 + 기술 스택 확정: 오라 색상 정책 B안 확정, 6축 라벨 코드 변수명 기준 통일(§1.3), colors.ts 구현 스펙 신규(§1.7), 점토 4단계 전환 조건 명세(§3), coolingBleed(§5.6)/위기 메모리(§5.7)/scoreCalculator(§5.8) 추가, 부록G 인라인 통합, §12.2 신규 개발 체크포인트 교체, §14 이식 파일 명세 신규. 기술 스택 확정(§0.6): Expo Managed Workflow / Bundle ID me.twin.app / Supabase 백엔드 / EAS Build iOS+Android 동시 출시. |
-| **2026.07.17** | **v2.7 (본 문서)** | **오라 색상 시스템 전면 재설계(§1.3, §1.7): v2.6까지 미구현 상태였던 6-mesh 그라데이션(`6sigma_mesh_gradient_spec.md`) 및 실제로는 "dominant 1축 단색"만 쓰던 구현을 폐기. 6축을 의미 단위로 3+3 그룹(Inner Warmth: expressiveness/attachmentSecurity/trustPace, Outer Rhythm: conflictResponse/spontaneity/independence)으로 분리하고, 각 그룹을 R/G/B 채널에 1:1 매핑해 그룹당 정확히 1색을 합성. 최종 2색(`colorA` 웜톤, `colorB` 쿨톤)이 노을처럼 일렁이는 그라데이션의 두 정지점이 됨. hue 안전 클램프(그룹A -15°~50°, 그룹B 155°~260°) 신규 도입으로 계수를 넓게 잡아도 브랜드 hue 대역을 벗어나지 않도록 보장. `AURA_BASE_HUE` 상수를 `AURA_GROUP_A_CHANNELS`/`AURA_GROUP_B_CHANNELS`로 교체.** |
+| **2026.07.17** | **v2.7 (본 문서)** | **오라 색상 시스템 전면 재설계(§1.3, §1.7): v2.6까지 미구현 상태였던 6-mesh 그라데이션(`6sigma_mesh_gradient_spec.md` — 2026.07.21 v2.8 재설계 후 `docs/audit/6sigma_mesh_gradient_spec_ARCHIVED.md`로 이관) 및 실제로는 "dominant 1축 단색"만 쓰던 구현을 폐기. 6축을 의미 단위로 3+3 그룹(Inner Warmth: expressiveness/attachmentSecurity/trustPace, Outer Rhythm: conflictResponse/spontaneity/independence)으로 분리하고, 각 그룹을 R/G/B 채널에 1:1 매핑해 그룹당 정확히 1색을 합성. 최종 2색(`colorA` 웜톤, `colorB` 쿨톤)이 노을처럼 일렁이는 그라데이션의 두 정지점이 됨. hue 안전 클램프(그룹A -15°~50°, 그룹B 155°~260°) 신규 도입으로 계수를 넓게 잡아도 브랜드 hue 대역을 벗어나지 않도록 보장. `AURA_BASE_HUE` 상수를 `AURA_GROUP_A_CHANNELS`/`AURA_GROUP_B_CHANNELS`로 교체.** |
 | 2026.07.08 | v2.6.1 | 구현 감사(§12.2 체크포인트 1) 후속 정정: §7.1 히스토리 탭 구조를 실제 구현 기준 `archive`/`map`/`feed`로 변경. 구 `helix`(3D DNA 나선) 독립 탭 요구사항은 Expo Go 렌더링 난이도 + 카카오맵 셔틀 연동 편의를 이유로 폐기하고, `archive` 탭 내부의 parallax 연출 요구사항으로 범위를 축소. FUN-HIS-001 표제에 범위 축소 명시. |
 | 2026.07.08 | v2.6.2 | 구현 감사(§12.2 체크포인트 8) 후속 정정: `scoreCalculator.ts` 경로를 §14.1 이식 파일 표와 일관되게 `src/utils/` → `src/engine/`로 정정(§5.8, §14.2). 함수명은 코드 쪽을 스펙에 맞춰 `getRelationshipTier`→`getTierFromScore`, `getNationalPercentileTop`→`computeNationalPercentile`로 리네임(호출부 2곳, 무호출 함수 1곳 — 실제 리네임, alias 미사용). |
-| **2026.07.18** | **v2.7.1** | **FUN-HIS-002(AI 데이트 코스 셔틀) 전면 재설계: 구 v2.6의 "OOTD·날씨·미쉐린 선호도" 컨셉을 폐기하고, 카카오 로컬 API 실존 검증 → LLM 선별/구성 5레이어 파이프라인으로 대체(§7). 미쉐린/평점 축은 다이닝코드·망고플레이트 등에 제3자 API가 없음을 확인해 자체 `date_courses` 평점으로 대체. `map` 탭 FAB(AI 추천/장소 추가/사진 코스 추가) 및 신규 모달 라우트 `app/(modals)/date-recommend-setup·result` 신설. FUN-HIS-006(사진 기반 방문 스탬프 검증 — `usePhotoMetadata.ts`의 `locationName` 스텁 실구현화) 및 FUN-HIS-007(여행 멀티데이 인식·여행 앨범) 신규 추가.** |
+| **2026.07.21** | **v2.8 (본 문서)** | **오라 시스템 전면 재설계(§1.3, §1.7): 밝은 파스텔 노을(lightness 40~72%) → 실제 여름밤 노을 사진 픽셀 샘플링 기반 어두운 "저녁 7~9시" 톤(lightness 12~52%)으로 하향. 그룹 B(Outer Rhythm) hue 대역을 155°~260°(틸~바이올렛)에서 255°~300°(딥블루~보라~마젠타)로 이동. 경계 형태를 회전하는 사선에서 위로 볼록한 곡선(수평선)으로 교체, 일출/일몰 하루 리듬 폐기하고 항상 저녁 무드로 고정(3분 숨쉬기 메커니즘은 유지). SIGMA_ACCENT(버튼/일치율 링)를 그룹B와의 hue 충돌을 피해 오키드(300°)→틸-시안(175~190°)으로 재배치. 글래스모피즘 UI를 메인 탭 한정에서 4개 탭 전체로 확장. FUN-HOM-004(별똥별 & 다정한 한마디) 신규 — `rawKakaoText` 데이터 소스 연동.** |
 
 ---
 

@@ -1,15 +1,26 @@
-// ─── AuraDuskGradient — 회전하는 2색 오라 노을 배경 (MASTER.md §1.3) ────────────
-// useAuraDuskMotion()이 계산한 "경계선 각도 목표치/이동 duration"을 Reanimated로
-// 부드럽게 트위닝해, 화면 대각선의 2배 크기 오버사이즈 그라데이션 뷰를 회전시킨다.
-// 좌표를 매 프레임 재계산하지 않고 transform(rotate)만 갱신하는 방식으로 성능을 확보한다.
+// ─── AuraDuskGradient — 위로 볼록한 수평선 곡선 오라 노을 배경 (MASTER.md §1.3 v2.8) ──
+// useAuraDuskMotion()이 계산한 "수평선 높이 목표치(horizonTargetT)/이동 duration"을
+// Reanimated로 부드럽게 트위닝해, react-native-svg 곡선(2차 베지어)이 화면 세로
+// 45%~65% 밴드 안에서 위로 부풀었다 가라앉았다 숨쉰다.
+//
+// 레이어 구성:
+//   1. 하늘(고정) — 사진 픽셀 샘플링 기반 앵커(DUSK_SKY_ANCHOR)로 천정→지평선을 항상
+//      같은 절대 화면 좌표로 그리는 배경 Rect. 개인화된 colorB(그룹 B)가 그 사이에서
+//      한 정지점으로 섞여 들어간다.
+//   2. 지평선 노을(개인화, 애니메이션) — 곡선 아래를 채우는 Path. 곡선 바로 아래는
+//      밝은 colorA(그룹 A), 화면 맨 아래로 갈수록 어두워진다. 이 Path의 `d`만
+//      useAnimatedProps로 매 프레임 갱신되고, 하늘 Rect는 정적이라 갱신 비용이 없다.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, type LayoutChangeEvent } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { useAuraDuskMotion } from '@/hooks/useAuraDuskMotion';
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Animated, { Easing, cancelAnimation, useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useAuraDuskMotion, HORIZON_T_MIN, HORIZON_T_MAX } from '@/hooks/useAuraDuskMotion';
 import { auraChannelToCss } from '@/engine/auraEngine';
+import { DUSK_SKY_ANCHOR } from '@/constants/colors';
 import type { AuraVector } from '@/types/genesis';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 interface AuraDuskGradientProps {
   auraVector: AuraVector; // colorA, colorB
@@ -18,26 +29,26 @@ interface AuraDuskGradientProps {
   // 더 이상 자체적으로 배율을 계산하지 않는다 — "화면별 강도 조회"는 단일 진실 공급원
   // (auraThemeEngine.ts) 책임이고, 이 컴포넌트는 받은 값을 그리기만 한다.
   opacity: number;
-  reduceMotion: boolean; // true면 애니메이션 없이 정적 배경
-  // true면 각도/색 갱신을 "그 순간 그대로" 멈춘다(STEP 11-2 useAuraDuskMotion(frozen) +
-  // 이미 진행 중이던 회전 트윈 자체도 즉시 취소). reduceMotion과 달리 미리 정해둔 각도로
+  reduceMotion: boolean; // true면 애니메이션 없이 정적 배경(밴드 중앙값에 고정)
+  // true면 곡선 높이 갱신을 "그 순간 그대로" 멈춘다(STEP 11-2 useAuraDuskMotion(frozen) +
+  // 이미 진행 중이던 곡선 트윈 자체도 즉시 취소). reduceMotion과 달리 미리 정해둔 높이로
   // 스냅하지 않는다 — 멈추는 지점은 매번 다르다. 기본값 false(항상 명시적으로 넘길 필요는
   // 없는 화면 — 예: 메인 히어로 — 을 위한 안전한 기본값).
   frozen?: boolean;
 }
 
-// 회전축(피벗): 컨테이너 우측 상단에서 세로 10% 지점.
-const PIVOT_X_RATIO = 1;
-const PIVOT_Y_RATIO = 0.1;
+// 곡선 돔 높이 — 가장자리가 중앙(peak)보다 화면 높이의 이 비율만큼 더 아래(=낮게)
+// 처지면서 "위로 볼록한" 형태를 만든다.
+const BULGE_HEIGHT_RATIO = 0.08;
 
-// 기준각 계산용 목표 코너: 화면 좌하단.
-const TARGET_CORNER_X_RATIO = 0;
-const TARGET_CORNER_Y_RATIO = 1;
+// 지평선 노을(그룹 A) 바닥 톤 — 곡선 바로 아래(밝음)에서 화면 맨 아래(어두움)로 갈수록
+// lightness를 이 배율만큼 낮춘다.
+const GROUND_BOTTOM_LIGHTNESS_FACTOR = 0.45;
 
-// 오버사이즈 정사각형 뷰 내부에서 LinearGradient의 start(0,0)→end(1,1) 대각선은
-// 정사각형이므로 항상 45도 — 피벗→목표 코너 각도에서 이 값을 빼야 그라데이션의
-// "실제 색 경계선"이 목표 코너를 향하는 회전각(기준각)이 된다.
-const GRADIENT_DIAGONAL_DEG = 45;
+// 고정 하늘 그라데이션에서 개인화된 colorB(그룹 B)가 섞여 들어가는 지점 — 0(천정)~1(지평선).
+const SKY_COLOR_B_STOP_OFFSET = 0.62;
+
+const HORIZON_T_MID = (HORIZON_T_MIN + HORIZON_T_MAX) / 2;
 
 interface ContainerSize {
   width: number;
@@ -46,100 +57,90 @@ interface ContainerSize {
 
 export default function AuraDuskGradient({ auraVector, opacity: opacityProp, reduceMotion, frozen = false }: AuraDuskGradientProps) {
   const [containerSize, setContainerSize] = useState<ContainerSize>({ width: 0, height: 0 });
-  const rotation = useSharedValue(0);
+  const horizonT = useSharedValue(HORIZON_T_MID);
 
-  const { boundaryAngleTargetDeg, moveDurationMs } = useAuraDuskMotion(frozen);
+  const { horizonTargetT, moveDurationMs } = useAuraDuskMotion(frozen);
 
   const handleLayout = useCallback((e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     setContainerSize((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
   }, []);
 
-  // 기준각(baseAngleDeg) — 피벗(우측 상단 세로 10%)에서 목표 코너(좌하단)를 향하는 실제
-  // 화면 대각선 방향. 컨테이너가 리사이즈/회전되면 onLayout이 다시 불려 containerSize가
-  // 바뀌고, 이 useMemo도 함께 재계산된다.
-  const baseAngleDeg = useMemo(() => {
-    const { width, height } = containerSize;
-    if (width === 0 && height === 0) return 0;
-
-    const pivotX = width * PIVOT_X_RATIO;
-    const pivotY = height * PIVOT_Y_RATIO;
-    const cornerX = width * TARGET_CORNER_X_RATIO;
-    const cornerY = height * TARGET_CORNER_Y_RATIO;
-
-    const dx = cornerX - pivotX;
-    const dy = cornerY - pivotY;
-    const pivotToCornerDeg = Math.atan2(dy, dx) * (180 / Math.PI);
-
-    return pivotToCornerDeg - GRADIENT_DIAGONAL_DEG;
-  }, [containerSize.width, containerSize.height]);
-
-  // reduceMotion=true — 애니메이션 없이 기준각 + 중립 오프셋(0)에 고정한 정적 렌더링.
+  // reduceMotion=true — 애니메이션 없이 밴드 중앙값에 고정한 정적 렌더링.
   useEffect(() => {
     if (!reduceMotion) return;
-    rotation.value = baseAngleDeg;
-  }, [reduceMotion, baseAngleDeg, rotation]);
+    horizonT.value = HORIZON_T_MID;
+  }, [reduceMotion, horizonT]);
 
-  // reduceMotion=false, frozen=false — 목표(boundaryAngleTargetDeg)가 바뀔 때마다, 또는
-  // frozen이 풀려 재개될 때마다 기준각 + 목표 오프셋으로 다시 트위닝한다. frozen인 동안은
-  // 이 효과가 아무것도 하지 않는다 — 이미 진행 중이던 트윈을 "그 순간 그대로" 멈추는 건
-  // 아래의 별도 효과가 담당한다. moveDurationMs만 의존성에 걸면 span 갱신(60초 간격)에는
-  // 반응하지 않아, 애니메이션 도중 불필요하게 트윈이 재시작(끊김)되는 걸 피한다.
+  // reduceMotion=false, frozen=false — 목표(horizonTargetT)가 바뀔 때마다, 또는 frozen이
+  // 풀려 재개될 때마다 새 목표로 다시 트위닝한다. frozen인 동안은 이 효과가 아무것도 하지
+  // 않는다 — 이미 진행 중이던 트윈을 "그 순간 그대로" 멈추는 건 아래의 별도 효과가 담당한다.
   useEffect(() => {
     if (reduceMotion || frozen) return;
-    const targetDeg = baseAngleDeg + boundaryAngleTargetDeg;
-    rotation.value = withTiming(targetDeg, {
+    horizonT.value = withTiming(horizonTargetT, {
       duration: moveDurationMs,
       easing: Easing.inOut(Easing.sin),
     });
-  }, [reduceMotion, frozen, baseAngleDeg, boundaryAngleTargetDeg, moveDurationMs, rotation]);
+  }, [reduceMotion, frozen, horizonTargetT, moveDurationMs, horizonT]);
 
-  // frozen=true — useAuraDuskMotion(frozen)이 목표/span 갱신만 멈춰줄 뿐, 이미 진행 중이던
-  // 화면 회전 트윈 자체는 그대로 두면 다음 목표까지(최대 ~90초) 계속 움직이다 멈춘다 —
-  // "그 순간 그대로 얼어붙기"가 아니게 된다. cancelAnimation은 트윈을 목표까지 마저 재생하지
-  // 않고 지금 보간된 각도에서 즉시 멈춘다(미리 정해둔 각도로 스냅하는 게 아니라, 매번 다른
-  // "멈춘 순간의 각도"). frozen이 풀리면 위 효과가 이 각도를 새 시작점 삼아 자연스럽게 재개한다.
+  // frozen=true — useAuraDuskMotion(frozen)이 목표 갱신만 멈춰줄 뿐, 이미 진행 중이던 곡선
+  // 트윈 자체는 그대로 두면 다음 목표까지(최대 180초) 계속 움직이다 멈춘다 — "그 순간
+  // 그대로 얼어붙기"가 아니게 된다. cancelAnimation은 트윈을 목표까지 마저 재생하지 않고
+  // 지금 보간된 높이에서 즉시 멈춘다. frozen이 풀리면 위 효과가 이 높이를 새 시작점 삼아
+  // 자연스럽게 재개한다.
   useEffect(() => {
     if (!frozen) return;
-    cancelAnimation(rotation);
-  }, [frozen, rotation]);
+    cancelAnimation(horizonT);
+  }, [frozen, horizonT]);
 
-  const animatedGradientStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
-  }));
+  const { width, height } = containerSize;
+  const bulge = height * BULGE_HEIGHT_RATIO;
+
+  // 곡선 경로 — M(왼쪽 가장자리, 처진 높이) Q(중앙, 솟은 높이) (오른쪽 가장자리, 처진 높이)
+  // L(오른쪽 아래) L(왼쪽 아래) Z. peakY가 horizonT(밴드 45~65%)를 따라 오르내리고, 가장자리는
+  // peakY보다 bulge만큼 아래에 위치해 "위로 볼록한" 돔 형태를 이룬다.
+  const animatedGroundProps = useAnimatedProps(() => {
+    const peakY = horizonT.value * height;
+    const edgeY = peakY + bulge;
+    return {
+      d: `M0,${edgeY} Q${width / 2},${peakY} ${width},${edgeY} L${width},${height} L0,${height} Z`,
+    };
+  }, [width, height, bulge]);
 
   const opacity = Math.max(0, Math.min(1, opacityProp));
   const colorACss = auraChannelToCss(auraVector.colorA);
   const colorBCss = auraChannelToCss(auraVector.colorB);
+  const groundBottomCss = auraChannelToCss({
+    ...auraVector.colorA,
+    lightness: auraVector.colorA.lightness * GROUND_BOTTOM_LIGHTNESS_FACTOR,
+  });
 
-  const diagonal = Math.sqrt(containerSize.width ** 2 + containerSize.height ** 2);
-  const oversizeSide = diagonal * 2;
-  const pivotX = containerSize.width * PIVOT_X_RATIO;
-  const pivotY = containerSize.height * PIVOT_Y_RATIO;
-  // 피벗이 곧 회전축이 되도록, 뷰 중심이 피벗과 겹치게 절반만큼 좌상단으로 당겨 배치한다
-  // (RN은 transformOrigin을 지원하지 않으므로 배치 좌표로 회전축을 흉내낸다).
-  const offsetLeft = pivotX - oversizeSide / 2;
-  const offsetTop = pivotY - oversizeSide / 2;
-
-  const hasMeasured = containerSize.width > 0 && containerSize.height > 0;
+  const hasMeasured = width > 0 && height > 0;
 
   return (
     <View style={[styles.container, { opacity }]} onLayout={handleLayout}>
       {hasMeasured && (
-        <Animated.View
-          style={[
-            styles.oversizeGradient,
-            { width: oversizeSide, height: oversizeSide, left: offsetLeft, top: offsetTop },
-            animatedGradientStyle,
-          ]}
-        >
-          <LinearGradient
-            colors={[colorACss, colorBCss]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-        </Animated.View>
+        <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+          <Defs>
+            {/* 고정 하늘 그라데이션 — 성향과 무관, 사진 픽셀 샘플링 기반(MASTER §1.3).
+                천정(고정 검보라) → colorB(개인화) → 지평선(고정 보라) 순으로, 곡선이
+                오르내려도 항상 같은 절대 화면 좌표(userSpaceOnUse)를 기준으로 흐른다. */}
+            <LinearGradient id="auraDuskSkyGradient" x1={0} y1={0} x2={0} y2={height} gradientUnits="userSpaceOnUse">
+              <Stop offset={0} stopColor={DUSK_SKY_ANCHOR.ZENITH_BLACK_PURPLE} />
+              <Stop offset={SKY_COLOR_B_STOP_OFFSET} stopColor={colorBCss} />
+              <Stop offset={1} stopColor={DUSK_SKY_ANCHOR.HORIZON_PURPLE} />
+            </LinearGradient>
+            {/* 지평선 노을(그룹 A, 개인화) — 곡선 Path 자체의 bbox(objectBoundingBox) 기준이라
+                숨쉬기로 곡선이 오르내려도 항상 "곡선 바로 아래=밝음, 화면 맨 아래=어두움"이
+                유지된다. */}
+            <LinearGradient id="auraDuskGroundGradient" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset={0} stopColor={colorACss} />
+              <Stop offset={1} stopColor={groundBottomCss} />
+            </LinearGradient>
+          </Defs>
+          <Rect x={0} y={0} width={width} height={height} fill="url(#auraDuskSkyGradient)" />
+          <AnimatedPath animatedProps={animatedGroundProps} fill="url(#auraDuskGroundGradient)" />
+        </Svg>
       )}
     </View>
   );
@@ -149,8 +150,5 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
-  },
-  oversizeGradient: {
-    position: 'absolute',
   },
 });

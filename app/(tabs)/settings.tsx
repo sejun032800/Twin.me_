@@ -23,7 +23,8 @@ import { useScoreStore } from '@/store/scoreStore';
 import { useSessionStore } from '@/store/sessionStore';
 import { useTheme, useSigmaAuraOpacity } from '@/hooks/useTheme';
 import AuraDuskGradient from '@/components/AuraDuskGradient';
-import { BRAND, SYS } from '@/constants/colors';
+import GlassPanel from '@/components/glass/GlassPanel';
+import { BRAND, SYS, SIGMA_ACCENT } from '@/constants/colors';
 import type { SigmaTheme, ThemeMode } from '@/constants/theme';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -49,37 +50,45 @@ interface SettingsRowItem {
 
 function RowGroup({ items }: { items: SettingsRowItem[] }) {
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const isSigma = useSessionStore((s) => s.themeMode) === 'sigma';
+  const styles = useMemo(() => makeStyles(theme, isSigma ? 'sigma' : 'dark'), [theme, isSigma]);
 
-  return (
-    <View style={styles.rowGroup}>
-      {items.map((item, i) => (
-        <View key={item.key}>
-          {i > 0 && <View style={styles.divider} />}
-          <TouchableOpacity
-            style={styles.row}
-            onPress={item.onPress}
-            disabled={!item.onPress}
-            activeOpacity={item.onPress ? 0.7 : 1}
-          >
-            <View style={styles.rowLeft}>
-              {item.icon && <Text style={styles.rowIcon}>{item.icon}</Text>}
-              <View>
-                <Text style={styles.rowText}>{item.label}</Text>
-                {item.sub && <Text style={styles.rowSub}>{item.sub}</Text>}
-              </View>
-            </View>
-            {item.right ?? (item.onPress && <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />)}
-          </TouchableOpacity>
+  const rows = items.map((item, i) => (
+    <View key={item.key}>
+      {i > 0 && <View style={styles.divider} />}
+      <TouchableOpacity
+        style={styles.row}
+        onPress={item.onPress}
+        disabled={!item.onPress}
+        activeOpacity={item.onPress ? 0.7 : 1}
+      >
+        <View style={styles.rowLeft}>
+          {item.icon && <Text style={styles.rowIcon}>{item.icon}</Text>}
+          <View>
+            <Text style={styles.rowText}>{item.label}</Text>
+            {item.sub && <Text style={styles.rowSub}>{item.sub}</Text>}
+          </View>
         </View>
-      ))}
+        {item.right ?? (item.onPress && <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />)}
+      </TouchableOpacity>
     </View>
+  ));
+
+  // UIredesign_v2.md §6-Sigma 각주 — 설정 탭 전체(프로필/테마/프라이버시/커플 연동/구독
+  // 섹션 카드)가 sigma에서는 GlassPanel로 렌더링된다. rowGroup은 padding 없이 margin/
+  // radius/배경만 지니므로(각 row가 자기 padding을 갖음) 단일 레이어로 그대로 넘겨도
+  // 블러 표면이 줄어드는 문제가 없다 — 이중 wrapper 불필요.
+  return isSigma ? (
+    <GlassPanel style={styles.rowGroup}>{rows}</GlassPanel>
+  ) : (
+    <View style={styles.rowGroup}>{rows}</View>
   );
 }
 
 export default function Settings() {
   const theme = useTheme();
   const themeMode = useSessionStore((s) => s.themeMode);
+  const isSigma = themeMode === 'sigma';
   const styles = useMemo(() => makeStyles(theme, themeMode), [theme, themeMode]);
   const router = useRouter();
   const name = useUserStore((s) => s.name);
@@ -224,111 +233,155 @@ export default function Settings() {
         {/* 1. 프로필 섹션 */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>프로필</Text>
-          <View style={styles.rowGroup}>
-            <View style={[styles.row, styles.profileRow]}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{name?.trim() ? name.trim()[0] : '?'}</Text>
-              </View>
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{name ?? '이름 없음'}</Text>
-                <Text style={styles.profileMbti}>{mbti ?? 'MBTI 미입력'}</Text>
-              </View>
-            </View>
-            <View style={styles.divider} />
-            <TouchableOpacity style={styles.row} onPress={() => router.push('/(auth)/profile?from=settings')}>
-              <Text style={styles.rowText}>프로필 수정</Text>
-              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-            </TouchableOpacity>
-          </View>
+          {(() => {
+            const profileRows = (
+              <>
+                <View style={[styles.row, styles.profileRow]}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{name?.trim() ? name.trim()[0] : '?'}</Text>
+                  </View>
+                  <View style={styles.profileInfo}>
+                    <Text style={styles.profileName}>{name ?? '이름 없음'}</Text>
+                    <Text style={styles.profileMbti}>{mbti ?? 'MBTI 미입력'}</Text>
+                  </View>
+                </View>
+                <View style={styles.divider} />
+                <TouchableOpacity style={styles.row} onPress={() => router.push('/(auth)/profile?from=settings')}>
+                  <Text style={styles.rowText}>프로필 수정</Text>
+                  <Ionicons name="chevron-forward" size={18} color={isSigma ? '#FFFFFF' : theme.textMuted} />
+                </TouchableOpacity>
+              </>
+            );
+            return isSigma ? (
+              <GlassPanel style={styles.rowGroup}>{profileRows}</GlassPanel>
+            ) : (
+              <View style={styles.rowGroup}>{profileRows}</View>
+            );
+          })()}
         </View>
 
         {/* 2. 화면 테마 섹션 */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>화면 테마</Text>
-          <View style={styles.rowGroup}>
-            <View style={styles.row}>
-              <Text style={styles.rowText}>화면 테마 설정</Text>
-              <Text style={styles.rowValue}>
-                {themeMode === 'sigma' ? '✨ 6 Sigma' : themeMode === 'light' ? '☀️ 라이트' : '🌙 다크'}
-              </Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.themeBtnRow}>
-              <TouchableOpacity
-                style={[
-                  styles.themeBtn,
-                  themeMode === 'sigma' && styles.themeBtnSelected,
-                  !hasAuraVector && styles.themeBtnDisabled,
-                ]}
-                onPress={() => { if (hasAuraVector) setThemeMode('sigma'); }}
-                disabled={!hasAuraVector}
-              >
-                <Text style={[styles.themeBtnText, { color: themeMode === 'sigma' ? SYS.TEXT_LIGHT : theme.text }]}>✨ 6 Sigma</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.themeBtn, themeMode === 'light' && styles.themeBtnSelected]}
-                onPress={() => setThemeMode('light')}
-              >
-                <Text style={[styles.themeBtnText, { color: themeMode === 'light' ? SYS.TEXT_LIGHT : theme.text }]}>☀️ 라이트</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.themeBtn, themeMode === 'dark' && styles.themeBtnSelected]}
-                onPress={() => setThemeMode('dark')}
-              >
-                <Text style={[styles.themeBtnText, { color: themeMode === 'dark' ? SYS.TEXT_LIGHT : theme.text }]}>🌙 다크</Text>
-              </TouchableOpacity>
-            </View>
-            {!hasAuraVector && (
-              <Text style={styles.themeHint}>제네시스 인터뷰 완료 후 활성화돼요</Text>
-            )}
-          </View>
+          {(() => {
+            const themeRows = (
+              <>
+                <View style={styles.row}>
+                  <Text style={styles.rowText}>화면 테마 설정</Text>
+                  <Text style={styles.rowValue}>
+                    {themeMode === 'sigma' ? '✨ 6 Sigma' : themeMode === 'light' ? '☀️ 라이트' : '🌙 다크'}
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.themeBtnRow}>
+                  {/* UIredesign_v2.md §6-Sigma 각주 — "6-Sigma" 버튼 선택 색만 예외적으로
+                      SIGMA_ACCENT를 쓰고, 라이트/다크 버튼은 기존 Coral 선택색을 유지한다. */}
+                  <TouchableOpacity
+                    style={[
+                      styles.themeBtn,
+                      themeMode === 'sigma' && styles.themeBtnSelectedSigma,
+                      !hasAuraVector && styles.themeBtnDisabled,
+                    ]}
+                    onPress={() => { if (hasAuraVector) setThemeMode('sigma'); }}
+                    disabled={!hasAuraVector}
+                  >
+                    <Text style={[styles.themeBtnText, { color: themeMode === 'sigma' ? SIGMA_ACCENT.ON_ACCENT_TEXT : theme.text }]}>✨ 6 Sigma</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.themeBtn, themeMode === 'light' && styles.themeBtnSelected]}
+                    onPress={() => setThemeMode('light')}
+                  >
+                    <Text style={[styles.themeBtnText, { color: themeMode === 'light' ? SYS.TEXT_LIGHT : theme.text }]}>☀️ 라이트</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.themeBtn, themeMode === 'dark' && styles.themeBtnSelected]}
+                    onPress={() => setThemeMode('dark')}
+                  >
+                    <Text style={[styles.themeBtnText, { color: themeMode === 'dark' ? SYS.TEXT_LIGHT : theme.text }]}>🌙 다크</Text>
+                  </TouchableOpacity>
+                </View>
+                {!hasAuraVector && (
+                  <Text style={styles.themeHint}>제네시스 인터뷰 완료 후 활성화돼요</Text>
+                )}
+              </>
+            );
+            return isSigma ? (
+              <GlassPanel style={styles.rowGroup}>{themeRows}</GlassPanel>
+            ) : (
+              <View style={styles.rowGroup}>{themeRows}</View>
+            );
+          })()}
         </View>
 
         {/* 3. 테마 샵 섹션 */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>테마 샵</Text>
-          <TouchableOpacity
-            style={styles.themeShopCard}
-            onPress={() => Alert.alert('준비 중', '테마 샵은 곧 오픈돼요 🎨')}
-          >
-            <Text style={styles.themeShopIcon}>🎨</Text>
-            <View style={styles.themeShopInfo}>
-              <Text style={styles.themeShopTitle}>나만의 테마 꾸미기</Text>
-              <Text style={styles.themeShopSub}>스킨 · 배경 · 폰트 3종 테마 상점 →</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-          </TouchableOpacity>
+          {(() => {
+            const shopContent = (
+              <>
+                <Text style={styles.themeShopIcon}>🎨</Text>
+                <View style={styles.themeShopInfo}>
+                  <Text style={styles.themeShopTitle}>나만의 테마 꾸미기</Text>
+                  <Text style={styles.themeShopSub}>스킨 · 배경 · 폰트 3종 테마 상점 →</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={isSigma ? '#FFFFFF' : theme.textMuted} />
+              </>
+            );
+            return isSigma ? (
+              <TouchableOpacity onPress={() => Alert.alert('준비 중', '테마 샵은 곧 오픈돼요 🎨')}>
+                <GlassPanel style={styles.themeShopCardWrap}>
+                  <View style={styles.themeShopCardInner}>{shopContent}</View>
+                </GlassPanel>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.themeShopCard}
+                onPress={() => Alert.alert('준비 중', '테마 샵은 곧 오픈돼요 🎨')}
+              >
+                {shopContent}
+              </TouchableOpacity>
+            );
+          })()}
         </View>
 
         {/* 4. 프라이버시 섹션 */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>프라이버시</Text>
-          <View style={styles.rowGroup}>
-            <View style={styles.privacyCard}>
-              <View style={styles.row}>
-                <Text style={styles.rowText}>프라이버시 컨트롤 센터</Text>
-                <View style={styles.levelBadge}>
-                  <Text style={styles.levelBadgeText}>Lv 3</Text>
+          {(() => {
+            const privacyContent = (
+              <View style={styles.privacyCard}>
+                <View style={styles.row}>
+                  <Text style={styles.rowText}>프라이버시 컨트롤 센터</Text>
+                  <View style={styles.levelBadge}>
+                    <Text style={styles.levelBadgeText}>Lv 3</Text>
+                  </View>
                 </View>
-              </View>
-              <Text style={styles.privacyDesc}>AI 학습 데이터 수집 범위를 직접 제어하세요.</Text>
+                <Text style={styles.privacyDesc}>AI 학습 데이터 수집 범위를 직접 제어하세요.</Text>
 
-              <Slider
-                minimumValue={0}
-                maximumValue={2}
-                step={1}
-                value={privacyLevel}
-                onValueChange={(v) => setPrivacyLevel(Math.round(v) as 0 | 1 | 2)}
-                minimumTrackTintColor={BRAND.CORAL}
-                maximumTrackTintColor={theme.border}
-                thumbTintColor={BRAND.CORAL}
-                style={styles.slider}
-              />
-              <Text style={styles.privacyLevelText}>
-                {PRIVACY_LEVEL_TEXT[privacyLevel]}
-              </Text>
-            </View>
-          </View>
+                <Slider
+                  minimumValue={0}
+                  maximumValue={2}
+                  step={1}
+                  value={privacyLevel}
+                  onValueChange={(v) => setPrivacyLevel(Math.round(v) as 0 | 1 | 2)}
+                  minimumTrackTintColor={BRAND.CORAL}
+                  maximumTrackTintColor={theme.border}
+                  thumbTintColor={BRAND.CORAL}
+                  style={styles.slider}
+                />
+                <Text style={styles.privacyLevelText}>
+                  {PRIVACY_LEVEL_TEXT[privacyLevel]}
+                </Text>
+              </View>
+            );
+            // rowGroup은 padding 없이 margin/radius/배경만 지녀 GlassPanel에 단일 레이어로
+            // 그대로 넘길 수 있다 — 내부 privacyCard가 콘텐츠 padding을 이미 담당한다.
+            return isSigma ? (
+              <GlassPanel style={styles.rowGroup}>{privacyContent}</GlassPanel>
+            ) : (
+              <View style={styles.rowGroup}>{privacyContent}</View>
+            );
+          })()}
         </View>
 
         {/* 5. 계정 관리 섹션 */}
@@ -347,112 +400,141 @@ export default function Settings() {
         {/* 6. 커플 연동 섹션 */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>커플 연동</Text>
-          <View style={styles.rowGroup}>
-            <View style={styles.row}>
-              <Text style={styles.rowText}>초대 코드</Text>
-              <Text style={styles.rowValue}>{inviteCode ?? '미생성'}</Text>
-            </View>
-            <View style={styles.divider} />
-            <TouchableOpacity
-              style={styles.row}
-              onPress={async () => {
-                const {
-                  data: { user },
-                } = await supabase.auth.getUser();
-                if (!user) return;
-
-                const code = generateInviteCode();
-                try {
-                  const coupleId = await createCouple(code, user.id);
-                  setInviteCode(code);
-                  setCoupleId(coupleId);
-                  Alert.alert('초대 코드 생성됨', `코드: ${code}\n연인에게 공유하세요 💌`);
-                } catch (e) {
-                  Alert.alert('오류', '코드 생성에 실패했어요. 다시 시도해주세요.');
-                }
-              }}
-            >
-              <Text style={styles.rowText}>초대 코드 생성</Text>
-            </TouchableOpacity>
-            {!isPartnerConnected && (
+          {(() => {
+            const coupleRows = (
               <>
+                <View style={styles.row}>
+                  <Text style={styles.rowText}>초대 코드</Text>
+                  <Text style={styles.rowValue}>{inviteCode ?? '미생성'}</Text>
+                </View>
                 <View style={styles.divider} />
-                <TouchableOpacity style={styles.row} onPress={() => router.push('/(auth)/join')}>
-                  <Text style={styles.rowText}>연인 코드 입력</Text>
+                <TouchableOpacity
+                  style={styles.row}
+                  onPress={async () => {
+                    const {
+                      data: { user },
+                    } = await supabase.auth.getUser();
+                    if (!user) return;
+
+                    const code = generateInviteCode();
+                    try {
+                      const coupleId = await createCouple(code, user.id);
+                      setInviteCode(code);
+                      setCoupleId(coupleId);
+                      Alert.alert('초대 코드 생성됨', `코드: ${code}\n연인에게 공유하세요 💌`);
+                    } catch (e) {
+                      Alert.alert('오류', '코드 생성에 실패했어요. 다시 시도해주세요.');
+                    }
+                  }}
+                >
+                  <Text style={styles.rowText}>초대 코드 생성</Text>
+                </TouchableOpacity>
+                {!isPartnerConnected && (
+                  <>
+                    <View style={styles.divider} />
+                    <TouchableOpacity style={styles.row} onPress={() => router.push('/(auth)/join')}>
+                      <Text style={styles.rowText}>연인 코드 입력</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+                <View style={styles.divider} />
+                <View style={styles.row}>
+                  <Text style={styles.rowText}>연동 상태</Text>
+                  <View style={[
+                    styles.statusBadge,
+                    isPartnerConnected
+                      ? styles.statusBadgeConnected
+                      : styles.statusBadgeDisconnected
+                  ]}>
+                    <Text style={[
+                      styles.statusBadgeText,
+                      { color: isPartnerConnected ? '#3A8C85' : '#E07A82' }
+                    ]}>
+                      {isPartnerConnected ? '연동됨' : '미연동'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.divider} />
+                <TouchableOpacity
+                  style={styles.row}
+                  onPress={() => setVipModalVisible(true)}
+                  disabled={isFoundingVip}
+                >
+                  <Text style={styles.rowText}>Founding VIP 코드 입력</Text>
+                  <Text style={styles.rowValue}>{isFoundingVip ? '✨ 활성화됨' : ''}</Text>
                 </TouchableOpacity>
               </>
-            )}
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.rowText}>연동 상태</Text>
-              <View style={[
-                styles.statusBadge,
-                isPartnerConnected
-                  ? styles.statusBadgeConnected
-                  : styles.statusBadgeDisconnected
-              ]}>
-                <Text style={[
-                  styles.statusBadgeText,
-                  { color: isPartnerConnected ? '#3A8C85' : '#E07A82' }
-                ]}>
-                  {isPartnerConnected ? '연동됨' : '미연동'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.divider} />
-            <TouchableOpacity
-              style={styles.row}
-              onPress={() => setVipModalVisible(true)}
-              disabled={isFoundingVip}
-            >
-              <Text style={styles.rowText}>Founding VIP 코드 입력</Text>
-              <Text style={styles.rowValue}>{isFoundingVip ? '✨ 활성화됨' : ''}</Text>
-            </TouchableOpacity>
-          </View>
+            );
+            return isSigma ? (
+              <GlassPanel style={styles.rowGroup}>{coupleRows}</GlassPanel>
+            ) : (
+              <View style={styles.rowGroup}>{coupleRows}</View>
+            );
+          })()}
         </View>
 
         {/* 6.5. 구독 관리 섹션 */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>구독 관리</Text>
-          <TouchableOpacity
-            style={styles.upgradeCard}
-            onPress={async () => {
+          {(() => {
+            const upgradeContent = (
+              <>
+                <View style={styles.upgradeCardInner}>
+                  <View>
+                    <Text style={styles.upgradeCardTitle}>☕ Coffee Talk</Text>
+                    <Text style={styles.upgradeCardPrice}>₩4,900 / 월</Text>
+                  </View>
+                  <View style={styles.upgradeCardBadge}>
+                    <Text style={styles.upgradeCardBadgeText}>구독하기 →</Text>
+                  </View>
+                </View>
+                <Text style={styles.upgradeCardDesc}>
+                  주간 리포트 · 월 30회 대화 · AI 감성 요약 카드
+                </Text>
+              </>
+            );
+            const onPressUpgrade = async () => {
               try {
                 await purchaseSubscription('coffee');
               } catch (e) {
                 Alert.alert('결제 오류', '결제 중 문제가 발생했어요.');
               }
-            }}
-          >
-            <View style={styles.upgradeCardInner}>
-              <View>
-                <Text style={styles.upgradeCardTitle}>☕ Coffee Talk</Text>
-                <Text style={styles.upgradeCardPrice}>₩4,900 / 월</Text>
-              </View>
-              <View style={styles.upgradeCardBadge}>
-                <Text style={styles.upgradeCardBadgeText}>구독하기 →</Text>
-              </View>
-            </View>
-            <Text style={styles.upgradeCardDesc}>
-              주간 리포트 · 월 30회 대화 · AI 감성 요약 카드
-            </Text>
-          </TouchableOpacity>
+            };
+            return isSigma ? (
+              <TouchableOpacity onPress={onPressUpgrade}>
+                <GlassPanel style={styles.upgradeCardWrap}>
+                  <View style={styles.upgradeCardContent}>{upgradeContent}</View>
+                </GlassPanel>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.upgradeCard} onPress={onPressUpgrade}>
+                {upgradeContent}
+              </TouchableOpacity>
+            );
+          })()}
         </View>
 
         {/* 7. 오라 설정 섹션 */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>오라 설정</Text>
-          <View style={styles.rowGroup}>
-            <View style={styles.row}>
-              <Text style={styles.rowText}>오라 효과</Text>
-              <Switch
-                value={!reduceAuraMotion}
-                onValueChange={(value) => setReduceAuraMotion(!value)}
-                trackColor={{ false: '#333', true: BRAND.CORAL }}
-                thumbColor={SYS.TEXT_LIGHT}
-              />
-            </View>
-          </View>
+          {(() => {
+            const auraRow = (
+              <View style={styles.row}>
+                <Text style={styles.rowText}>오라 효과</Text>
+                <Switch
+                  value={!reduceAuraMotion}
+                  onValueChange={(value) => setReduceAuraMotion(!value)}
+                  trackColor={{ false: '#333', true: BRAND.CORAL }}
+                  thumbColor={SYS.TEXT_LIGHT}
+                />
+              </View>
+            );
+            return isSigma ? (
+              <GlassPanel style={styles.rowGroup}>{auraRow}</GlassPanel>
+            ) : (
+              <View style={styles.rowGroup}>{auraRow}</View>
+            );
+          })()}
         </View>
 
         {/* 8. 지원 및 법률 섹션 */}
@@ -505,15 +587,24 @@ export default function Settings() {
         {/* 10. 계정 섹션 (하단) */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>계정</Text>
-          <View style={styles.rowGroup}>
-            <TouchableOpacity style={styles.row} onPress={handleLogout}>
-              <Text style={styles.logoutText}>로그아웃</Text>
-            </TouchableOpacity>
-            <View style={styles.divider} />
-            <TouchableOpacity style={styles.row} onPress={handleDeleteAccount}>
-              <Text style={styles.logoutText}>계정 삭제</Text>
-            </TouchableOpacity>
-          </View>
+          {(() => {
+            const accountRows = (
+              <>
+                <TouchableOpacity style={styles.row} onPress={handleLogout}>
+                  <Text style={styles.logoutText}>로그아웃</Text>
+                </TouchableOpacity>
+                <View style={styles.divider} />
+                <TouchableOpacity style={styles.row} onPress={handleDeleteAccount}>
+                  <Text style={styles.logoutText}>계정 삭제</Text>
+                </TouchableOpacity>
+              </>
+            );
+            return isSigma ? (
+              <GlassPanel style={styles.rowGroup}>{accountRows}</GlassPanel>
+            ) : (
+              <View style={styles.rowGroup}>{accountRows}</View>
+            );
+          })()}
         </View>
 
         {/* 개발 전용 — DB 연결 검증 */}
@@ -584,6 +675,13 @@ export default function Settings() {
 // (themeMode 생략)으로 호출해도 무해하다.
 function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
   const isSigma = themeMode === 'sigma';
+  // GlassPanel은 계속 움직이는 오라 위에 반투명하게 얹히므로, 그 위의 텍스트는 고정
+  // 테마색 대신 흰색 고정 + textShadow 조합으로 가독성을 보장한다(SigmaMainLayout과 동일 관례).
+  const sigmaTextShadow = isSigma ? {
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  } : null;
   return StyleSheet.create({
   // sigma에서만 투명 — 뒤에 깔리는 AuraDuskGradient가 비쳐 보이게 한다. light/dark는
   // 이 화면에 오라 레이어 자체가 마운트되지 않으므로 theme.bg 그대로(기존과 동일).
@@ -616,12 +714,15 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     } : null),
   },
 
+  // sigma에서는 이 배경/테두리를 뚫어서, GlassPanel(블러+자체 테두리)이 유일한 카드
+  // 레이어가 되게 한다("카드 안에 카드" 이중 레이어 방지). padding이 없는 스타일이라
+  // GlassPanel에 그대로 넘겨도 블러 표면이 안으로 줄어드는 문제가 없다.
   rowGroup: {
-    backgroundColor: theme.card,
+    backgroundColor: isSigma ? 'transparent' : theme.card,
     borderRadius: 16,
     marginHorizontal: 20,
     overflow: 'hidden',
-    borderWidth: 0.5,
+    borderWidth: isSigma ? 0 : 0.5,
     borderColor: theme.border,
   },
   divider: { height: 0.5, backgroundColor: theme.border, marginHorizontal: 16 },
@@ -634,9 +735,9 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowIcon: { ...TYPOGRAPHY.body },
-  rowText: { fontSize: 15, color: theme.text },
-  rowSub: { fontSize: 12, color: theme.textMuted, marginTop: 2 },
-  rowValue: { fontSize: 14, color: theme.textMuted },
+  rowText: { fontSize: 15, color: isSigma ? '#FFFFFF' : theme.text, ...sigmaTextShadow },
+  rowSub: { fontSize: 12, color: isSigma ? 'rgba(255,255,255,0.75)' : theme.textMuted, marginTop: 2, ...sigmaTextShadow },
+  rowValue: { fontSize: 14, color: isSigma ? 'rgba(255,255,255,0.75)' : theme.textMuted, ...sigmaTextShadow },
   logoutText: { fontSize: 15, fontWeight: '500', color: '#EF4444' },
 
   profileRow: { gap: 16 },
@@ -656,6 +757,9 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
   themeBtnRow: { flexDirection: 'row', gap: 10, padding: 14 },
   themeBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: theme.card },
   themeBtnSelected: { backgroundColor: BRAND.CORAL },
+  // "6-Sigma" 버튼 자신이 선택된 상태에서만 쓰는 예외 색 — 그룹 B가 보라 계열로 이동하며
+  // SIGMA_ACCENT가 틸-시안으로 재배치됐고(§1.3/§1.7), 라이트/다크 버튼은 계속 Coral을 쓴다.
+  themeBtnSelectedSigma: { backgroundColor: SIGMA_ACCENT.DEFAULT },
   themeBtnDisabled: { opacity: 0.35 },
   themeBtnText: { fontSize: 12, fontWeight: '600', color: theme.text },
   themeHint: {
@@ -677,6 +781,11 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     borderWidth: 0.5,
     borderColor: theme.border,
   },
+  // sigma 2단 분리 — GlassPanel(margin/radius만 지닌 얇은 외곽 래퍼)이 카드 레이어를,
+  // Inner가 padding/레이아웃을 담당한다(GlassPanel에 padding까지 넘기면 블러 표면이
+  // 안으로 줄어드는 문제를 피하기 위함).
+  themeShopCardWrap: { borderRadius: 16, marginHorizontal: 20 },
+  themeShopCardInner: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
   themeShopIcon: { ...TYPOGRAPHY.heading },
   themeShopInfo: { flex: 1, gap: 2 },
   themeShopTitle: { fontSize: 15, fontWeight: '600', color: theme.text },
@@ -760,6 +869,11 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     padding: 18,
     gap: 10,
   },
+  // sigma 2단 분리 — GlassPanel(margin/radius만 지닌 얇은 외곽 래퍼)이 카드 레이어를,
+  // upgradeCardContent가 padding/gap을 담당한다. UIredesign_v2.md §6-Sigma 각주가
+  // "구독 섹션 카드"도 명시적으로 포함하므로 솔리드 Coral 배너도 예외 없이 유리로 바뀐다.
+  upgradeCardWrap: { marginHorizontal: 20, borderRadius: 16 },
+  upgradeCardContent: { padding: 18, gap: 10 },
   upgradeCardInner: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -11,13 +11,14 @@ import type { AuraChannel, AuraVector } from '../types/genesis';
 import { AURA_GROUP_A_CHANNELS, AURA_GROUP_B_CHANNELS } from '../constants/colors';
 import type { OverflowStatus } from './scoreCalculator';
 
-// ── 1. 뮤트 파스텔 게이트 (§2.2 — 원색/형광 노출 차단, §1.3 hue 안전 클램프) ────────
+// ── 1. 덕 게이트 (Dusk Gate) (v2.8 — MASTER §1.3, 기존 "뮤트 파스텔 게이트"에서 전면 교체) ──
 // auraEngine의 RGB→HSL 합성이 그룹별 hueSafetyRange 밖으로 새어나가지 않도록
 // saturation/lightness 캡과 함께 hue를 그룹별 안전 대역으로 강제 클램핑한다.
-export const MUTE_PASTEL_GATE = {
-  saturationCap: 92,
-  lightnessMin: 40,
-  lightnessMax: 72,
+// v2.8: 밝은 파스텔 노을(L 40~72%) → 어두운 "저녁 7~9시" 톤(L 12~52%)으로 명도를 대폭 하향.
+export const DUSK_GATE = {
+  saturationCap: 75,
+  lightnessMin: 12,
+  lightnessMax: 52,
 } as const;
 
 /**
@@ -33,7 +34,7 @@ function clampHueToSafetyRange(hue: number, hueSafetyRange: readonly [number, nu
   return Math.min(hi, Math.max(lo, normalizedHue));
 }
 
-export function clampToMutePastelGate(
+export function clampToDuskGate(
   hue: number,
   saturation: number,
   lightness: number,
@@ -42,8 +43,8 @@ export function clampToMutePastelGate(
   const clampedHue = clampHueToSafetyRange(hue, hueSafetyRange);
   return {
     hue: ((clampedHue % 360) + 360) % 360,
-    saturation: Math.min(MUTE_PASTEL_GATE.saturationCap, Math.max(0, saturation)),
-    lightness: Math.min(MUTE_PASTEL_GATE.lightnessMax, Math.max(MUTE_PASTEL_GATE.lightnessMin, lightness)),
+    saturation: Math.min(DUSK_GATE.saturationCap, Math.max(0, saturation)),
+    lightness: Math.min(DUSK_GATE.lightnessMax, Math.max(DUSK_GATE.lightnessMin, lightness)),
   };
 }
 
@@ -182,13 +183,13 @@ export function applyOverflowSaturationFeedback(vector: AuraVector, overflowStat
 
   // colorA/colorB는 서로 다른 hueSafetyRange(그룹 A/B)를 쓰므로 배열 순회로 통합하지 않고
   // 각각 명시적으로 게이트를 재적용한다.
-  const colorA: AuraChannel = clampToMutePastelGate(
+  const colorA: AuraChannel = clampToDuskGate(
     vector.colorA.hue,
     vector.colorA.saturation * factor,
     vector.colorA.lightness,
     AURA_GROUP_A_CHANNELS.hueSafety,
   );
-  const colorB: AuraChannel = clampToMutePastelGate(
+  const colorB: AuraChannel = clampToDuskGate(
     vector.colorB.hue,
     vector.colorB.saturation * factor,
     vector.colorB.lightness,

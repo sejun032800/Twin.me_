@@ -1,11 +1,11 @@
-// ─── 6축 오라 매핑 엔진 (성향 → AuraVector, MASTER.md §1.3 v2.7) ────────────────
+// ─── 6축 오라 매핑 엔진 (성향 → AuraVector, MASTER.md §1.3 v2.8) ────────────────
 // 6축 점수를 3+3 그룹(Inner Warmth / Outer Rhythm)으로 묶어 그룹당 RGB 채널을
-// 1:1 합성한 뒤 HSL로 변환, 뮤트 파스텔 게이트로 클램핑해 colorA/colorB 2색을 만든다.
+// 1:1 합성한 뒤 HSL로 변환, 덕 게이트(Dusk Gate)로 클램핑해 colorA/colorB 2색을 만든다.
 // 축 점수는 베이지안 확률 벡터 전체의 가중합으로 계산되므로, 인터뷰가 진행될수록
 // (특정 유형으로 확률이 수렴할수록) 오라 색이 부드럽게 그라데이션되며 또렷해진다.
 
 import { AURA_GROUP_A_CHANNELS, AURA_GROUP_B_CHANNELS } from '../constants/colors';
-import { clampToMutePastelGate } from './auraThemeEngine';
+import { clampToDuskGate } from './auraThemeEngine';
 import { ENNEAGRAM_TYPES, AURA_AXES, AuraAxis, AuraAxisScores, AuraChannel, AuraVector, ProbabilityVector, ScoreBand } from '../types/genesis';
 
 // 각 축이 표현하는 두 방향(direction A ↔ B). score -1(A) ~ +1(B).
@@ -115,11 +115,11 @@ export function rgbToHsl(r: number, g: number, b: number): { hue: number; satura
   return { hue, saturation: saturation * 100, lightness: lightness * 100 };
 }
 
-/** 그룹 점수 3개를 RGB 합성 → HSL 변환 → 뮤트 파스텔 게이트로 클램핑한 최종 AuraChannel. */
+/** 그룹 점수 3개를 RGB 합성 → HSL 변환 → 덕 게이트로 클램핑한 최종 AuraChannel. */
 function buildGroupColor(spec: GroupChannelSpec, scores: readonly [number, number, number]): AuraChannel {
   const [r, g, b] = composeGroupRgb(spec, scores);
   const { hue, saturation, lightness } = rgbToHsl(r, g, b);
-  return clampToMutePastelGate(hue, saturation, lightness, spec.hueSafety);
+  return clampToDuskGate(hue, saturation, lightness, spec.hueSafety);
 }
 
 export function buildAuraVector(probabilities: ProbabilityVector | null): AuraVector {

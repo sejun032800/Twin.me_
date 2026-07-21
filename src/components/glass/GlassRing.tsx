@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   },
   centerText: {
     ...TYPOGRAPHY.display,
-    color: '#F8F9FA',
+    color: SIGMA_ACCENT.RING_NUMERAL,
     fontVariant: ['tabular-nums'],
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { width: 0, height: 1 },

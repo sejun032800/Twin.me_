@@ -47,6 +47,8 @@ import { getPublicCourses, type DateCourse } from '@/services/dateCourseService'
 import { loadDatePlaces, saveDatePlace, deleteDatePlace, optimizePlaces } from '@/services/memoryMapService';
 import type { DatePlace } from '@/services/memoryMapService';
 import AuraDuskGradient from '@/components/AuraDuskGradient';
+import GlassPanel from '@/components/glass/GlassPanel';
+import GlassButton from '@/components/glass/GlassButton';
 import WrappedModal from '@/components/WrappedModal';
 import OOTDArchiveGrid from '@/components/OOTDArchiveGrid';
 import OOTDUploadSheet from '@/components/OOTDUploadSheet';
@@ -88,6 +90,7 @@ function MapFab({
   styles: HistoryStyles;
 }) {
   const [open, setOpen] = useState(false);
+  const isSigma = useSessionStore((s) => s.themeMode) === 'sigma';
 
   function handleSelect(action: FabAction) {
     setOpen(false);
@@ -114,9 +117,15 @@ function MapFab({
             entering={FadeInUp.delay((FAB_PILLS.length - 1 - index) * 70).springify().damping(14)}
             style={styles.fabPillWrap}
           >
-            <TouchableOpacity style={styles.fabPill} onPress={() => handleSelect(pill.key)} activeOpacity={0.85}>
-              <Text style={styles.fabPillText}>{pill.label}</Text>
-            </TouchableOpacity>
+            {isSigma ? (
+              <GlassButton onPress={() => handleSelect(pill.key)}>
+                <Text style={styles.fabPillTextSigma}>{pill.label}</Text>
+              </GlassButton>
+            ) : (
+              <TouchableOpacity style={styles.fabPill} onPress={() => handleSelect(pill.key)} activeOpacity={0.85}>
+                <Text style={styles.fabPillText}>{pill.label}</Text>
+              </TouchableOpacity>
+            )}
           </Animated.View>
         ))}
       <TouchableOpacity
@@ -199,6 +208,8 @@ function HelixCard({
 }) {
   const baseOffset = index % 2 === 0 ? -50 : 50;
 
+  const isSigma = useSessionStore((s) => s.themeMode) === 'sigma';
+
   const animatedStyle = useAnimatedStyle(() => {
     const itemCenter = index * ITEM_HEIGHT + ITEM_HEIGHT / 2;
     const viewportCenter = scrollY.value + viewportHeight.value / 2;
@@ -219,18 +230,14 @@ function HelixCard({
     };
   });
 
-  if (card.isPlaceholder) {
-    return (
-      <Animated.View style={[styles.helixItem, { backgroundColor: card.cardBg }, animatedStyle]}>
-        <Text style={styles.helixEmoji}>{card.emoji}</Text>
-        <Text style={styles.helixLabel}>{card.label}</Text>
-        <Text style={styles.helixDate}>지도 탭에서 장소를 추가해보세요</Text>
-      </Animated.View>
-    );
-  }
-
-  return (
-    <Animated.View style={[styles.helixItem, { backgroundColor: card.cardBg }, animatedStyle]}>
+  const content = card.isPlaceholder ? (
+    <>
+      <Text style={styles.helixEmoji}>{card.emoji}</Text>
+      <Text style={styles.helixLabel}>{card.label}</Text>
+      <Text style={styles.helixDate}>지도 탭에서 장소를 추가해보세요</Text>
+    </>
+  ) : (
+    <>
       {!hasKakaoData && (
         <View style={styles.helixExampleBadge}>
           <Text style={styles.helixExampleBadgeText}>예시</Text>
@@ -246,6 +253,26 @@ function HelixCard({
           </View>
         ))}
       </View>
+    </>
+  );
+
+  // UIredesign_v2.md §6-Sigma 각주 — 헬릭스 카드의 flat tint 배경(Coral/Mint/Blue)은
+  // sigma에서 GlassPanel로 대체된다. 패럴랙스 트윈(animatedStyle)은 크기가 이미 확정된
+  // Animated.View(바깥)에 걸고, GlassPanel(안쪽)은 그 안을 순수하게 시각적으로만 채운다 —
+  // GlassPanel 자체에 패럴랙스 transform을 걸면 reanimated worklet과 충돌한다.
+  if (isSigma) {
+    return (
+      <Animated.View style={[styles.helixItemSize, animatedStyle]}>
+        <GlassPanel style={styles.helixItemGlassWrap}>
+          <View style={styles.helixItemInner}>{content}</View>
+        </GlassPanel>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View style={[styles.helixItem, { backgroundColor: card.cardBg }, animatedStyle]}>
+      {content}
     </Animated.View>
   );
 }
@@ -253,6 +280,7 @@ function HelixCard({
 function ArchiveTab() {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const isSigma = useSessionStore((s) => s.themeMode) === 'sigma';
   const relationshipStartDate = useCoupleStore((s) => s.relationshipStartDate);
   const hasKakaoData = useUserStore((s) => s.hasKakaoData);
   const dDay = computeDDay(relationshipStartDate);
@@ -302,15 +330,31 @@ function ArchiveTab() {
         ))}
       </Animated.ScrollView>
 
-      <View style={styles.helixStatsBar}>
-        <Text style={styles.helixStatItem}>❤️ {dDay !== null ? `D+${dDay}일` : '-'}</Text>
-        <Text style={styles.helixStatItem}>📸 {HELIX_CARDS.length}장</Text>
-        <Text style={styles.helixStatItem}>📍 {MOCK_PLACES_COUNT}곳</Text>
-      </View>
+      {isSigma ? (
+        <GlassPanel style={styles.helixStatsBarWrap}>
+          <View style={styles.helixStatsBarInner}>
+            <Text style={styles.helixStatItem}>❤️ {dDay !== null ? `D+${dDay}일` : '-'}</Text>
+            <Text style={styles.helixStatItem}>📸 {HELIX_CARDS.length}장</Text>
+            <Text style={styles.helixStatItem}>📍 {MOCK_PLACES_COUNT}곳</Text>
+          </View>
+        </GlassPanel>
+      ) : (
+        <View style={styles.helixStatsBar}>
+          <Text style={styles.helixStatItem}>❤️ {dDay !== null ? `D+${dDay}일` : '-'}</Text>
+          <Text style={styles.helixStatItem}>📸 {HELIX_CARDS.length}장</Text>
+          <Text style={styles.helixStatItem}>📍 {MOCK_PLACES_COUNT}곳</Text>
+        </View>
+      )}
 
-      <TouchableOpacity style={[styles.wrappedBtn, styles.wrappedBtnSolid]} onPress={() => setWrappedVisible(true)}>
-        <Text style={styles.wrappedBtnText}>✨ 우리의 Wrapped 보기</Text>
-      </TouchableOpacity>
+      {isSigma ? (
+        <GlassButton style={styles.wrappedBtnGlass} onPress={() => setWrappedVisible(true)}>
+          <Text style={styles.wrappedBtnText}>✨ 우리의 Wrapped 보기</Text>
+        </GlassButton>
+      ) : (
+        <TouchableOpacity style={[styles.wrappedBtn, styles.wrappedBtnSolid]} onPress={() => setWrappedVisible(true)}>
+          <Text style={styles.wrappedBtnText}>✨ 우리의 Wrapped 보기</Text>
+        </TouchableOpacity>
+      )}
 
       <WrappedModal visible={wrappedVisible} onClose={() => setWrappedVisible(false)} />
     </View>
@@ -329,6 +373,7 @@ const FEED_FILTERS: Array<{ key: FeedFilterKey; label: string }> = [
 function FeedTab({ onAddToMap }: { onAddToMap: (course: DateCourse) => void }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const isSigma = useSessionStore((s) => s.themeMode) === 'sigma';
   const { hasReportAccess } = usePremiumGate();
   const { location, requestLocation } = useGeoLocation();
   const [ootdOnly, setOotdOnly] = useState(false);
@@ -380,13 +425,25 @@ function FeedTab({ onAddToMap }: { onAddToMap: (course: DateCourse) => void }) {
       <Text style={styles.feedTitle}>💑 인기 데이트코스</Text>
 
       {isMockCourses && (
-        <View style={styles.mockBannerCard}>
-          <Text style={styles.mockBannerTitle}>💌 아직 공유된 코스가 없어요</Text>
-          <Text style={styles.mockBannerDesc}>
-            데이트 후 코스를 공유하면{'\n'}
-            여기에 모여요
-          </Text>
-        </View>
+        isSigma ? (
+          <GlassPanel style={styles.mockBannerCardWrap}>
+            <View style={styles.mockBannerCardInner}>
+              <Text style={styles.mockBannerTitle}>💌 아직 공유된 코스가 없어요</Text>
+              <Text style={styles.mockBannerDesc}>
+                데이트 후 코스를 공유하면{'\n'}
+                여기에 모여요
+              </Text>
+            </View>
+          </GlassPanel>
+        ) : (
+          <View style={styles.mockBannerCard}>
+            <Text style={styles.mockBannerTitle}>💌 아직 공유된 코스가 없어요</Text>
+            <Text style={styles.mockBannerDesc}>
+              데이트 후 코스를 공유하면{'\n'}
+              여기에 모여요
+            </Text>
+          </View>
+        )
       )}
 
       {!hasReportAccess && (
@@ -395,15 +452,29 @@ function FeedTab({ onAddToMap }: { onAddToMap: (course: DateCourse) => void }) {
         </View>
       )}
 
-      <View style={styles.ootdBar}>
-        <Text style={styles.ootdText}>✨ 내 현재 OOTD & 무드 코스만 보기</Text>
-        <Switch
-          value={ootdOnly}
-          onValueChange={setOotdOnly}
-          trackColor={{ false: '#333', true: BRAND.CORAL }}
-          thumbColor={SYS.TEXT_LIGHT}
-        />
-      </View>
+      {isSigma ? (
+        <GlassPanel style={styles.ootdBarWrap}>
+          <View style={styles.ootdBarInner}>
+            <Text style={styles.ootdText}>✨ 내 현재 OOTD & 무드 코스만 보기</Text>
+            <Switch
+              value={ootdOnly}
+              onValueChange={setOotdOnly}
+              trackColor={{ false: '#333', true: BRAND.CORAL }}
+              thumbColor={SYS.TEXT_LIGHT}
+            />
+          </View>
+        </GlassPanel>
+      ) : (
+        <View style={styles.ootdBar}>
+          <Text style={styles.ootdText}>✨ 내 현재 OOTD & 무드 코스만 보기</Text>
+          <Switch
+            value={ootdOnly}
+            onValueChange={setOotdOnly}
+            trackColor={{ false: '#333', true: BRAND.CORAL }}
+            thumbColor={SYS.TEXT_LIGHT}
+          />
+        </View>
+      )}
 
       <View style={styles.filterRow}>
         {FEED_FILTERS.map((f) => {
@@ -442,68 +513,85 @@ function FeedTab({ onAddToMap }: { onAddToMap: (course: DateCourse) => void }) {
       ) : filteredCourses.length === 0 ? (
         <Text style={styles.feedFilterEmptyText}>현재 필터에 맞는 코스가 없어요</Text>
       ) : (
-        filteredCourses.map((course) => (
-          <View
-            key={course.id}
-            style={styles.courseCard}
-          >
-            <View style={styles.courseHeader}>
-              <Text style={styles.courseCoupleLabel}>
-                익명의 [{course.tierEmoji} {course.tierName}] 커플
-              </Text>
-              <View style={styles.courseRegionBadge}>
-                <Text style={styles.courseRegionText}>📍 {course.area}</Text>
+        filteredCourses.map((course) => {
+          const courseContent = (
+            <>
+              <View style={styles.courseHeader}>
+                <Text style={styles.courseCoupleLabel}>
+                  익명의 [{course.tierEmoji} {course.tierName}] 커플
+                </Text>
+                <View style={styles.courseRegionBadge}>
+                  <Text style={styles.courseRegionText}>📍 {course.area}</Text>
+                </View>
               </View>
-            </View>
 
-            <View style={styles.coursePlaces}>
-              {course.places.map((place, i) => (
-                <View key={place.name} style={styles.coursePlaceRow}>
-                  <View
-                    style={[
-                      styles.coursePlaceChip,
-                      { backgroundColor: theme.accentSoft },
-                    ]}
-                  >
-                    <Text style={[styles.coursePlaceText, { color: theme.textMuted }]}>{place.name}{place.emoji}</Text>
+              <View style={styles.coursePlaces}>
+                {course.places.map((place, i) => (
+                  <View key={place.name} style={styles.coursePlaceRow}>
+                    <View
+                      style={[
+                        styles.coursePlaceChip,
+                        { backgroundColor: theme.accentSoft },
+                      ]}
+                    >
+                      <Text style={[styles.coursePlaceText, { color: theme.textMuted }]}>{place.name}{place.emoji}</Text>
+                    </View>
+                    {i < course.places.length - 1 && <Text style={styles.courseArrow}>→</Text>}
                   </View>
-                  {i < course.places.length - 1 && <Text style={styles.courseArrow}>→</Text>}
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
 
-            <View style={styles.courseTags}>
-              {course.tags.map((tag) => (
+              <View style={styles.courseTags}>
+                {course.tags.map((tag) => (
+                  <View
+                    key={tag}
+                    style={[styles.courseTag, { backgroundColor: theme.card }]}
+                  >
+                    <Text style={[styles.courseTagText, { color: theme.textMuted }]}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.courseRatingRow}>
+                <Text style={styles.courseRatingText}>나의 별점 ⭐{formatScore(course.myScore)}</Text>
                 <View
-                  key={tag}
-                  style={[styles.courseTag, { backgroundColor: theme.card }]}
+                  style={[
+                    styles.courseRatingDivider,
+                    { backgroundColor: theme.border },
+                  ]}
+                />
+                <Text style={styles.courseRatingText}>연인의 별점 ⭐{formatScore(course.partnerScore)}</Text>
+              </View>
+
+              <Text style={[styles.courseReview, { color: theme.textMuted }]}>"{course.review}"</Text>
+
+              {isSigma ? (
+                <GlassButton style={styles.courseMapBtn} onPress={() => onAddToMap(course)}>
+                  <Text style={styles.courseMapBtnText}>📍 이 코스 내 지도에 담기</Text>
+                </GlassButton>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.courseMapBtn, styles.courseMapBtnSolid]}
+                  onPress={() => onAddToMap(course)}
                 >
-                  <Text style={[styles.courseTagText, { color: theme.textMuted }]}>{tag}</Text>
-                </View>
-              ))}
+                  <Text style={styles.courseMapBtnText}>📍 이 코스 내 지도에 담기</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          );
+
+          // sigma 전용 — GlassPanel(margin/radius만 지닌 얇은 외곽 래퍼)이 카드 레이어를,
+          // courseCardInner가 콘텐츠 padding/gap을 담당한다.
+          return isSigma ? (
+            <GlassPanel key={course.id} style={styles.courseCardWrap}>
+              <View style={styles.courseCardInner}>{courseContent}</View>
+            </GlassPanel>
+          ) : (
+            <View key={course.id} style={styles.courseCard}>
+              {courseContent}
             </View>
-
-            <View style={styles.courseRatingRow}>
-              <Text style={styles.courseRatingText}>나의 별점 ⭐{formatScore(course.myScore)}</Text>
-              <View
-                style={[
-                  styles.courseRatingDivider,
-                  { backgroundColor: theme.border },
-                ]}
-              />
-              <Text style={styles.courseRatingText}>연인의 별점 ⭐{formatScore(course.partnerScore)}</Text>
-            </View>
-
-            <Text style={[styles.courseReview, { color: theme.textMuted }]}>"{course.review}"</Text>
-
-            <TouchableOpacity
-              style={[styles.courseMapBtn, styles.courseMapBtnSolid]}
-              onPress={() => onAddToMap(course)}
-            >
-              <Text style={styles.courseMapBtnText}>📍 이 코스 내 지도에 담기</Text>
-            </TouchableOpacity>
-          </View>
-        ))
+          );
+        })
       )}
     </ScrollView>
   );
@@ -653,6 +741,7 @@ function AddPlaceModal({
 export default function History() {
   const theme = useTheme();
   const themeMode = useSessionStore((s) => s.themeMode);
+  const isSigma = themeMode === 'sigma';
   const reduceAuraMotion = useSessionStore((s) => s.reduceAuraMotion);
   const styles = useMemo(() => makeStyles(theme, themeMode), [theme, themeMode]);
   const setAuraScreenKey = useSessionStore((s) => s.setAuraScreenKey);
@@ -818,64 +907,107 @@ export default function History() {
             입력하면 바로 활성화돼요
           </Text>
 
-          <View style={styles.mapPinList}>
-            <Text style={styles.mapPinListTitle}>📍 등록된 장소</Text>
-            {places.length === 0 ? (
-              <Text style={[styles.mapPinEmpty, { color: theme.textMuted }]}>아직 기록된 장소가 없어요</Text>
-            ) : (
-              <View style={styles.placeList}>
-                {places.map((place) => (
-                  <View key={place.id} style={styles.placeRow}>
-                    <View style={styles.placeRowInfo}>
-                      <Text style={styles.placeRowName} numberOfLines={1}>
-                        📍 {place.name}
-                      </Text>
-                      <Text style={styles.placeRowMeta} numberOfLines={1}>
-                        {[place.area, place.date, place.rating ? `⭐${place.rating}` : null]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </Text>
-                    </View>
-                    <TouchableOpacity onPress={() => handleDeletePlace(place.id)} hitSlop={8}>
-                      <Ionicons name="trash-outline" size={20} color={SYS.CRISIS_RED} />
-                    </TouchableOpacity>
+          {(() => {
+            const placesContent = (
+              <>
+                <Text style={styles.mapPinListTitle}>📍 등록된 장소</Text>
+                {places.length === 0 ? (
+                  <Text style={[styles.mapPinEmpty, { color: theme.textMuted }]}>아직 기록된 장소가 없어요</Text>
+                ) : (
+                  <View style={styles.placeList}>
+                    {places.map((place) => (
+                      <View key={place.id} style={styles.placeRow}>
+                        <View style={styles.placeRowInfo}>
+                          <Text style={styles.placeRowName} numberOfLines={1}>
+                            📍 {place.name}
+                          </Text>
+                          <Text style={styles.placeRowMeta} numberOfLines={1}>
+                            {[place.area, place.date, place.rating ? `⭐${place.rating}` : null]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </Text>
+                        </View>
+                        <TouchableOpacity onPress={() => handleDeletePlace(place.id)} hitSlop={8}>
+                          <Ionicons name="trash-outline" size={20} color={SYS.CRISIS_RED} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
-            )}
+                )}
 
-            <TouchableOpacity style={styles.addPlaceBtn} onPress={() => setAddPlaceVisible(true)}>
-              <Text style={styles.addPlaceBtnText}>+ 장소 추가</Text>
+                {isSigma ? (
+                  <GlassButton style={styles.addPlaceBtnGlass} onPress={() => setAddPlaceVisible(true)}>
+                    <Text style={styles.addPlaceBtnText}>+ 장소 추가</Text>
+                  </GlassButton>
+                ) : (
+                  <TouchableOpacity style={styles.addPlaceBtn} onPress={() => setAddPlaceVisible(true)}>
+                    <Text style={styles.addPlaceBtnText}>+ 장소 추가</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            );
+            // sigma 전용 — GlassPanel(얇은 외곽 래퍼)이 카드 레이어를, mapPinListInner가
+            // 콘텐츠 padding을 담당한다("카드 안에 카드" 방지).
+            return isSigma ? (
+              <GlassPanel style={styles.mapPinListWrap}>
+                <View style={styles.mapPinListInner}>{placesContent}</View>
+              </GlassPanel>
+            ) : (
+              <View style={styles.mapPinList}>{placesContent}</View>
+            );
+          })()}
+
+          {isSigma ? (
+            <GlassButton
+              style={styles.aiRecommendBtn}
+              onPress={handleOptimize}
+              disabled={places.length < 2 || optimizing}
+            >
+              {optimizing ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.aiRecommendText}>✨ 동선 최적화</Text>
+              )}
+            </GlassButton>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.aiRecommendBtn,
+                styles.optimizeBtnSolid,
+                (places.length < 2 || optimizing) && styles.disabledBtn,
+              ]}
+              onPress={handleOptimize}
+              disabled={places.length < 2 || optimizing}
+            >
+              {optimizing ? (
+                <ActivityIndicator color={SYS.TEXT_LIGHT} />
+              ) : (
+                <Text style={styles.aiRecommendText}>✨ 동선 최적화</Text>
+              )}
             </TouchableOpacity>
-          </View>
+          )}
 
-          <TouchableOpacity
-            style={[
-              styles.aiRecommendBtn,
-              styles.optimizeBtnSolid,
-              (places.length < 2 || optimizing) && styles.disabledBtn,
-            ]}
-            onPress={handleOptimize}
-            disabled={places.length < 2 || optimizing}
-          >
-            {optimizing ? (
-              <ActivityIndicator color={SYS.TEXT_LIGHT} />
-            ) : (
-              <Text style={styles.aiRecommendText}>✨ 동선 최적화</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.aiRecommendBtn, styles.aiRecommendSolid]}
-            onPress={handleAIRecommend}
-            disabled={aiLoading}
-          >
-            {aiLoading ? (
-              <ActivityIndicator color={SYS.TEXT_LIGHT} />
-            ) : (
-              <Text style={styles.aiRecommendText}>✨ AI 데이트 추천</Text>
-            )}
-          </TouchableOpacity>
+          {isSigma ? (
+            <GlassButton style={styles.aiRecommendBtn} onPress={handleAIRecommend} disabled={aiLoading}>
+              {aiLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.aiRecommendText}>✨ AI 데이트 추천</Text>
+              )}
+            </GlassButton>
+          ) : (
+            <TouchableOpacity
+              style={[styles.aiRecommendBtn, styles.aiRecommendSolid]}
+              onPress={handleAIRecommend}
+              disabled={aiLoading}
+            >
+              {aiLoading ? (
+                <ActivityIndicator color={SYS.TEXT_LIGHT} />
+              ) : (
+                <Text style={styles.aiRecommendText}>✨ AI 데이트 추천</Text>
+              )}
+            </TouchableOpacity>
+          )}
 
           <AddPlaceModal
             visible={addPlaceVisible}
@@ -988,6 +1120,24 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     borderWidth: 0.5,
     borderColor: theme.border,
   },
+  // sigma 전용 — 패럴랙스 트윈은 크기가 확정된 이 바깥 껍데기(Animated.View)에 걸고,
+  // GlassPanel(helixItemGlassWrap)이 시각 레이어를, helixItemInner가 콘텐츠 padding을
+  // 나눠 맡는다. GlassPanel에 padding까지 있는 스타일을 그대로 넘기면 블러 표면 자체가
+  // 안으로 줄어드는 문제를 피하기 위해 3단으로 분리했다.
+  helixItemSize: {
+    width: CARD_WIDTH,
+    minHeight: CARD_HEIGHT,
+    marginVertical: ITEM_MARGIN,
+    alignSelf: 'center',
+  },
+  helixItemGlassWrap: { flex: 1, borderRadius: 20 },
+  helixItemInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    gap: 8,
+  },
   helixEmoji: { fontSize: 44 },
   helixLabel: { fontSize: 14, fontWeight: '600', color: theme.text },
   helixDate: { fontSize: 11, color: theme.textMuted },
@@ -1019,11 +1169,18 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     borderColor: theme.border,
     marginBottom: 12,
   },
+  // sigma 전용 — GlassPanel(margin/radius만 지닌 얇은 외곽 래퍼)이 카드 레이어를,
+  // helixStatsBarInner가 콘텐츠 padding/레이아웃을 담당한다("카드 안에 카드" 방지 +
+  // GlassPanel에 padding을 직접 넘기면 블러 표면이 안으로 줄어드는 문제 회피).
+  helixStatsBarWrap: { marginHorizontal: 20, marginBottom: 12, borderRadius: 14 },
+  helixStatsBarInner: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 14 },
   helixStatItem: { fontSize: 13, fontWeight: '500', color: theme.text },
 
   // 커플 Wrapped(§11) 진입 버튼
   wrappedBtn: { marginHorizontal: 20, marginBottom: 16, borderRadius: 14, paddingVertical: 15, alignItems: 'center', backgroundColor: '#FFA4A4' },
   wrappedBtnSolid: { backgroundColor: BRAND.CORAL },
+  // GlassButton은 자체 borderRadius/padding을 쓰므로 레이아웃 속성만 남긴다.
+  wrappedBtnGlass: { marginHorizontal: 20, marginBottom: 16 },
   wrappedBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 
   // 지도 — 카카오맵 연동 전 플레이스홀더. "등록된 장소" 섹션은 memoryMapService 연동
@@ -1041,6 +1198,10 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     borderColor: theme.border,
     marginTop: 4,
   },
+  // sigma 전용 — GlassPanel(margin/radius/width만 지닌 얇은 외곽 래퍼)이 카드 레이어를,
+  // mapPinListInner가 콘텐츠 padding/레이아웃을 담당한다.
+  mapPinListWrap: { width: '100%', marginTop: 4, borderRadius: 16 },
+  mapPinListInner: { padding: 18, gap: 10 },
   mapPinListTitle: { fontSize: 12, color: theme.textMuted, fontWeight: '600', letterSpacing: 0.5 },
   mapPinEmpty: { ...TYPOGRAPHY.caption },
   placeList: { gap: 10, marginTop: 4 },
@@ -1064,6 +1225,8 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
+  // GlassButton은 자체 borderRadius/padding을 쓰므로 레이아웃 속성만 남긴다.
+  addPlaceBtnGlass: { marginTop: 6, alignSelf: 'flex-start' },
   addPlaceBtnText: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
   aiRecommendBtn: { width: '100%', marginTop: 8 },
   aiRecommendSolid: { backgroundColor: '#FFA4A4', borderRadius: 14, padding: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%' },
@@ -1117,6 +1280,14 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     elevation: 4,
   },
   fabPillText: { fontSize: 14, fontWeight: '600', color: theme.text },
+  fabPillTextSigma: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
 
   // 장소 추가 모달
   overlay: { flex: 1, justifyContent: 'flex-end' },
@@ -1194,6 +1365,9 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     borderWidth: 0.5,
     borderColor: 'rgba(186, 223, 219, 0.15)',
   },
+  // sigma 전용 2단 분리 — GlassPanel(얇은 외곽 래퍼)이 카드 레이어를, Inner가 padding을 담당.
+  mockBannerCardWrap: { borderRadius: 16, marginHorizontal: 20, marginBottom: 16 },
+  mockBannerCardInner: { padding: 20, alignItems: 'center', gap: 8 },
   mockBannerTitle: {
     fontSize: 15,
     fontWeight: '600',
@@ -1228,6 +1402,8 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     borderWidth: 0.5,
     borderColor: theme.border,
   },
+  ootdBarWrap: { borderRadius: 14, marginHorizontal: 20, marginBottom: 12 },
+  ootdBarInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
   ootdText: { fontSize: 13, fontWeight: '500', color: theme.text, flex: 1 },
 
   feedLoading: { marginTop: 40 },
@@ -1257,6 +1433,8 @@ function makeStyles(theme: SigmaTheme, themeMode: ThemeMode = 'dark') {
     borderWidth: 0.5,
     borderColor: theme.border,
   },
+  courseCardWrap: { borderRadius: 18, marginHorizontal: 20, marginBottom: 14 },
+  courseCardInner: { padding: 18, gap: 12 },
   courseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   courseCoupleLabel: { ...TYPOGRAPHY.bodyMedium, color: theme.text, flex: 1 },
   courseRegionBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: 'rgba(186, 223, 219, 0.20)' },
